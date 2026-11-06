@@ -4,6 +4,10 @@ JikaScript is a lightweight ECMAScript-inspired language for embedded developmen
 Source files (`.jika`) are compiled by a Go-based compiler into readable C99, then
 built with target-native tooling.
 
+Documentation site: [GitHub Pages](https://sayanriju.github.io/jikascript)
+
+Project docs and the beginner-friendly quickstart live on the GitHub Pages site.
+
 Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.md).
 
 ## Repository layout
@@ -30,8 +34,6 @@ For CH32V003 firmware builds:
 ```bash
 go build ./cmd/jikascript
 ```
-
-Project docs: https://sayanriju.github.io/jikascript
 
 ## Optional: justfile shortcuts
 

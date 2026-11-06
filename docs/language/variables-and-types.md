@@ -17,6 +17,25 @@ currentAttempt = currentAttempt + 1;
 
 ---
 
+## Reserved Names and Keywords
+
+A small set of words are reserved in JikaScript and cannot be used as variable names, property names, or function names.
+
+These include language keywords such as `let`, `const`, `function`, `return`, `if`, `else`, and the embedded-scheduler names `task`, `scheduler`, `pin`, and `start`.
+
+This is intentional: `task(...)` is the task declaration syntax, and `scheduler.start()` is the scheduler invocation syntax, not a normal identifier you can repurpose.
+
+```javascript
+let task = 1;          // invalid: `task` is reserved
+const scheduler = 5;   // invalid: `scheduler` is reserved
+let myTask = 1;        // valid
+let schedulerState = 5; // valid
+```
+
+If you're learning the language, this is worth remembering early. See [Reserved Keywords](reserved-keywords.md) for a fuller reference.
+
+---
+
 ## Automatic Type Inference
 
 Most of the time, you don't even need to write type annotations! JikaScript automatically infers the types from your values and maps them directly to efficient C primitives:
@@ -67,4 +86,4 @@ if (count == 5) {
 // if (count == "5") { ... }
 ```
 
-Next, let's explore how [Functions](language/functions.md) work in JikaScript!
+Next, let's explore how [Functions](functions.md) work in JikaScript!
