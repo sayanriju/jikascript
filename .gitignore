@@ -23,3 +23,8 @@ coverage.out
 .DS_Store
 .vscode/
 .idea/
+
+# Third-party dependencies (like ch32fun)
+third_party/*
+!third_party/.gitkeep
+
