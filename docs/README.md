@@ -14,7 +14,7 @@ JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers (st
 - **Predictable & Safe:** Zero dynamic heap allocation by default. Everything has static capacity and bounds-checking.
 - **Familiar Syntax:** Variables, arrow functions, object literals, and arrays feel just like modern JavaScript.
 - **Built-in Cooperative Multitasking:** Forget juggling raw timer interrupts. Schedule periodic tasks cleanly with simple `task(...)` calls.
-- **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood.
+- **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood, then review or tweak it before you build firmware.
 
 ---
 

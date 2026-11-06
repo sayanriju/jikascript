@@ -45,24 +45,31 @@ Want to see how clean the generated C is? Run:
 jikascript transpile blink.jika -o blink.c
 ```
 
-You'll get clean, standard C99 that sets up the pin, registers the periodic task callback, and initializes the scheduler.
+You'll get clean, standard C99 that sets up the pin, registers the periodic task callback, and initializes the scheduler. This is the perfect step to review or tweak by hand before building firmware.
 
 ---
 
 ## 3. Building Firmware (CH32V003)
 
-When you're ready to build for the CH32V003 using CH32fun:
+When you're ready to build for the CH32V003 using CH32fun, you have two easy options:
 
+### Option A: Direct source build
 ```bash
 # Optional: clone ch32fun if you haven't yet
 just get-ch32libs
 export JIKASCRIPT_CH32FUN="$(cd third_party/ch32fun && pwd)"
 
-# Build flashable firmware (or use: just build)
 jikascript build blink.jika --target ch32v003 --optimize size
 ```
 
-*(Tip: If you use [`just`](https://github.com/casey/just), you can simply run `just build` or `just transpile`!)*
+### Option B: Transpile, review, then build
+```bash
+jikascript transpile blink.jika -o blink.c
+# inspect and edit blink.c if you want a final hand-tuned tweak
+jikascript build blink.c --target ch32v003 --optimize size
+```
+
+*(Tip: If you use [`just`](https://github.com/casey/just), you can simply run `just build`, `just transpile`, or `just build-c`!)*
 
 This produces ready-to-flash binaries: `build/blink.bin`, `build/blink.hex`, and `build/blink.elf`.
 
