@@ -1,4 +1,5 @@
 - [Welcome to JikaScript](README.md)
+- [Installation](installation.md)
 - [Quickstart: Blink in 5 Minutes](quickstart.md)
 
 - **Language Guide**

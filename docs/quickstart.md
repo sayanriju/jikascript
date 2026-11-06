@@ -4,6 +4,12 @@ Let's walk through your very first JikaScript program from start to finish!
 
 ---
 
+## 0. Install First
+
+Before writing or building firmware, make sure your environment is ready. See the [Installation](installation.md) guide for the full setup steps.
+
+---
+
 ## 1. Writing Your Code
 
 Create a file named `blink.jika`:

@@ -6,7 +6,9 @@ built with target-native tooling.
 
 Documentation site: [GitHub Pages](https://sayanriju.github.io/jikascript)
 
-Project docs and the beginner-friendly quickstart live on the GitHub Pages site.
+Project docs, the beginner-friendly installation guide, and the quickstart live on the GitHub Pages site.
+
+Start here: [Installation](https://sayanriju.github.io/jikascript/installation.html)
 
 Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.md).
 
