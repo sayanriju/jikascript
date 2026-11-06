@@ -31,6 +31,8 @@ For CH32V003 firmware builds:
 go build ./cmd/jikascript
 ```
 
+Project docs: https://sayanriju.github.io/jikascript
+
 ## Optional: justfile shortcuts
 
 If you use [`just`](https://github.com/casey/just), the repo includes a [justfile](/Users/sayan/Code/MicroJS/justfile) with beginner-friendly recipes:
@@ -69,6 +71,16 @@ Generate readable C99:
 ```bash
 jikascript transpile examples/blink.jika -o build/blink.c
 ```
+
+For a beginner-friendly workflow, this is the recommended path:
+
+```bash
+jikascript transpile examples/blink.jika -o build/blink.c
+# inspect and edit build/blink.c as needed
+jikascript build build/blink.c --target ch32v003 --optimize size
+```
+
+This keeps the generated C readable and reviewable, and lets you make a final hand-tuned edit before building firmware. For quick iterations, `jikascript build examples/blink.jika ...` still works as a direct source build.
 
 ### build (CH32V003 + CH32fun)
 
@@ -109,17 +121,17 @@ export JIKASCRIPT_RISCV_GCC=/path/to/riscv64-unknown-elf-gcc
 export JIKASCRIPT_OBJCOPY=/path/to/riscv64-unknown-elf-objcopy
 ```
 
-Build directly from source:
+Direct source build:
 
 ```bash
 jikascript build examples/blink.jika --target ch32v003 --optimize size
 ```
 
-Or generate readable C first, edit it, then build from the generated file:
+Editable generated-C workflow (recommended for review/edit before flashing):
 
 ```bash
 jikascript transpile examples/blink.jika -o build/blink.c
-# edit build/blink.c as needed
+# inspect and hand-edit build/blink.c
 jikascript build build/blink.c --target ch32v003 --optimize size
 ```
 
