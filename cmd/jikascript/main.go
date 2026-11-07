@@ -251,6 +251,10 @@ func buildCH32fun(sourceC, outputDir, base, optimize string) error {
 	if ch32funRoot == "" {
 		return fmt.Errorf("JIKASCRIPT_CH32FUN must point to a CH32fun checkout")
 	}
+	frameworkDir := filepath.Join(ch32funRoot, "ch32fun")
+	if err := validateCH32funCheckout(frameworkDir); err != nil {
+		return err
+	}
 	if err := ensureFunConfig(filepath.Dir(sourceC)); err != nil {
 		return err
 	}
@@ -268,20 +272,12 @@ func buildCH32fun(sourceC, outputDir, base, optimize string) error {
 	hexOut := filepath.Join(outputDir, base+".hex")
 	binOut := filepath.Join(outputDir, base+".bin")
 
-	args := []string{
-		optFlag,
-		"-march=rv32ec",
-		"-mabi=ilp32e",
-		"-I", filepath.Dir(sourceC),
-		"-I", filepath.Join(ch32funRoot, "ch32fun"),
-		"-I", filepath.Join(".", "runtime", "periodic"),
-		"-I", filepath.Join(".", "targets", "ch32fun", "runtime"),
-		sourceC,
-		filepath.Join("runtime", "periodic", "periodic.c"),
-		filepath.Join("targets", "ch32fun", "runtime", "gpio.c"),
-		"-o", elfOut,
+	linkerScript := filepath.Join(outputDir, "jikascript_ch32v003.ld")
+	if err := generateCH32funLinkerScript(cc, frameworkDir, linkerScript); err != nil {
+		return fmt.Errorf("generate CH32fun linker script: %w", err)
 	}
 
+	args := ch32funBuildArgs(sourceC, elfOut, frameworkDir, linkerScript, optFlag)
 	if err := runCmd(cc, args...); err != nil {
 		return fmt.Errorf("risc-v gcc failed: %w", err)
 	}
@@ -293,6 +289,61 @@ func buildCH32fun(sourceC, outputDir, base, optimize string) error {
 		return fmt.Errorf("objcopy bin failed: %w", err)
 	}
 	return nil
+}
+
+func validateCH32funCheckout(frameworkDir string) error {
+	for _, name := range []string{"ch32fun.h", "ch32fun.c", "ch32fun.ld"} {
+		path := filepath.Join(frameworkDir, name)
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			return fmt.Errorf("JIKASCRIPT_CH32FUN must point to a CH32fun checkout containing ch32fun/%s", name)
+		}
+	}
+	return nil
+}
+
+func generateCH32funLinkerScript(cc, frameworkDir, output string) error {
+	return runCmd(cc,
+		"-E", "-P", "-x", "c",
+		"-DTARGET_MCU=CH32V003",
+		"-DMCU_PACKAGE=1",
+		"-DTARGET_MCU_LD=0",
+		"-DTARGET_MCU_MEMORY_SPLIT=0",
+		"-o", output,
+		filepath.Join(frameworkDir, "ch32fun.ld"),
+	)
+}
+
+// ch32funBuildArgs mirrors the CH32fun CH32V003 Makefile integration while
+// keeping JikaScript's scheduler and GPIO backend as additional C sources.
+func ch32funBuildArgs(sourceC, elfOut, frameworkDir, linkerScript, optFlag string) []string {
+	return []string{
+		optFlag,
+		"-march=rv32ec",
+		"-mabi=ilp32e",
+		"-DCH32V003",
+		"-nostdlib",
+		"-static-libgcc",
+		"-ffunction-sections",
+		"-fdata-sections",
+		"-msmall-data-limit=8",
+		"-fno-tree-loop-distribute-patterns",
+		"-I", filepath.Dir(sourceC),
+		"-I", frameworkDir,
+		"-I", filepath.Join(".", "runtime", "periodic"),
+		"-I", filepath.Join(".", "targets", "ch32fun", "runtime"),
+		filepath.Join(frameworkDir, "ch32fun.c"),
+		sourceC,
+		filepath.Join("runtime", "periodic", "periodic.c"),
+		filepath.Join("targets", "ch32fun", "runtime", "gpio.c"),
+		filepath.Join("targets", "ch32fun", "runtime", "periodic_ch32fun.c"),
+		"-T", linkerScript,
+		"-Wl,--gc-sections",
+		"-Wl,--print-memory-usage",
+		"-L", filepath.Join(filepath.Dir(frameworkDir), "misc"),
+		"-lgcc",
+		"-o", elfOut,
+	}
 }
 
 func ensureFunConfig(dir string) error {

@@ -24,11 +24,14 @@ func TestGenerateContainsMainAndTask(t *testing.T) {
 	if genErr != nil {
 		t.Fatalf("generate error: %v", genErr)
 	}
-	if !strings.Contains(out, "#include \"ch32fun.h\"") {
-		t.Fatal("expected CH32fun framework header in generated C")
+	if !strings.Contains(out, "#include \"periodic_ch32fun.h\"") {
+		t.Fatal("expected CH32fun timer adapter header in generated C")
 	}
 	if !strings.Contains(out, "periodic_init") {
 		t.Fatal("expected periodic_init in generated C")
+	}
+	if !strings.Contains(out, "gpio_ch32fun_init();") || !strings.Contains(out, "periodic_ch32fun_init();") {
+		t.Fatal("expected CH32fun and scheduler timer initialization in generated C")
 	}
 	if !strings.Contains(out, "blink") {
 		t.Fatal("expected task name in generated C")

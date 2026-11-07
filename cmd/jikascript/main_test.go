@@ -130,3 +130,21 @@ func TestEnsureFunConfigCreatesMinimalHeader(t *testing.T) {
 		t.Fatal("expected standard CH32fun guard in generated funconfig.h")
 	}
 }
+
+func TestCH32funBuildArgsUseFrameworkRuntimeAndTargetLinker(t *testing.T) {
+	args := ch32funBuildArgs("build/blink.c", "build/blink.elf", "/opt/ch32fun/ch32fun", "build/jikascript_ch32v003.ld", "-Os")
+	joined := strings.Join(args, " ")
+	for _, expected := range []string{
+		"-DCH32V003",
+		"/opt/ch32fun/ch32fun/ch32fun.c",
+		"targets/ch32fun/runtime/periodic_ch32fun.c",
+		"-T build/jikascript_ch32v003.ld",
+		"-nostdlib",
+		"-Wl,--gc-sections",
+		"-L /opt/ch32fun/misc -lgcc",
+	} {
+		if !strings.Contains(joined, expected) {
+			t.Errorf("CH32fun build arguments missing %q: %s", expected, joined)
+		}
+	}
+}

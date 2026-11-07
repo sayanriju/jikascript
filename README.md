@@ -109,8 +109,15 @@ The build expects this layout under that path:
 /absolute/path/to/ch32fun-root/
   ch32fun/
     ch32fun.h
+    ch32fun.c
+    ch32fun.ld
     ...
 ```
+
+The build compiles CH32fun's startup/runtime (`ch32fun.c`), generates its
+CH32V003 linker script from `ch32fun.ld`, and links the JikaScript GPIO and
+SysTick scheduler adapters with that framework. It is not a header-only
+integration.
 
 If `JIKASCRIPT_CH32FUN` is not set, the CH32fun build fails immediately with:
 
