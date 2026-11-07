@@ -48,7 +48,7 @@ If anything is typed incorrectly or out of bounds, the checker gives you clear, 
 Want to see how clean the generated C is? Run:
 
 ```bash
-jikascript transpile blink.jika -o blink.c
+jikascript transpile blink.jika -o out/blink.c
 ```
 
 You'll get clean, standard C99 that sets up the pin, registers the periodic task callback, and initializes the scheduler. This is the perfect step to review or tweak by hand before building firmware.
@@ -70,14 +70,35 @@ jikascript build blink.jika --target ch32v003 --optimize size
 
 ### Option B: Transpile, review, then build
 ```bash
-jikascript transpile blink.jika -o blink.c
-# inspect and edit blink.c if you want a final hand-tuned tweak
-jikascript build blink.c --target ch32v003 --optimize size
+jikascript transpile blink.jika -o out/blink.c
+# inspect and edit out/blink.c if you want a final hand-tuned tweak
+jikascript build out/blink.c --target ch32v003 --optimize size
 ```
 
 *(Tip: If you use [`just`](https://github.com/casey/just), you can simply run `just build`, `just transpile`, or `just build-c`!)*
 
-This produces ready-to-flash binaries: `build/blink.bin`, `build/blink.hex`, and `build/blink.elf`.
+This produces ready-to-flash binaries in `build/`: `build/blink.bin`, `build/blink.hex`, and `build/blink.elf`. The readable C and temporary build-support files live separately in `out/`.
+
+---
+
+## 4. Prefer PlatformIO? Export a Ready-to-Open Project
+
+If you would rather build and upload from the PlatformIO IDE, JikaScript can
+prepare a little project folder for you:
+
+```bash
+jikascript export blink.jika -o out/blink-platformio
+```
+
+That folder has a friendly `main.c`, the scheduler and GPIO support files, a
+`funconfig.h`, and a `platformio.ini` already configured for CH32fun on the
+CH32V003. Open `out/blink-platformio/` as a PlatformIO project, select the
+`ch32v003` environment, and use PlatformIO's normal **Build** or **Upload**
+buttons.
+
+One small heads-up: export recreates its destination each time. That keeps the
+project neat and prevents old generated files from tagging along, so keep any
+personal edits in your `.jika` source or outside the export directory.
 
 ---
 

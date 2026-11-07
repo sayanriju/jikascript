@@ -9,7 +9,7 @@ One of JikaScript's core design tenets is **readable, inspectable generated C**.
 When you run:
 
 ```bash
-jikascript transpile blink.jika -o blink.c
+jikascript transpile blink.jika -o out/blink.c
 ```
 
 Here is the pipeline that transforms your code:
@@ -25,6 +25,19 @@ Here is the pipeline that transforms your code:
 2. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
 3. **C Code Generation:** The compiler emits standard C99 code.
 4. **Firmware Build (Optional):** Target toolchains (e.g. GCC RISC-V with CH32fun) compile the C code directly into an `.elf` or `.bin`.
+
+Generated source and firmware artifacts have separate homes:
+
+```text
+blink.jika  →  out/blink.c  →  build/blink.elf
+                              build/blink.hex
+                              build/blink.bin
+```
+
+`out/` is for inspectable generated material; `build/` is for final firmware.
+If you need a fresh, ready-to-open PlatformIO source project, use
+`jikascript export blink.jika -o out/blink-platformio`. It packages `main.c`,
+the JikaScript C runtime, CH32fun configuration, and a PlatformIO manifest.
 
 ---
 
