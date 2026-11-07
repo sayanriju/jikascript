@@ -132,7 +132,7 @@ jikascript check examples/blink.jika
 Then transpile:
 
 ```bash
-jikascript transpile examples/blink.jika -o build/blink.c
+jikascript transpile examples/blink.jika -o out/blink.c
 ```
 
 If that works, you're ready to move on to the [Quickstart](quickstart.md) and build your first embedded program.
@@ -158,9 +158,9 @@ Install `just` first, then retry the helper commands.
 That's the recommended beginner workflow:
 
 ```bash
-jikascript transpile examples/blink.jika -o build/blink.c
-# inspect and edit build/blink.c if needed
-jikascript build build/blink.c --target ch32v003 --optimize size
+jikascript transpile examples/blink.jika -o out/blink.c
+# inspect and edit out/blink.c if needed
+jikascript build out/blink.c --target ch32v003 --optimize size
 ```
 
 This is the easiest way to review the generated C before producing firmware.

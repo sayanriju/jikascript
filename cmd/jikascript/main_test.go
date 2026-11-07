@@ -92,6 +92,14 @@ func TestPrepareBuildInputAcceptsGeneratedC(t *testing.T) {
 }
 
 func TestPrepareBuildInputTranspilesJikaSource(t *testing.T) {
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldDir) })
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "blink.jika")
 	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
@@ -106,13 +114,16 @@ func TestPrepareBuildInputTranspilesJikaSource(t *testing.T) {
 	if !strings.HasSuffix(source, ".c") {
 		t.Fatalf("expected generated C output path, got %q", source)
 	}
+	if source != filepath.Join("out", "firmware.c") {
+		t.Fatalf("expected generated C under out/, got %q", source)
+	}
 	if dir != tempDir || base != "firmware" {
 		t.Fatalf("unexpected .jika output metadata: dir=%q base=%q", dir, base)
 	}
 	if _, err := os.Stat(source); err != nil {
 		t.Fatalf("generated C file was not created: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tempDir, "funconfig.h")); err != nil {
+	if _, err := os.Stat(filepath.Join("out", "funconfig.h")); err != nil {
 		t.Fatalf("expected generated funconfig.h for build inputs: %v", err)
 	}
 }

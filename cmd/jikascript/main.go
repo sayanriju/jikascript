@@ -149,11 +149,12 @@ func prepareBuildInput(inputPath, output, target string) (string, string, string
 
 	switch ext {
 	case ".jika":
-		generated := filepath.Join(outputDir, base+".c")
+		generatedDir := "out"
+		generated := filepath.Join(generatedDir, base+".c")
 		if err := runTranspile([]string{inputPath, "-o", generated, "--target", target}); err != nil {
 			return "", "", "", err
 		}
-		if err := ensureFunConfig(outputDir); err != nil {
+		if err := ensureFunConfig(generatedDir); err != nil {
 			return "", "", "", err
 		}
 		return generated, outputDir, base, nil
@@ -272,7 +273,11 @@ func buildCH32fun(sourceC, outputDir, base, optimize string) error {
 	hexOut := filepath.Join(outputDir, base+".hex")
 	binOut := filepath.Join(outputDir, base+".bin")
 
-	linkerScript := filepath.Join(outputDir, "jikascript_ch32v003.ld")
+	intermediateDir := "out"
+	if err := os.MkdirAll(intermediateDir, 0o755); err != nil {
+		return err
+	}
+	linkerScript := filepath.Join(intermediateDir, "jikascript_ch32v003.ld")
 	if err := generateCH32funLinkerScript(cc, frameworkDir, linkerScript); err != nil {
 		return fmt.Errorf("generate CH32fun linker script: %w", err)
 	}

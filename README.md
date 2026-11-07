@@ -73,15 +73,15 @@ jikascript check examples/blink.jika
 Generate readable C99:
 
 ```bash
-jikascript transpile examples/blink.jika -o build/blink.c
+jikascript transpile examples/blink.jika -o out/blink.c
 ```
 
 For a beginner-friendly workflow, this is the recommended path:
 
 ```bash
-jikascript transpile examples/blink.jika -o build/blink.c
-# inspect and edit build/blink.c as needed
-jikascript build build/blink.c --target ch32v003 --optimize size
+jikascript transpile examples/blink.jika -o out/blink.c
+# inspect and edit out/blink.c as needed
+jikascript build out/blink.c --target ch32v003 --optimize size
 ```
 
 This keeps the generated C readable and reviewable, and lets you make a final hand-tuned edit before building firmware. For quick iterations, `jikascript build examples/blink.jika ...` still works as a direct source build.
@@ -141,9 +141,9 @@ jikascript build examples/blink.jika --target ch32v003 --optimize size
 Editable generated-C workflow (recommended for review/edit before flashing):
 
 ```bash
-jikascript transpile examples/blink.jika -o build/blink.c
-# inspect and hand-edit build/blink.c
-jikascript build build/blink.c --target ch32v003 --optimize size
+jikascript transpile examples/blink.jika -o out/blink.c
+# inspect and hand-edit out/blink.c
+jikascript build out/blink.c --target ch32v003 --optimize size
 ```
 
 Optional custom artifact prefix:
@@ -154,7 +154,8 @@ jikascript build examples/blink.jika -o dist/blink.elf
 
 Artifacts:
 
-- `build/<name>.c`
+- `out/<name>.c` (generated/intermediate source)
+- `out/funconfig.h` and `out/jikascript_ch32v003.ld` (build support files)
 - `build/<name>.elf`
 - `build/<name>.hex`
 - `build/<name>.bin`

@@ -9,6 +9,7 @@ bin/
 
 # Build outputs
 build/
+out/
 
 # C build/test artifacts
 *.o
