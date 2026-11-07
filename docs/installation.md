@@ -116,6 +116,7 @@ Or use the repo shortcuts:
 just install
 just check
 just transpile
+just export
 just build
 ```
 
@@ -136,6 +137,21 @@ jikascript transpile examples/blink.jika -o out/blink.c
 ```
 
 If that works, you're ready to move on to the [Quickstart](quickstart.md) and build your first embedded program.
+
+---
+
+## Export a PlatformIO project
+
+To create a clean, self-contained source package for PlatformIO, run:
+
+```bash
+jikascript export examples/blink.jika -o out/blink
+```
+
+The command recreates `out/blink/` and includes `main.c`, JikaScript runtime
+sources, `funconfig.h`, and a `platformio.ini` configured for the CH32V003
+CH32fun framework. Open that folder in PlatformIO and select the `ch32v003`
+environment.
 
 ---
 

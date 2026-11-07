@@ -25,6 +25,9 @@ transpile file="examples/blink.jika" out="out/blink.c": bin
 	mkdir -p "$(dirname "{{out}}")"
 	./jikascript transpile {{file}} -o {{out}}
 
+export file="examples/blink.jika" out="out/blink": bin
+	./jikascript export {{file}} -o {{out}}
+
 build source="examples/blink.jika" optimize="size": bin
 	if [ -z "${JIKASCRIPT_CH32FUN:-}" ]; then echo "JIKASCRIPT_CH32FUN must point to a CH32fun checkout"; exit 1; fi
 	./jikascript build {{source}} --target ch32v003 --optimize {{optimize}}

@@ -57,6 +57,50 @@ func TestRunCheckRejectsNonMicInput(t *testing.T) {
 	}
 }
 
+func TestRunExportCreatesSelfContainedPlatformIOProject(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	outputDir := filepath.Join(tempDir, "blink-export")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatalf("create export directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "stale.txt"), []byte("stale"), 0o644); err != nil {
+		t.Fatalf("write stale file: %v", err)
+	}
+
+	if err := runExport([]string{inputPath, "-o", outputDir}); err != nil {
+		t.Fatalf("runExport error: %v", err)
+	}
+	for _, name := range []string{
+		"main.c", "periodic.c", "periodic.h", "gpio.c", "gpio.h",
+		"periodic_ch32fun.c", "periodic_ch32fun.h", "funconfig.h",
+		"platformio.ini", "README.md",
+	} {
+		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
+			t.Errorf("export missing %s: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "stale.txt")); !os.IsNotExist(err) {
+		t.Fatalf("export should remove stale files, stat error = %v", err)
+	}
+	config, err := os.ReadFile(filepath.Join(outputDir, "platformio.ini"))
+	if err != nil {
+		t.Fatalf("read PlatformIO configuration: %v", err)
+	}
+	if !strings.Contains(string(config), "framework = ch32v003fun") {
+		t.Fatalf("export should select the CH32fun PlatformIO framework, got:\n%s", config)
+	}
+}
+
+func TestValidateExportDirRejectsCurrentDirectory(t *testing.T) {
+	if err := validateExportDir("."); err == nil {
+		t.Fatal("expected current directory to be rejected")
+	}
+}
+
 func TestValidateTargetRejectsUnknown(t *testing.T) {
 	err := validateTarget("invalid")
 	if err == nil || !strings.Contains(err.Error(), "unsupported target") {

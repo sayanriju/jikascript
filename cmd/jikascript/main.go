@@ -33,6 +33,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "export":
+		if err := runExport(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "build":
 		if err := runBuild(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -48,6 +53,7 @@ func printUsage() {
 	fmt.Println("usage:")
 	fmt.Println("  jikascript check <input.jika>")
 	fmt.Println("  jikascript transpile <input.jika> [-o output.c] [--target ch32v003]")
+	fmt.Println("  jikascript export <input.jika> [-o output-dir] [--target ch32v003]")
 	fmt.Println("  jikascript build <input.jika|input.c> [--target ch32v003] [--optimize size|speed]")
 }
 
@@ -111,6 +117,126 @@ func runTranspile(args []string) error {
 		return err
 	}
 	return os.WriteFile(opts.output, []byte(output), 0o644)
+}
+
+// runExport creates a self-contained PlatformIO project. Unlike transpile and
+// build, export deliberately recreates its destination so no stale generated
+// or runtime files remain in the package.
+func runExport(args []string) error {
+	opts, err := parseOptions(args)
+	if err != nil {
+		return err
+	}
+	if err := validateTarget(opts.target); err != nil {
+		return err
+	}
+	if opts.input == "" {
+		return fmt.Errorf("missing input file")
+	}
+	if filepath.Ext(opts.input) != ".jika" {
+		return fmt.Errorf("input must be a .jika source file: %s", opts.input)
+	}
+
+	outputDir := strings.TrimSpace(opts.output)
+	if outputDir == "" {
+		base := strings.TrimSuffix(filepath.Base(opts.input), filepath.Ext(opts.input))
+		outputDir = filepath.Join("out", base)
+	}
+	if err := validateExportDir(outputDir); err != nil {
+		return err
+	}
+
+	code, err := os.ReadFile(opts.input)
+	if err != nil {
+		return err
+	}
+	program, err := parser.ParseProgram(string(code))
+	if err != nil {
+		return fmt.Errorf("%s: %w", opts.input, err)
+	}
+	if err := checker.Check(program); err != nil {
+		return fmt.Errorf("%s: %w", opts.input, err)
+	}
+	mainC, err := cgen.Generate(program)
+	if err != nil {
+		return fmt.Errorf("%s: %w", opts.input, err)
+	}
+
+	if err := os.RemoveAll(outputDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "main.c"), []byte(mainC), 0o644); err != nil {
+		return err
+	}
+	if err := ensureFunConfig(outputDir); err != nil {
+		return err
+	}
+	for _, file := range exportedRuntimeFiles {
+		if err := copyFile(file, filepath.Join(outputDir, filepath.Base(file))); err != nil {
+			return err
+		}
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "platformio.ini"), []byte(platformIOConfig), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(exportReadme), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("export: generated PlatformIO project in %s\n", outputDir)
+	return nil
+}
+
+var exportedRuntimeFiles = []string{
+	"runtime/periodic/periodic.c",
+	"runtime/periodic/periodic.h",
+	"targets/ch32fun/runtime/gpio.c",
+	"targets/ch32fun/runtime/gpio.h",
+	"targets/ch32fun/runtime/periodic_ch32fun.c",
+	"targets/ch32fun/runtime/periodic_ch32fun.h",
+}
+
+const platformIOConfig = `[platformio]
+src_dir = .
+include_dir = .
+
+[env:ch32v003]
+platform = https://github.com/Community-PIO-CH32V/platform-ch32v.git
+board = genericCH32V003F4P6
+framework = ch32v003fun
+build_flags = -I.
+`
+
+const exportReadme = `# JikaScript export
+
+This directory is a generated, self-contained PlatformIO source project for a
+CH32V003. Open it in PlatformIO, then build or upload the `ch32v003`
+environment. Change the board in `platformio.ini` if your CH32V003 package
+differs from `genericCH32V003F4P6`.
+
+Do not edit generated runtime files; regenerate this directory with
+`jikascript export` after changing the JikaScript source.
+`
+
+func validateExportDir(dir string) error {
+	cleaned := filepath.Clean(dir)
+	if cleaned == "." || cleaned == string(filepath.Separator) {
+		return fmt.Errorf("export output directory must not be %q", dir)
+	}
+	if volume := filepath.VolumeName(cleaned); volume != "" && cleaned == volume+string(filepath.Separator) {
+		return fmt.Errorf("export output directory must not be a filesystem root")
+	}
+	return nil
+}
+
+func copyFile(source, destination string) error {
+	contents, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(destination, contents, 0o644)
 }
 
 func runBuild(args []string) error {

@@ -14,7 +14,7 @@ Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.m
 
 ## Repository layout
 
-- [cmd/jikascript/](/Users/sayan/Code/JikaScript/cmd/jikascript): CLI (`check`, `transpile`, `build`)
+- [cmd/jikascript/](/Users/sayan/Code/JikaScript/cmd/jikascript): CLI (`check`, `transpile`, `export`, `build`)
 - [internal/](/Users/sayan/Code/JikaScript/internal): lexer, parser, AST, semantic checker, C code generator
 - [runtime/periodic/](/Users/sayan/Code/JikaScript/runtime/periodic): standalone pure-C scheduler
 - [targets/ch32fun/](/Users/sayan/Code/JikaScript/targets/ch32fun): CH32V003 target config and GPIO backend
@@ -48,6 +48,7 @@ just install
 just get-ch32libs
 just check
 just transpile
+just export
 just build
 just build-c
 ```
@@ -57,6 +58,7 @@ just build-c
 ```text
 jikascript check <input.jika>
 jikascript transpile <input.jika> [-o output.c] [--target ch32v003]
+jikascript export <input.jika> [-o output-dir] [--target ch32v003]
 jikascript build <input.jika|input.c> [-o output-prefix] [--target ch32v003] [--optimize size|speed]
 ```
 
@@ -85,6 +87,21 @@ jikascript build out/blink.c --target ch32v003 --optimize size
 ```
 
 This keeps the generated C readable and reviewable, and lets you make a final hand-tuned edit before building firmware. For quick iterations, `jikascript build examples/blink.jika ...` still works as a direct source build.
+
+### export
+
+Create a fresh, self-contained PlatformIO source project for a JikaScript
+program. Export intentionally replaces its destination, so it never retains
+stale generated or runtime files:
+
+```bash
+jikascript export examples/blink.jika -o out/blink
+```
+
+The exported directory contains `main.c`, the periodic scheduler, CH32FUN GPIO
+and SysTick adapters, `funconfig.h`, and `platformio.ini`. Open `out/blink/` in
+PlatformIO and build the `ch32v003` environment. PlatformIO obtains the
+`ch32v003fun` framework declared by the exported configuration.
 
 ### build (CH32V003 + CH32fun)
 
@@ -156,6 +173,7 @@ Artifacts:
 
 - `out/<name>.c` (generated/intermediate source)
 - `out/funconfig.h` and `out/jikascript_ch32v003.ld` (build support files)
+- `out/<name>/` (isolated PlatformIO export package)
 - `build/<name>.elf`
 - `build/<name>.hex`
 - `build/<name>.bin`
