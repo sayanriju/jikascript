@@ -212,12 +212,12 @@ build_flags = -I.
 const exportReadme = `# JikaScript export
 
 This directory is a generated, self-contained PlatformIO source project for a
-CH32V003. Open it in PlatformIO, then build or upload the `ch32v003`
-environment. Change the board in `platformio.ini` if your CH32V003 package
-differs from `genericCH32V003F4P6`.
+CH32V003. Open it in PlatformIO, then build or upload the ch32v003
+environment. Change the board in platformio.ini if your CH32V003 package
+differs from genericCH32V003F4P6.
 
 Do not edit generated runtime files; regenerate this directory with
-`jikascript export` after changing the JikaScript source.
+jikascript export after changing the JikaScript source.
 `
 
 func validateExportDir(dir string) error {
