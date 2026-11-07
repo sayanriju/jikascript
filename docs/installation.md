@@ -110,6 +110,14 @@ From the project root:
 go build ./cmd/jikascript
 ```
 
+Check the installed compiler and language specification version:
+
+```bash
+jikascript version
+```
+
+For this first release, it reports JikaScript `0.1.0` and language spec `0.1.0`.
+
 Or use the repo shortcuts:
 
 ```bash

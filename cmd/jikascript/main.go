@@ -10,6 +10,7 @@ import (
 	"jikascript/internal/checker"
 	cgen "jikascript/internal/codegen/c"
 	"jikascript/internal/parser"
+	"jikascript/internal/version"
 	"jikascript/targets/ch32fun"
 )
 
@@ -23,6 +24,8 @@ func main() {
 	switch cmd {
 	case "-h", "--help", "help":
 		printUsage()
+	case "version", "--version":
+		fmt.Printf("JikaScript %s (language spec %s)\n", version.Compiler, version.Spec)
 	case "check":
 		if err := runCheck(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -51,6 +54,7 @@ func main() {
 
 func printUsage() {
 	fmt.Println("usage:")
+	fmt.Println("  jikascript version")
 	fmt.Println("  jikascript check <input.jika>")
 	fmt.Println("  jikascript transpile <input.jika> [-o output.c] [--target ch32v003]")
 	fmt.Println("  jikascript export <input.jika> [-o output-dir] [--target ch32v003]")

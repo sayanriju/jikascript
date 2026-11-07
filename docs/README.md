@@ -40,3 +40,5 @@ No obscure register bit-manipulation, no confusing ISR declarations — just cle
 Ready to dive in? Let's get [Blink running in 5 minutes](quickstart.md)!
 
 Already comfortable with PlatformIO? The [installation guide](installation.md#export-a-platformio-project) shows how to export a ready-to-open project folder.
+
+Check your compiler release at any time with `jikascript version`.

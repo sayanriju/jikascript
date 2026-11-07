@@ -57,6 +57,7 @@ just build-c
 
 ```text
 jikascript check <input.jika>
+jikascript version
 jikascript transpile <input.jika> [-o output.c] [--target ch32v003]
 jikascript export <input.jika> [-o output-dir] [--target ch32v003]
 jikascript build <input.jika|input.c> [-o output-prefix] [--target ch32v003] [--optimize size|speed]
@@ -69,6 +70,16 @@ Validate syntax and semantics (no C generation):
 ```bash
 jikascript check examples/blink.jika
 ```
+
+### version
+
+Print the compiler and language specification versions:
+
+```bash
+jikascript version
+```
+
+The initial release is `0.1.0`.
 
 ### transpile
 
