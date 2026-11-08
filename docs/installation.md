@@ -75,7 +75,8 @@ Check the installed compiler and language specification version:
 jikascript version
 ```
 
-For this first release, it reports JikaScript `0.1.0` and language spec `0.1.0`.
+It reports the compiler version and the language specification it targets, for
+example JikaScript `0.2.0` and language spec `0.1.0`.
 
 Or use the repo shortcuts:
 
