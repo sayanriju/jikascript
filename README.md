@@ -54,6 +54,18 @@ just build-c
 just flash
 ```
 
+Recipe parameters are **flags, not positional arguments**. Pass them with
+`--name=value`:
+
+```bash
+just build --source=examples/blink.jika --board=ch32v003 --optimize=speed
+just flash --source=examples/blink.jika --port=/dev/ttyUSB0
+```
+
+The positional form (`just build examples/blink.jika`) does not work and fails
+with `justfile does not contain recipe`. Run `just --list` to see the available
+options for each recipe.
+
 ## CLI usage
 
 ```text
