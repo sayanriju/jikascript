@@ -11,27 +11,35 @@ bin:
 install:
 	go install ./cmd/jikascript
 
-get-ch32libs dest="third_party/ch32fun" ref="master":
-	mkdir -p "$(dirname "{{dest}}")"
-	if [ ! -d "{{dest}}/.git" ]; then git clone https://github.com/cnlohr/ch32fun.git "{{dest}}"; fi
-	git -C "{{dest}}" fetch --all --tags
-	git -C "{{dest}}" checkout "{{ref}}"
-	@echo "Set JIKASCRIPT_CH32FUN to: $$(cd "{{dest}}" && pwd)"
-
+[arg("file", long)]
 check file="examples/blink.jika": bin
 	./jikascript check {{file}}
 
-transpile file="examples/blink.jika" out="out/blink.c": bin
-	mkdir -p "$(dirname "{{out}}")"
-	./jikascript transpile {{file}} -o {{out}}
+[arg("file", long)]
+[arg("dest", long)]
+transpile file="examples/blink.jika" dest="out/blink.c": bin
+	mkdir -p "$(dirname "{{dest}}")"
+	./jikascript transpile {{file}} --output={{dest}}
 
-export file="examples/blink.jika" out="out/blink": bin
-	./jikascript export {{file}} -o {{out}}
+[arg("file", long)]
+[arg("dest", long)]
+export file="examples/blink.jika" dest="out/blink": bin
+	./jikascript export {{file}} --output={{dest}}
 
-build source="examples/blink.jika" optimize="size": bin
-	if [ -z "${JIKASCRIPT_CH32FUN:-}" ]; then echo "JIKASCRIPT_CH32FUN must point to a CH32fun checkout"; exit 1; fi
-	./jikascript build {{source}} --target ch32v003 --optimize {{optimize}}
+[arg("source", long)]
+[arg("board", long)]
+[arg("optimize", long)]
+build source="examples/blink.jika" board="ch32v003" optimize="size": bin
+	./jikascript build {{source}} --board={{board}} --optimize={{optimize}}
 
-build-c source="out/blink.c" optimize="size": bin
-	if [ -z "${JIKASCRIPT_CH32FUN:-}" ]; then echo "JIKASCRIPT_CH32FUN must point to a CH32fun checkout"; exit 1; fi
-	./jikascript build {{source}} --target ch32v003 --optimize {{optimize}}
+[arg("source", long)]
+[arg("board", long)]
+[arg("optimize", long)]
+build-c source="out/blink.c" board="ch32v003" optimize="size": bin
+	./jikascript build {{source}} --board={{board}} --optimize={{optimize}}
+
+[arg("source", long)]
+[arg("board", long)]
+[arg("port", long)]
+flash source="examples/blink.jika" board="ch32v003" port="": bin
+	./jikascript flash {{source}} --board={{board}} {{ if port != "" { "--port=" + port } else { "" } }}
