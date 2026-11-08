@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"jikascript/internal/backend/platformio"
 	"jikascript/internal/checker"
 	cgen "jikascript/internal/codegen/c"
 	"jikascript/internal/parser"
@@ -46,6 +46,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "flash":
+		if err := runFlash(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	default:
 		printUsage()
 		os.Exit(1)
@@ -57,8 +62,9 @@ func printUsage() {
 	fmt.Println("  jikascript version")
 	fmt.Println("  jikascript check <input.jika>")
 	fmt.Println("  jikascript transpile <input.jika> [-o output.c] [--target ch32v003]")
-	fmt.Println("  jikascript export <input.jika> [-o output-dir] [--target ch32v003]")
-	fmt.Println("  jikascript build <input.jika|input.c> [--target ch32v003] [--optimize size|speed]")
+	fmt.Println("  jikascript build <input.jika|input.c> [-o output-prefix] [--target ch32v003] [--board <board>] [--env <env>] [--optimize size|speed]")
+	fmt.Println("  jikascript flash <input.jika|input.c> [--board <board>] [--env <env>] [--port <device>] [--optimize size|speed]")
+	fmt.Println("  jikascript export <input.jika> [-o output-dir] [--target ch32v003]   (deprecated: use build/flash)")
 }
 
 func runCheck(args []string) error {
@@ -126,7 +132,11 @@ func runTranspile(args []string) error {
 // runExport creates a self-contained PlatformIO project. Unlike transpile and
 // build, export deliberately recreates its destination so no stale generated
 // or runtime files remain in the package.
+//
+// Deprecated: `build` and `flash` now drive PlatformIO directly, so export is
+// kept only for users who want a project folder to open in the PlatformIO IDE.
 func runExport(args []string) error {
+	fmt.Fprintln(os.Stderr, "warning: `jikascript export` is deprecated and will be removed in a future release; use `jikascript build` or `jikascript flash` instead")
 	opts, err := parseOptions(args)
 	if err != nil {
 		return err
@@ -150,27 +160,45 @@ func runExport(args []string) error {
 		return err
 	}
 
-	code, err := os.ReadFile(opts.input)
+	board, err := platformio.ResolveBoard(opts.board)
+	if err != nil {
+		return err
+	}
+	project := platformio.Project{Dir: outputDir, Env: platformio.DefaultEnv, Board: board}
+	if err := generateProject(opts.input, project, true); err != nil {
+		return err
+	}
+	fmt.Printf("export: generated PlatformIO project in %s\n", outputDir)
+	return nil
+}
+
+// generateProject writes a PlatformIO project for the given .jika source.
+// When clean is true the destination is recreated from scratch; otherwise
+// existing files are overwritten in place.
+func generateProject(inputPath string, project platformio.Project, clean bool) error {
+	code, err := os.ReadFile(inputPath)
 	if err != nil {
 		return err
 	}
 	program, err := parser.ParseProgram(string(code))
 	if err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s: %w", inputPath, err)
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s: %w", inputPath, err)
 	}
 	mainC, err := cgen.Generate(program)
 	if err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s: %w", inputPath, err)
 	}
 
-	if err := os.RemoveAll(outputDir); err != nil {
-		return err
+	if clean {
+		if err := os.RemoveAll(project.Dir); err != nil {
+			return err
+		}
 	}
-	srcDir := filepath.Join(outputDir, "src")
-	includeDir := filepath.Join(outputDir, "include")
+	srcDir := filepath.Join(project.Dir, "src")
+	includeDir := filepath.Join(project.Dir, "include")
 	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		return err
 	}
@@ -188,17 +216,18 @@ func runExport(args []string) error {
 		if err != nil {
 			return err
 		}
-		if err := copyFile(sourcePath, filepath.Join(outputDir, file.destination)); err != nil {
+		if err := copyFile(sourcePath, filepath.Join(project.Dir, file.destination)); err != nil {
 			return err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(outputDir, "platformio.ini"), []byte(platformIOConfig), 0o644); err != nil {
+	if err := project.WriteConfig(); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(exportReadme), 0o644); err != nil {
-		return err
+	if clean {
+		if err := os.WriteFile(filepath.Join(project.Dir, "README.md"), []byte(exportReadme), 0o644); err != nil {
+			return err
+		}
 	}
-	fmt.Printf("export: generated PlatformIO project in %s\n", outputDir)
 	return nil
 }
 
@@ -213,16 +242,6 @@ var exportedRuntimeFiles = []struct {
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
 }
-
-const platformIOConfig = `[platformio]
-src_dir = src
-include_dir = include
-
-[env:ch32v003]
-platform = https://github.com/Community-PIO-CH32V/platform-ch32v.git
-board = genericCH32V003F4P6
-framework = ch32v003fun
-`
 
 const exportReadme = `# JikaScript export
 
@@ -291,47 +310,121 @@ func runBuild(args []string) error {
 		return fmt.Errorf("missing input file")
 	}
 
-	source, outputDir, base, err := prepareBuildInput(opts.input, opts.output, opts.target)
+	project, outputDir, base, err := preparePlatformIOProject(opts)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	runner := platformio.NewRunner()
+	if err := runner.EnsureAvailable(); err != nil {
 		return err
 	}
-	if err := buildCH32fun(source, outputDir, base, opts.optimize); err != nil {
+	if err := runner.Build(project); err != nil {
 		return err
 	}
-	fmt.Printf("build: generated %s, %s, %s\n",
-		filepath.Join(outputDir, base+".elf"),
-		filepath.Join(outputDir, base+".hex"),
-		filepath.Join(outputDir, base+".bin"),
-	)
+	artifacts, err := platformio.CopyArtifacts(project, outputDir, base)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("build: generated %s\n", strings.Join(artifacts, ", "))
 	return nil
 }
 
-func prepareBuildInput(inputPath, output, target string) (string, string, string, error) {
-	ext := strings.ToLower(filepath.Ext(inputPath))
-	outputDir, base := resolveBuildOutput(inputPath, output)
-
-	switch ext {
-	case ".jika":
-		generatedDir := "out"
-		generated := filepath.Join(generatedDir, base+".c")
-		if err := runTranspile([]string{inputPath, "-o", generated, "--target", target}); err != nil {
-			return "", "", "", err
-		}
-		if err := ensureFunConfig(generatedDir); err != nil {
-			return "", "", "", err
-		}
-		return generated, outputDir, base, nil
-	case ".c":
-		if err := ensureFunConfig(filepath.Dir(inputPath)); err != nil {
-			return "", "", "", err
-		}
-		return inputPath, outputDir, base, nil
-	default:
-		return "", "", "", fmt.Errorf("input must be a .jika source file or generated .c file: %s", inputPath)
+// runFlash builds the firmware with PlatformIO and uploads it to the board.
+func runFlash(args []string) error {
+	opts, err := parseOptions(args)
+	if err != nil {
+		return err
 	}
+	if err := validateTarget(opts.target); err != nil {
+		return err
+	}
+	if opts.input == "" {
+		return fmt.Errorf("missing input file")
+	}
+
+	project, outputDir, base, err := preparePlatformIOProject(opts)
+	if err != nil {
+		return err
+	}
+	runner := platformio.NewRunner()
+	if err := runner.EnsureAvailable(); err != nil {
+		return err
+	}
+	if err := runner.Upload(project, opts.port); err != nil {
+		return err
+	}
+	artifacts, err := platformio.CopyArtifacts(project, outputDir, base)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("flash: uploaded %s\n", strings.Join(artifacts, ", "))
+	return nil
+}
+
+// preparePlatformIOProject materializes a PlatformIO project for the build
+// input and returns the project plus the artifact destination.
+func preparePlatformIOProject(opts cliOptions) (platformio.Project, string, string, error) {
+	board, err := platformio.ResolveBoard(opts.board)
+	if err != nil {
+		return platformio.Project{}, "", "", err
+	}
+	env := strings.TrimSpace(opts.env)
+	if env == "" {
+		env = platformio.DefaultEnv
+	}
+	outputDir, base := resolveBuildOutput(opts.input, opts.output)
+	project := platformio.Project{
+		Dir:   filepath.Join("out", base+"-pio"),
+		Env:   env,
+		Board: board,
+	}
+
+	switch strings.ToLower(filepath.Ext(opts.input)) {
+	case ".jika":
+		if err := generateProject(opts.input, project, false); err != nil {
+			return platformio.Project{}, "", "", err
+		}
+	case ".c":
+		if err := generateProjectFromC(opts.input, project); err != nil {
+			return platformio.Project{}, "", "", err
+		}
+	default:
+		return platformio.Project{}, "", "", fmt.Errorf("input must be a .jika source file or generated .c file: %s", opts.input)
+	}
+	return project, outputDir, base, nil
+}
+
+// generateProjectFromC stages a hand-edited generated C file into a PlatformIO
+// project so the review/edit loop keeps working without a .jika source.
+func generateProjectFromC(inputPath string, project platformio.Project) error {
+	mainC, err := os.ReadFile(inputPath)
+	if err != nil {
+		return err
+	}
+	srcDir := filepath.Join(project.Dir, "src")
+	includeDir := filepath.Join(project.Dir, "include")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(includeDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "main.c"), mainC, 0o644); err != nil {
+		return err
+	}
+	if err := ensureFunConfig(includeDir); err != nil {
+		return err
+	}
+	for _, file := range exportedRuntimeFiles {
+		sourcePath, err := resolveProjectPath(file.source)
+		if err != nil {
+			return err
+		}
+		if err := copyFile(sourcePath, filepath.Join(project.Dir, file.destination)); err != nil {
+			return err
+		}
+	}
+	return project.WriteConfig()
 }
 
 type cliOptions struct {
@@ -339,6 +432,9 @@ type cliOptions struct {
 	output   string
 	target   string
 	optimize string
+	board    string
+	env      string
+	port     string
 }
 
 func parseOptions(args []string) (cliOptions, error) {
@@ -356,6 +452,18 @@ func parseOptions(args []string) (cliOptions, error) {
 			opts.optimize = strings.TrimPrefix(arg, "--optimize=")
 			continue
 		}
+		if strings.HasPrefix(arg, "--board=") {
+			opts.board = strings.TrimPrefix(arg, "--board=")
+			continue
+		}
+		if strings.HasPrefix(arg, "--env=") {
+			opts.env = strings.TrimPrefix(arg, "--env=")
+			continue
+		}
+		if strings.HasPrefix(arg, "--port=") {
+			opts.port = strings.TrimPrefix(arg, "--port=")
+			continue
+		}
 		switch arg {
 		case "--target":
 			if i+1 >= len(args) {
@@ -369,6 +477,24 @@ func parseOptions(args []string) (cliOptions, error) {
 			}
 			i++
 			opts.optimize = args[i]
+		case "--board":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("missing value for --board")
+			}
+			i++
+			opts.board = args[i]
+		case "--env":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("missing value for --env")
+			}
+			i++
+			opts.env = args[i]
+		case "--port":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("missing value for --port")
+			}
+			i++
+			opts.port = args[i]
 		case "-o":
 			if i+1 >= len(args) {
 				return opts, fmt.Errorf("missing value for -o")
@@ -413,110 +539,6 @@ func resolveBuildOutput(inputPath, output string) (string, string) {
 	return filepath.Dir(withoutExt), filepath.Base(withoutExt)
 }
 
-func buildCH32fun(sourceC, outputDir, base, optimize string) error {
-	ch32funRoot := strings.TrimSpace(os.Getenv("JIKASCRIPT_CH32FUN"))
-	if ch32funRoot == "" {
-		return fmt.Errorf("JIKASCRIPT_CH32FUN must point to a CH32fun checkout")
-	}
-	frameworkDir := filepath.Join(ch32funRoot, "ch32fun")
-	if err := validateCH32funCheckout(frameworkDir); err != nil {
-		return err
-	}
-	if err := ensureFunConfig(filepath.Dir(sourceC)); err != nil {
-		return err
-	}
-
-	target := ch32fun.NewTarget()
-	cc := toolOrDefault("JIKASCRIPT_RISCV_GCC", target.ToolchainTriple+"-gcc")
-	objcopy := toolOrDefault("JIKASCRIPT_OBJCOPY", target.ToolchainTriple+"-objcopy")
-
-	optFlag := "-Os"
-	if optimize == "speed" {
-		optFlag = "-O2"
-	}
-
-	elfOut := filepath.Join(outputDir, base+".elf")
-	hexOut := filepath.Join(outputDir, base+".hex")
-	binOut := filepath.Join(outputDir, base+".bin")
-
-	intermediateDir := "out"
-	if err := os.MkdirAll(intermediateDir, 0o755); err != nil {
-		return err
-	}
-	linkerScript := filepath.Join(intermediateDir, "jikascript_ch32v003.ld")
-	if err := generateCH32funLinkerScript(cc, frameworkDir, linkerScript); err != nil {
-		return fmt.Errorf("generate CH32fun linker script: %w", err)
-	}
-
-	args := ch32funBuildArgs(sourceC, elfOut, frameworkDir, linkerScript, optFlag)
-	if err := runCmd(cc, args...); err != nil {
-		return fmt.Errorf("risc-v gcc failed: %w", err)
-	}
-
-	if err := runCmd(objcopy, "-O", "ihex", elfOut, hexOut); err != nil {
-		return fmt.Errorf("objcopy hex failed: %w", err)
-	}
-	if err := runCmd(objcopy, "-O", "binary", elfOut, binOut); err != nil {
-		return fmt.Errorf("objcopy bin failed: %w", err)
-	}
-	return nil
-}
-
-func validateCH32funCheckout(frameworkDir string) error {
-	for _, name := range []string{"ch32fun.h", "ch32fun.c", "ch32fun.ld"} {
-		path := filepath.Join(frameworkDir, name)
-		info, err := os.Stat(path)
-		if err != nil || info.IsDir() {
-			return fmt.Errorf("JIKASCRIPT_CH32FUN must point to a CH32fun checkout containing ch32fun/%s", name)
-		}
-	}
-	return nil
-}
-
-func generateCH32funLinkerScript(cc, frameworkDir, output string) error {
-	return runCmd(cc,
-		"-E", "-P", "-x", "c",
-		"-DTARGET_MCU=CH32V003",
-		"-DMCU_PACKAGE=1",
-		"-DTARGET_MCU_LD=0",
-		"-DTARGET_MCU_MEMORY_SPLIT=0",
-		"-o", output,
-		filepath.Join(frameworkDir, "ch32fun.ld"),
-	)
-}
-
-// ch32funBuildArgs mirrors the CH32fun CH32V003 Makefile integration while
-// keeping JikaScript's scheduler and GPIO backend as additional C sources.
-func ch32funBuildArgs(sourceC, elfOut, frameworkDir, linkerScript, optFlag string) []string {
-	return []string{
-		optFlag,
-		"-march=rv32ec",
-		"-mabi=ilp32e",
-		"-DCH32V003",
-		"-nostdlib",
-		"-static-libgcc",
-		"-ffunction-sections",
-		"-fdata-sections",
-		"-msmall-data-limit=8",
-		"-fno-tree-loop-distribute-patterns",
-		"-I", filepath.Dir(sourceC),
-		"-I", frameworkDir,
-		"-I", filepath.Join(".", "runtime", "periodic"),
-		"-I", filepath.Join(".", "targets", "ch32fun", "runtime"),
-		filepath.Join(frameworkDir, "ch32fun.c"),
-		sourceC,
-		filepath.Join("runtime", "periodic", "periodic.c"),
-		filepath.Join("targets", "ch32fun", "runtime", "gpio.c"),
-		filepath.Join("targets", "ch32fun", "runtime", "periodic_ch32fun.c"),
-		"-T", linkerScript,
-		"-Wl,--gc-sections",
-		"-Wl,--print-memory-usage",
-		"-L", filepath.Join(filepath.Dir(frameworkDir), "misc"),
-		"-lgcc",
-		"-o", elfOut,
-	}
-}
-
 func ensureFunConfig(dir string) error {
 	configPath := filepath.Join(dir, "funconfig.h")
 	if _, err := os.Stat(configPath); err == nil {
@@ -536,19 +558,4 @@ func ensureFunConfig(dir string) error {
 		return err
 	}
 	return os.WriteFile(configPath, []byte(content), 0o644)
-}
-
-func runCmd(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func toolOrDefault(envVar, fallback string) string {
-	v := strings.TrimSpace(os.Getenv(envVar))
-	if v == "" {
-		return fallback
-	}
-	return v
 }

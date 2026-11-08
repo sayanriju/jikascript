@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,27 +145,38 @@ func TestResolveBuildOutputWithCustomPath(t *testing.T) {
 }
 
 func TestPrepareBuildInputAcceptsGeneratedC(t *testing.T) {
-	source, dir, base, err := prepareBuildInput("build/blink.c", "", "ch32v003")
-	if err != nil {
-		t.Fatalf("prepareBuildInput error for generated C: %v", err)
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.c")
+	if err := os.WriteFile(inputPath, []byte("int main(void) { return 0; }\n"), 0o644); err != nil {
+		t.Fatalf("write generated C: %v", err)
 	}
-	if source != "build/blink.c" {
-		t.Fatalf("unexpected generated C source path: %q", source)
+
+	project, dir, base, err := preparePlatformIOProject(cliOptions{input: inputPath, target: "ch32v003"})
+	if err != nil {
+		t.Fatalf("preparePlatformIOProject error for generated C: %v", err)
 	}
 	if dir != "build" || base != "blink" {
 		t.Fatalf("unexpected generated C output metadata: dir=%q base=%q", dir, base)
 	}
+	if project.Dir != filepath.Join("out", "blink-pio") {
+		t.Fatalf("unexpected project dir: %q", project.Dir)
+	}
+	if project.Env != "ch32v003" || project.Board != "genericCH32V003F4P6" {
+		t.Fatalf("unexpected project env/board: env=%q board=%q", project.Env, project.Board)
+	}
+	for _, name := range []string{
+		"platformio.ini",
+		"src/main.c",
+		"src/runtime/periodic.c",
+		"include/funconfig.h",
+	} {
+		if _, err := os.Stat(filepath.Join(project.Dir, name)); err != nil {
+			t.Errorf("project missing %s: %v", name, err)
+		}
+	}
 }
 
 func TestPrepareBuildInputTranspilesJikaSource(t *testing.T) {
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working directory: %v", err)
-	}
-	if err := os.Chdir(t.TempDir()); err != nil {
-		t.Fatalf("change working directory: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldDir) })
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "blink.jika")
 	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
@@ -172,24 +184,64 @@ func TestPrepareBuildInputTranspilesJikaSource(t *testing.T) {
 	}
 	outputPrefix := filepath.Join(tempDir, "firmware.elf")
 
-	source, dir, base, err := prepareBuildInput(inputPath, outputPrefix, "ch32v003")
+	project, dir, base, err := preparePlatformIOProject(cliOptions{input: inputPath, output: outputPrefix, target: "ch32v003"})
 	if err != nil {
-		t.Fatalf("prepareBuildInput error for .jika file: %v", err)
-	}
-	if !strings.HasSuffix(source, ".c") {
-		t.Fatalf("expected generated C output path, got %q", source)
-	}
-	if source != filepath.Join("out", "firmware.c") {
-		t.Fatalf("expected generated C under out/, got %q", source)
+		t.Fatalf("preparePlatformIOProject error for .jika file: %v", err)
 	}
 	if dir != tempDir || base != "firmware" {
 		t.Fatalf("unexpected .jika output metadata: dir=%q base=%q", dir, base)
 	}
-	if _, err := os.Stat(source); err != nil {
-		t.Fatalf("generated C file was not created: %v", err)
+	if project.Dir != filepath.Join("out", "firmware-pio") {
+		t.Fatalf("unexpected project dir: %q", project.Dir)
 	}
-	if _, err := os.Stat(filepath.Join("out", "funconfig.h")); err != nil {
+	mainC, err := os.ReadFile(filepath.Join(project.Dir, "src", "main.c"))
+	if err != nil {
+		t.Fatalf("read generated main.c: %v", err)
+	}
+	if !strings.Contains(string(mainC), "int main(void)") {
+		t.Fatalf("generated main.c does not look like JikaScript output:\n%s", mainC)
+	}
+	if _, err := os.Stat(filepath.Join(project.Dir, "include", "funconfig.h")); err != nil {
 		t.Fatalf("expected generated funconfig.h for build inputs: %v", err)
+	}
+}
+
+func TestPreparePlatformIOProjectRejectsUnknownBoard(t *testing.T) {
+	_, _, _, err := preparePlatformIOProject(cliOptions{input: "blink.jika", board: "esp32"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported board") {
+		t.Fatalf("expected unsupported board error, got %v", err)
+	}
+}
+
+func TestPreparePlatformIOProjectHonorsEnvAndBoard(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write temp .jika file: %v", err)
+	}
+
+	project, _, _, err := preparePlatformIOProject(cliOptions{
+		input: inputPath,
+		env:   "custom",
+		board: "genericCH32V003J4M6",
+	})
+	if err != nil {
+		t.Fatalf("preparePlatformIOProject error: %v", err)
+	}
+	if project.Env != "custom" {
+		t.Fatalf("unexpected env: %q", project.Env)
+	}
+	if project.Board != "genericCH32V003J4M6" {
+		t.Fatalf("unexpected board: %q", project.Board)
+	}
+	config, err := os.ReadFile(filepath.Join(project.Dir, "platformio.ini"))
+	if err != nil {
+		t.Fatalf("read platformio.ini: %v", err)
+	}
+	if !strings.Contains(string(config), "[env:custom]") {
+		t.Fatalf("platformio.ini missing custom env:\n%s", config)
+	}
+	if !strings.Contains(string(config), "board = genericCH32V003J4M6") {
+		t.Fatalf("platformio.ini missing selected board:\n%s", config)
 	}
 }
 
@@ -207,20 +259,157 @@ func TestEnsureFunConfigCreatesMinimalHeader(t *testing.T) {
 	}
 }
 
-func TestCH32funBuildArgsUseFrameworkRuntimeAndTargetLinker(t *testing.T) {
-	args := ch32funBuildArgs("build/blink.c", "build/blink.elf", "/opt/ch32fun/ch32fun", "build/jikascript_ch32v003.ld", "-Os")
-	joined := strings.Join(args, " ")
-	for _, expected := range []string{
-		"-DCH32V003",
-		"/opt/ch32fun/ch32fun/ch32fun.c",
-		"targets/ch32fun/runtime/periodic_ch32fun.c",
-		"-T build/jikascript_ch32v003.ld",
-		"-nostdlib",
-		"-Wl,--gc-sections",
-		"-L /opt/ch32fun/misc -lgcc",
-	} {
-		if !strings.Contains(joined, expected) {
-			t.Errorf("CH32fun build arguments missing %q: %s", expected, joined)
+func TestParseOptionsAcceptsBoardEnvAndPort(t *testing.T) {
+	opts, err := parseOptions([]string{
+		"examples/blink.jika",
+		"--board", "genericCH32V003J4M6",
+		"--env=custom",
+		"--port", "/dev/ttyUSB0",
+	})
+	if err != nil {
+		t.Fatalf("parseOptions error: %v", err)
+	}
+	if opts.board != "genericCH32V003J4M6" {
+		t.Fatalf("unexpected board: %q", opts.board)
+	}
+	if opts.env != "custom" {
+		t.Fatalf("unexpected env: %q", opts.env)
+	}
+	if opts.port != "/dev/ttyUSB0" {
+		t.Fatalf("unexpected port: %q", opts.port)
+	}
+}
+
+func TestRunExportWarnsAboutDeprecation(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	outputDir := filepath.Join(tempDir, "blink-export")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	stderr, err := captureStderr(t, func() error {
+		return runExport([]string{inputPath, "-o", outputDir})
+	})
+	if err != nil {
+		t.Fatalf("runExport error: %v", err)
+	}
+	if !strings.Contains(stderr, "deprecated") {
+		t.Fatalf("expected deprecation warning on stderr, got %q", stderr)
+	}
+}
+
+// captureStderr redirects os.Stderr for the duration of fn and returns what
+// was written to it.
+func captureStderr(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stderr pipe: %v", err)
+	}
+	original := os.Stderr
+	os.Stderr = writer
+	defer func() { os.Stderr = original }()
+
+	runErr := fn()
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close stderr writer: %v", err)
+	}
+	captured, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read captured stderr: %v", err)
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatalf("close stderr reader: %v", err)
+	}
+	return string(captured), runErr
+}
+
+// fakePio installs a stub `pio` executable on PATH that records its arguments
+// and creates the firmware artifacts PlatformIO would normally produce.
+func fakePio(t *testing.T) string {
+	t.Helper()
+	binDir := t.TempDir()
+	logPath := filepath.Join(binDir, "pio.log")
+	script := `#!/bin/sh
+echo "$@" >> "` + logPath + `"
+env=""
+prev=""
+for arg in "$@"; do
+	if [ "$prev" = "-e" ]; then env="$arg"; fi
+	prev="$arg"
+done
+if [ -n "$env" ]; then
+	mkdir -p ".pio/build/$env"
+	printf 'elf' > ".pio/build/$env/firmware.elf"
+	printf 'bin' > ".pio/build/$env/firmware.bin"
+fi
+exit 0
+`
+	if err := os.WriteFile(filepath.Join(binDir, "pio"), []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake pio: %v", err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return logPath
+}
+
+func TestRunFlashUploadsViaPlatformIO(t *testing.T) {
+	logPath := fakePio(t)
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	outputPrefix := filepath.Join(tempDir, "blink.elf")
+
+	if err := runFlash([]string{inputPath, "-o", outputPrefix, "--port", "/dev/ttyUSB0"}); err != nil {
+		t.Fatalf("runFlash error: %v", err)
+	}
+
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake pio log: %v", err)
+	}
+	invocation := string(logged)
+	for _, want := range []string{"run", "-e", "ch32v003", "-t", "upload", "--upload-port", "/dev/ttyUSB0"} {
+		if !strings.Contains(invocation, want) {
+			t.Fatalf("pio invocation missing %q:\n%s", want, invocation)
+		}
+	}
+	for _, name := range []string{"blink.elf", "blink.bin"} {
+		if _, err := os.Stat(filepath.Join(tempDir, name)); err != nil {
+			t.Errorf("flash missing artifact %s: %v", name, err)
+		}
+	}
+}
+
+func TestRunBuildInvokesPlatformIO(t *testing.T) {
+	logPath := fakePio(t)
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	outputPrefix := filepath.Join(tempDir, "blink.elf")
+
+	if err := runBuild([]string{inputPath, "-o", outputPrefix, "--env", "custom"}); err != nil {
+		t.Fatalf("runBuild error: %v", err)
+	}
+
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake pio log: %v", err)
+	}
+	invocation := string(logged)
+	if !strings.Contains(invocation, "-e custom") {
+		t.Fatalf("pio invocation missing custom env:\n%s", invocation)
+	}
+	if strings.Contains(invocation, "upload") {
+		t.Fatalf("build must not upload:\n%s", invocation)
+	}
+	for _, name := range []string{"blink.elf", "blink.bin"} {
+		if _, err := os.Stat(filepath.Join(tempDir, name)); err != nil {
+			t.Errorf("build missing artifact %s: %v", name, err)
 		}
 	}
 }
