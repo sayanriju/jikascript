@@ -206,6 +206,15 @@ Because PlatformIO appends its own default `-Os` after `build_flags`, selecting
 `speed` also emits `build_unflags = -Os` so the requested mode actually takes
 effect.
 
+### PlatformIO executable
+
+JikaScript runs `pio` from `PATH`. To use a different binary, set
+`JIKASCRIPT_PIO`:
+
+```bash
+export JIKASCRIPT_PIO=/path/to/pio
+```
+
 Artifacts:
 
 - `out/<name>.c` (generated source, when you run `transpile`)

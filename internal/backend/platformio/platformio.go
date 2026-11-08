@@ -179,9 +179,24 @@ type Runner struct {
 	Stderr *os.File
 }
 
-// NewRunner returns a Runner that uses the `pio` executable on PATH.
+// ExecutableEnvVar names the environment variable that overrides the
+// PlatformIO executable. It lets users point JikaScript at a `pio` binary that
+// is not on PATH.
+const ExecutableEnvVar = "JIKASCRIPT_PIO"
+
+// NewRunner returns a Runner that uses the `pio` executable on PATH, unless
+// JIKASCRIPT_PIO overrides it.
 func NewRunner() *Runner {
-	return &Runner{Executable: "pio"}
+	return &Runner{Executable: executableFromEnv()}
+}
+
+// executableFromEnv returns the PlatformIO executable named by
+// JIKASCRIPT_PIO, or "pio" when the variable is unset or blank.
+func executableFromEnv() string {
+	if exe := strings.TrimSpace(os.Getenv(ExecutableEnvVar)); exe != "" {
+		return exe
+	}
+	return "pio"
 }
 
 func (r *Runner) executable() string {
@@ -196,6 +211,9 @@ func (r *Runner) executable() string {
 func (r *Runner) EnsureAvailable() error {
 	exe := r.executable()
 	if _, err := exec.LookPath(exe); err != nil {
+		if strings.ContainsRune(exe, os.PathSeparator) {
+			return fmt.Errorf("PlatformIO executable %q from %s was not found or is not executable", exe, ExecutableEnvVar)
+		}
 		return fmt.Errorf("PlatformIO (%s) not found on PATH; install it with `pip install platformio` or see https://docs.platformio.org/en/latest/core/installation/", exe)
 	}
 	return nil

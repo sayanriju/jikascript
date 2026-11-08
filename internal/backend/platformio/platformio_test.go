@@ -199,6 +199,27 @@ func TestCopyArtifactsReportsMissingArtifact(t *testing.T) {
 	}
 }
 
+func TestNewRunnerDefaultsToPio(t *testing.T) {
+	t.Setenv(ExecutableEnvVar, "")
+	if got := NewRunner().Executable; got != "pio" {
+		t.Fatalf("NewRunner().Executable = %q, want %q", got, "pio")
+	}
+}
+
+func TestNewRunnerHonorsExecutableEnvVar(t *testing.T) {
+	t.Setenv(ExecutableEnvVar, "/opt/custom/bin/pio")
+	if got := NewRunner().Executable; got != "/opt/custom/bin/pio" {
+		t.Fatalf("NewRunner().Executable = %q, want the env override", got)
+	}
+}
+
+func TestNewRunnerIgnoresBlankExecutableEnvVar(t *testing.T) {
+	t.Setenv(ExecutableEnvVar, "   ")
+	if got := NewRunner().Executable; got != "pio" {
+		t.Fatalf("NewRunner().Executable = %q, want %q for a blank override", got, "pio")
+	}
+}
+
 func TestEnsureAvailableReportsMissingExecutable(t *testing.T) {
 	runner := &Runner{Executable: "definitely-not-a-real-pio-binary"}
 	err := runner.EnsureAvailable()
@@ -206,7 +227,19 @@ func TestEnsureAvailableReportsMissingExecutable(t *testing.T) {
 		t.Fatalf("expected missing PlatformIO error, got %v", err)
 	}
 }
-
+func TestEnsureAvailableReportsMissingOverridePath(t *testing.T) {
+	runner := &Runner{Executable: filepath.Join(t.TempDir(), "missing-pio")}
+	err := runner.EnsureAvailable()
+	if err == nil {
+		t.Fatal("expected an error for a missing override path")
+	}
+	if !strings.Contains(err.Error(), ExecutableEnvVar) {
+		t.Fatalf("error should name %s, got %v", ExecutableEnvVar, err)
+	}
+	if strings.Contains(err.Error(), "not found on PATH") {
+		t.Fatalf("error should not mention PATH for an explicit path, got %v", err)
+	}
+}
 func TestRunnerBuildInvokesPioWithEnv(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "pio.log")
