@@ -37,7 +37,8 @@ blink.jika  →  out/blink.c  →  build/blink.elf
 `out/` is for inspectable generated material; `build/` is for final firmware.
 If you need a fresh, ready-to-open PlatformIO source project, use
 `jikascript export blink.jika -o out/blink-platformio`. It packages `main.c`,
-the JikaScript C runtime, CH32fun configuration, and a PlatformIO manifest.
+the JikaScript C runtime, CH32fun configuration, and a PlatformIO manifest in
+the usual `src/` + `include/` project layout.
 
 ---
 

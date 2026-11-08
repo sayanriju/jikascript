@@ -156,10 +156,10 @@ To create a clean, self-contained source package for PlatformIO, run:
 jikascript export examples/blink.jika -o out/blink
 ```
 
-The command recreates `out/blink/` and includes `main.c`, JikaScript runtime
-sources, `funconfig.h`, and a `platformio.ini` configured for the CH32V003
-CH32fun framework. Open that folder in PlatformIO and select the `ch32v003`
-environment.
+The command recreates `out/blink/` with a standard PlatformIO layout:
+`src/main.c`, runtime sources under `src/runtime/`, headers under `include/`,
+and `platformio.ini` configured for the CH32V003 CH32fun framework.
+Open that folder in PlatformIO and select the `ch32v003` environment.
 
 ---
 

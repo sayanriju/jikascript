@@ -90,11 +90,11 @@ prepare a little project folder for you:
 jikascript export blink.jika -o out/blink-platformio
 ```
 
-That folder has a friendly `main.c`, the scheduler and GPIO support files, a
-`funconfig.h`, and a `platformio.ini` already configured for CH32fun on the
-CH32V003. Open `out/blink-platformio/` as a PlatformIO project, select the
-`ch32v003` environment, and use PlatformIO's normal **Build** or **Upload**
-buttons.
+That folder uses a typical PlatformIO layout: `src/main.c`, scheduler/GPIO
+runtime sources in `src/runtime/`, headers in `include/`, and a
+`platformio.ini` already configured for CH32fun on the CH32V003.
+Open `out/blink-platformio/` as a PlatformIO project, select the `ch32v003`
+environment, and use PlatformIO's normal **Build** or **Upload** buttons.
 
 One small heads-up: export recreates its destination each time. That keeps the
 project neat and prevents old generated files from tagging along, so keep any

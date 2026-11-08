@@ -109,10 +109,11 @@ stale generated or runtime files:
 jikascript export examples/blink.jika -o out/blink
 ```
 
-The exported directory contains `main.c`, the periodic scheduler, CH32FUN GPIO
-and SysTick adapters, `funconfig.h`, and `platformio.ini`. Open `out/blink/` in
-PlatformIO and build the `ch32v003` environment. PlatformIO obtains the
-`ch32v003fun` framework declared by the exported configuration.
+The exported directory follows a standard PlatformIO layout:
+`src/main.c`, `src/runtime/*.c`, `include/*.h`, and `platformio.ini`.
+Open `out/blink/` in PlatformIO and build the `ch32v003` environment.
+PlatformIO obtains the `ch32v003fun` framework declared by the exported
+configuration.
 
 ### build (CH32V003 + CH32fun)
 
