@@ -83,9 +83,16 @@ func TestRunExportCreatesSelfContainedPlatformIOProject(t *testing.T) {
 		t.Fatalf("runExport error: %v", err)
 	}
 	for _, name := range []string{
-		"main.c", "periodic.c", "periodic.h", "gpio.c", "gpio.h",
-		"periodic_ch32fun.c", "periodic_ch32fun.h", "funconfig.h",
-		"platformio.ini", "README.md",
+		"src/main.c",
+		"src/runtime/periodic.c",
+		"src/runtime/gpio.c",
+		"src/runtime/periodic_ch32fun.c",
+		"include/periodic.h",
+		"include/gpio.h",
+		"include/periodic_ch32fun.h",
+		"include/funconfig.h",
+		"platformio.ini",
+		"README.md",
 	} {
 		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
 			t.Errorf("export missing %s: %v", name, err)
@@ -100,6 +107,12 @@ func TestRunExportCreatesSelfContainedPlatformIOProject(t *testing.T) {
 	}
 	if !strings.Contains(string(config), "framework = ch32v003fun") {
 		t.Fatalf("export should select the CH32fun PlatformIO framework, got:\n%s", config)
+	}
+	if !strings.Contains(string(config), "src_dir = src") {
+		t.Fatalf("export should use src/ as PlatformIO source dir, got:\n%s", config)
+	}
+	if !strings.Contains(string(config), "include_dir = include") {
+		t.Fatalf("export should use include/ as PlatformIO include dir, got:\n%s", config)
 	}
 }
 

@@ -169,17 +169,26 @@ func runExport(args []string) error {
 	if err := os.RemoveAll(outputDir); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	srcDir := filepath.Join(outputDir, "src")
+	includeDir := filepath.Join(outputDir, "include")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outputDir, "main.c"), []byte(mainC), 0o644); err != nil {
+	if err := os.MkdirAll(includeDir, 0o755); err != nil {
 		return err
 	}
-	if err := ensureFunConfig(outputDir); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "main.c"), []byte(mainC), 0o644); err != nil {
+		return err
+	}
+	if err := ensureFunConfig(includeDir); err != nil {
 		return err
 	}
 	for _, file := range exportedRuntimeFiles {
-		if err := copyFile(file, filepath.Join(outputDir, filepath.Base(file))); err != nil {
+		sourcePath, err := resolveProjectPath(file.source)
+		if err != nil {
+			return err
+		}
+		if err := copyFile(sourcePath, filepath.Join(outputDir, file.destination)); err != nil {
 			return err
 		}
 	}
@@ -193,24 +202,26 @@ func runExport(args []string) error {
 	return nil
 }
 
-var exportedRuntimeFiles = []string{
-	"runtime/periodic/periodic.c",
-	"runtime/periodic/periodic.h",
-	"targets/ch32fun/runtime/gpio.c",
-	"targets/ch32fun/runtime/gpio.h",
-	"targets/ch32fun/runtime/periodic_ch32fun.c",
-	"targets/ch32fun/runtime/periodic_ch32fun.h",
+var exportedRuntimeFiles = []struct {
+	source      string
+	destination string
+}{
+	{source: "runtime/periodic/periodic.c", destination: "src/runtime/periodic.c"},
+	{source: "runtime/periodic/periodic.h", destination: "include/periodic.h"},
+	{source: "targets/ch32fun/runtime/gpio.c", destination: "src/runtime/gpio.c"},
+	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
+	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
+	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
 }
 
 const platformIOConfig = `[platformio]
-src_dir = .
-include_dir = .
+src_dir = src
+include_dir = include
 
 [env:ch32v003]
 platform = https://github.com/Community-PIO-CH32V/platform-ch32v.git
 board = genericCH32V003F4P6
 framework = ch32v003fun
-build_flags = -I.
 `
 
 const exportReadme = `# JikaScript export
@@ -240,7 +251,32 @@ func copyFile(source, destination string) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
 	return os.WriteFile(destination, contents, 0o644)
+}
+
+func resolveProjectPath(relativePath string) (string, error) {
+	if filepath.IsAbs(relativePath) {
+		return relativePath, nil
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		candidate := filepath.Join(dir, relativePath)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", fmt.Errorf("unable to locate project file %q from current directory", relativePath)
 }
 
 func runBuild(args []string) error {
