@@ -10,16 +10,16 @@ Project docs, the beginner-friendly installation guide, and the quickstart live 
 
 Start here: [Installation](https://sayanriju.github.io/jikascript/installation.html)
 
-Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.md).
+Authoritative requirements live in [SPEC.md](SPEC.md).
 
 ## Repository layout
 
-- [cmd/jikascript/](/Users/sayan/Code/JikaScript/cmd/jikascript): CLI (`check`, `transpile`, `build`, `flash`)
-- [internal/](/Users/sayan/Code/JikaScript/internal): lexer, parser, AST, semantic checker, C code generator
-- [internal/backend/platformio/](/Users/sayan/Code/MicroJS/internal/backend/platformio): PlatformIO build and upload runner
-- [runtime/periodic/](/Users/sayan/Code/JikaScript/runtime/periodic): standalone pure-C scheduler
-- [targets/ch32fun/](/Users/sayan/Code/JikaScript/targets/ch32fun): CH32V003 target config and GPIO backend
-- [examples/](/Users/sayan/Code/JikaScript/examples): `.jika` sample programs
+- [cmd/jikascript/](cmd/jikascript): CLI (`check`, `transpile`, `build`, `flash`)
+- [internal/](internal): lexer, parser, AST, semantic checker, C code generator
+- [internal/backend/platformio/](internal/backend/platformio): PlatformIO build and upload runner
+- [runtime/periodic/](runtime/periodic): standalone pure-C scheduler
+- [targets/ch32fun/](targets/ch32fun): CH32V003 target config and GPIO backend
+- [examples/](examples): `.jika` sample programs
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ go build ./cmd/jikascript
 
 ## Optional: justfile shortcuts
 
-If you use [`just`](https://github.com/casey/just), the repo includes a [justfile](/Users/sayan/Code/MicroJS/justfile) with beginner-friendly recipes:
+If you use [`just`](https://github.com/casey/just), the repo includes a [justfile](justfile) with beginner-friendly recipes:
 
 ```bash
 just help
@@ -65,6 +65,11 @@ just flash --source=examples/blink.jika --port=/dev/ttyUSB0
 The positional form (`just build examples/blink.jika`) does not work and fails
 with `justfile does not contain recipe`. Run `just --list` to see the available
 options for each recipe.
+
+One difference worth knowing: the `just` recipes default to `--optimize=size`,
+while the CLI itself omits the flag and lets PlatformIO choose. Both currently
+produce the same `-Os` build, but `just build --optimize=speed` is the way to
+opt into `-O2`.
 
 ## CLI usage
 
@@ -236,9 +241,9 @@ Artifacts:
 
 ## Examples
 
-- [blink.jika](/Users/sayan/Code/JikaScript/examples/blink.jika)
-- [multiple_tasks.jika](/Users/sayan/Code/JikaScript/examples/multiple_tasks.jika)
-- [conditional_task.jika](/Users/sayan/Code/JikaScript/examples/conditional_task.jika)
+- [blink.jika](examples/blink.jika)
+- [multiple_tasks.jika](examples/multiple_tasks.jika)
+- [conditional_task.jika](examples/conditional_task.jika)
 
 ## Bounded arrays (v0.1)
 

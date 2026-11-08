@@ -15,7 +15,7 @@ JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers (st
 - **Familiar Syntax:** Variables, arrow functions, object literals, and arrays feel just like modern JavaScript.
 - **Built-in Cooperative Multitasking:** Forget juggling raw timer interrupts. Schedule periodic tasks cleanly with simple `task(...)` calls.
 - **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood, then review or tweak it before you build firmware.
-- **Easy IDE Handoff:** Export a clean PlatformIO project whenever you want to continue in an IDE.
+- **One-Command Build & Flash:** `jikascript build` and `jikascript flash` drive PlatformIO for you, fetching the toolchain on first run.
 
 ---
 
@@ -39,6 +39,6 @@ No obscure register bit-manipulation, no confusing ISR declarations — just cle
 
 Ready to dive in? Let's get [Blink running in 5 minutes](quickstart.md)!
 
-Already comfortable with PlatformIO? The [installation guide](installation.md#export-a-platformio-project) shows how to export a ready-to-open project folder.
+Already comfortable with PlatformIO? The [installation guide](installation.md#build-firmware) shows how to build and upload firmware directly.
 
 Check your compiler release at any time with `jikascript version`.

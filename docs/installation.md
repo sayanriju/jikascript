@@ -82,11 +82,17 @@ Or use the repo shortcuts:
 
 ```bash
 just install
-just check
-just transpile
-just build
-just flash
+just check --file=examples/blink.jika
+just transpile --file=examples/blink.jika
+just build --source=examples/blink.jika
+just build-c --source=examples/blink.jika
+just flash --source=examples/blink.jika
 ```
+
+Recipe parameters are **flags, not positional arguments**. Pass them with
+`--name=value`; the positional form (`just build examples/blink.jika`) fails
+with `justfile does not contain recipe`. Run `just --list` to see the available
+options for each recipe.
 
 ---
 
@@ -125,6 +131,10 @@ To build and upload in one step:
 jikascript flash examples/blink.jika
 ```
 
+Add `--optimize=speed` to trade flash size for execution speed; see
+[Optimization](../README.md#optimization) for the full table. Omitting the flag
+keeps PlatformIO's default `-Os`.
+
 ---
 
 ## Export a PlatformIO project (deprecated)
@@ -151,6 +161,16 @@ Open that folder in PlatformIO and select the `ch32v003` environment.
 
 PlatformIO is not installed, or its executable is not on your `PATH`. Install it
 with `pip install platformio` and confirm `pio --version` works in a new shell.
+
+If `pio` lives somewhere unusual, point JikaScript at it directly with the
+`JIKASCRIPT_PIO` environment variable instead of changing your `PATH`:
+
+```bash
+export JIKASCRIPT_PIO=/opt/homebrew/bin/pio
+```
+
+JikaScript reports a distinct error when `JIKASCRIPT_PIO` is set but the path is
+missing or not executable, so a typo is easy to spot.
 
 ### `unsupported board "..."`
 

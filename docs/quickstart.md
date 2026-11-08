@@ -73,7 +73,7 @@ jikascript transpile blink.jika --output=out/blink.c
 jikascript build out/blink.c
 ```
 
-*(Tip: If you use [`just`](https://github.com/casey/just), you can simply run `just build`, `just transpile`, or `just build-c`!)*
+*(Tip: If you use [`just`](https://github.com/casey/just), the repo has recipes for the same steps. Recipe parameters are flags, not positional arguments: `just build --source=blink.jika`, `just transpile --file=blink.jika`, `just build-c --source=blink.jika`. Run `just --list` to see every option.)*
 
 This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
 `build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO
@@ -103,7 +103,28 @@ Use `--env` if you want to override the PlatformIO environment name (default
 
 ---
 
-## 5. Export a Ready-to-Open Project (deprecated)
+## 5. Choosing an Optimization Mode
+
+By default the build uses PlatformIO's own `-Os` (optimize for size), which is
+usually what you want on a chip with 16 KB of flash. If you would rather trade
+size for speed, pass `--optimize=speed`:
+
+```bash
+jikascript build blink.jika --optimize=speed
+```
+
+| Mode | Compiler flag | When to use it |
+| --- | --- | --- |
+| *(omitted)* | PlatformIO default (`-Os`) | Most projects |
+| `size` | `-Os` | Explicitly pinning size optimization |
+| `speed` | `-O2` | Tight timing loops where flash allows |
+
+On the reference blink example, `size` produces an 844-byte binary and `speed`
+produces a 916-byte one.
+
+---
+
+## 6. Export a Ready-to-Open Project (deprecated)
 
 > **Deprecated.** Use `jikascript build` or `jikascript flash` instead. `export`
 > will be removed in a future release.

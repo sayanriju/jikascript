@@ -37,6 +37,13 @@ blink.jika  →  out/blink.c  →  out/blink-pio/  →  build/blink.elf
 PlatformIO project; `build/` is for final firmware. `jikascript flash` runs the
 same pipeline and then uploads with `pio run -t upload`.
 
+`--optimize` is written straight into the generated `platformio.ini` as a
+`build_flags` entry (`-Os` for `size`, `-O2` for `speed`). When you override the
+default, the generator also emits `build_unflags = -Os` so PlatformIO's own
+default flag is removed first — otherwise the two would stack and the override
+would be silently ignored. Omitting `--optimize` leaves the file untouched and
+lets PlatformIO decide.
+
 If you need a fresh, ready-to-open PlatformIO source project, use
 `jikascript export blink.jika --output=out/blink-platformio` (deprecated). It packages
 `main.c`, the JikaScript C runtime, CH32fun configuration, and a PlatformIO
