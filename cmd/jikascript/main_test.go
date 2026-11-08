@@ -21,8 +21,8 @@ func TestParseOptionsDefaults(t *testing.T) {
 	if opts.target != "ch32v003" {
 		t.Fatalf("unexpected target: %s", opts.target)
 	}
-	if opts.optimize != "size" {
-		t.Fatalf("unexpected optimize mode: %s", opts.optimize)
+	if opts.optimize != "" {
+		t.Fatalf("expected no optimize mode by default, got %q", opts.optimize)
 	}
 }
 
@@ -287,6 +287,34 @@ func TestPreparePlatformIOProjectHonorsEnvAndBoard(t *testing.T) {
 	}
 	if !strings.Contains(string(config), "board = genericCH32V003J4M6") {
 		t.Fatalf("platformio.ini missing selected board:\n%s", config)
+	}
+}
+
+func TestPreparePlatformIOProjectHonorsOptimize(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write temp .jika file: %v", err)
+	}
+
+	cases := map[string]string{
+		"size":  "build_flags = -Os",
+		"speed": "build_flags = -O2",
+	}
+	for mode, expected := range cases {
+		project, _, _, err := preparePlatformIOProject(cliOptions{input: inputPath, optimize: mode})
+		if err != nil {
+			t.Fatalf("preparePlatformIOProject(%s) error: %v", mode, err)
+		}
+		if project.Optimize != mode {
+			t.Fatalf("unexpected optimize mode: %q", project.Optimize)
+		}
+		config, err := os.ReadFile(filepath.Join(project.Dir, "platformio.ini"))
+		if err != nil {
+			t.Fatalf("read platformio.ini: %v", err)
+		}
+		if !strings.Contains(string(config), expected) {
+			t.Fatalf("optimize=%s: platformio.ini missing %q:\n%s", mode, expected, config)
+		}
 	}
 }
 

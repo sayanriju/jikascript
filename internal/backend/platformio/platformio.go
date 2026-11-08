@@ -75,6 +75,35 @@ func sortStrings(values []string) {
 	}
 }
 
+// Optimize modes accepted by Project.Optimize.
+const (
+	// OptimizeSize favors a small firmware image.
+	OptimizeSize = "size"
+	// OptimizeSpeed favors execution speed.
+	OptimizeSpeed = "speed"
+)
+
+// optimizeFlags maps an optimization mode to the compiler flags that
+// implement it.
+var optimizeFlags = map[string]string{
+	OptimizeSize:  "-Os",
+	OptimizeSpeed: "-O2",
+}
+
+// ResolveOptimize normalizes a user-supplied optimization mode. An empty mode
+// is valid and means "leave the toolchain default alone", so it resolves to
+// the empty string rather than to a concrete mode.
+func ResolveOptimize(mode string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(mode))
+	if trimmed == "" {
+		return "", nil
+	}
+	if _, ok := optimizeFlags[trimmed]; ok {
+		return trimmed, nil
+	}
+	return "", fmt.Errorf("unsupported optimize mode %q (use %s or %s)", mode, OptimizeSize, OptimizeSpeed)
+}
+
 // Project describes a generated PlatformIO project on disk.
 type Project struct {
 	// Dir is the project root that contains platformio.ini.
@@ -83,11 +112,14 @@ type Project struct {
 	Env string
 	// Board is the resolved PlatformIO board identifier.
 	Board string
+	// Optimize selects the compiler optimization mode. Empty means the
+	// PlatformIO platform default is used unchanged.
+	Optimize string
 }
 
 // Config renders the platformio.ini contents for the project.
 func (p Project) Config() string {
-	return fmt.Sprintf(`[platformio]
+	config := fmt.Sprintf(`[platformio]
 src_dir = src
 include_dir = include
 
@@ -96,7 +128,29 @@ platform = %s
 board = %s
 framework = %s
 `, p.Env, PlatformURL, p.Board, Framework)
+	if flags := p.buildFlags(); flags != "" {
+		// PlatformIO appends its own default CCFLAGS after build_flags, so a
+		// requested mode that differs from the platform default would be
+		// overridden. Strip the default first, then apply the selected mode.
+		// When the mode matches the default, leave it alone: build_unflags
+		// would remove the flag we are about to add.
+		if flags != defaultOptimizeFlag {
+			config += fmt.Sprintf("build_unflags = %s\n", defaultOptimizeFlag)
+		}
+		config += fmt.Sprintf("build_flags = %s\n", flags)
+	}
+	return config
 }
+
+// buildFlags returns the compiler flags for the project's optimization mode,
+// or an empty string when no mode was requested.
+func (p Project) buildFlags() string {
+	return optimizeFlags[p.Optimize]
+}
+
+// defaultOptimizeFlag is the optimization flag PlatformIO's CH32V platform
+// injects by default.
+const defaultOptimizeFlag = "-Os"
 
 // WriteConfig writes platformio.ini into the project directory.
 func (p Project) WriteConfig() error {

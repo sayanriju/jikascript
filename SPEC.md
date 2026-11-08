@@ -959,7 +959,6 @@ The native compiler should use an optimization level suitable for embedded produ
 Default optimization should initially favor code size.
 
 Allow the user to override optimization settings.
-
 Expected output:
 
 ```text
@@ -1073,6 +1072,12 @@ jikascript transpile blink.jika --target=ch32v003
 `--board` selects the CH32V003 package variant and defaults to `ch32v003`,
 which maps to the PlatformIO board `genericCH32V003F4P6`. `--env` overrides the
 PlatformIO environment name and defaults to `ch32v003`.
+
+`--optimize` is optional. When omitted, the PlatformIO platform default is used
+unchanged and no `build_flags` are emitted. `--optimize=size` selects `-Os` and
+`--optimize=speed` selects `-O2`; the latter also emits `build_unflags = -Os`
+because PlatformIO appends its own default optimization flag after
+`build_flags`.
 
 Build environment variables:
 

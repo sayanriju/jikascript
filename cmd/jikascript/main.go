@@ -368,15 +368,20 @@ func preparePlatformIOProject(opts cliOptions) (platformio.Project, string, stri
 	if err != nil {
 		return platformio.Project{}, "", "", err
 	}
+	optimize, err := platformio.ResolveOptimize(opts.optimize)
+	if err != nil {
+		return platformio.Project{}, "", "", err
+	}
 	env := strings.TrimSpace(opts.env)
 	if env == "" {
 		env = platformio.DefaultEnv
 	}
 	outputDir, base := resolveBuildOutput(opts.input, opts.output)
 	project := platformio.Project{
-		Dir:   filepath.Join("out", base+"-pio"),
-		Env:   env,
-		Board: board,
+		Dir:      filepath.Join("out", base+"-pio"),
+		Env:      env,
+		Board:    board,
+		Optimize: optimize,
 	}
 
 	switch strings.ToLower(filepath.Ext(opts.input)) {
@@ -439,8 +444,7 @@ type cliOptions struct {
 
 func parseOptions(args []string) (cliOptions, error) {
 	opts := cliOptions{
-		target:   ch32fun.NewTarget().Name,
-		optimize: ch32fun.NewTarget().DefaultOptimizeOpt,
+		target: ch32fun.NewTarget().Name,
 	}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -526,7 +530,7 @@ func parseOptions(args []string) (cliOptions, error) {
 			return opts, fmt.Errorf("unexpected argument: %s", arg)
 		}
 	}
-	if opts.optimize != "size" && opts.optimize != "speed" {
+	if opts.optimize != "" && opts.optimize != "size" && opts.optimize != "speed" {
 		return opts, fmt.Errorf("unsupported optimize mode %q (use size or speed)", opts.optimize)
 	}
 	return opts, nil

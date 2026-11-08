@@ -59,6 +59,76 @@ func TestProjectConfigContainsEnvironment(t *testing.T) {
 	}
 }
 
+func TestResolveOptimizeDefaultsToEmpty(t *testing.T) {
+	mode, err := ResolveOptimize("")
+	if err != nil {
+		t.Fatalf("ResolveOptimize error: %v", err)
+	}
+	if mode != "" {
+		t.Fatalf("ResolveOptimize(\"\") = %q, want empty", mode)
+	}
+}
+
+func TestResolveOptimizeAcceptsKnownModes(t *testing.T) {
+	for _, mode := range []string{"size", "speed", "SIZE", " Speed "} {
+		got, err := ResolveOptimize(mode)
+		if err != nil {
+			t.Fatalf("ResolveOptimize(%q) error: %v", mode, err)
+		}
+		if got != strings.ToLower(strings.TrimSpace(mode)) {
+			t.Fatalf("ResolveOptimize(%q) = %q", mode, got)
+		}
+	}
+}
+
+func TestResolveOptimizeRejectsUnknown(t *testing.T) {
+	_, err := ResolveOptimize("balanced")
+	if err == nil || !strings.Contains(err.Error(), "unsupported optimize mode") {
+		t.Fatalf("expected unsupported optimize mode error, got %v", err)
+	}
+}
+
+func TestProjectConfigEmitsOptimizeFlags(t *testing.T) {
+	cases := map[string]string{
+		OptimizeSize:  "-Os",
+		OptimizeSpeed: "-O2",
+	}
+	for mode, flag := range cases {
+		project := Project{Dir: t.TempDir(), Env: DefaultEnv, Board: DefaultBoard, Optimize: mode}
+		config := project.Config()
+		if !strings.Contains(config, "build_flags = "+flag) {
+			t.Errorf("optimize=%s: platformio.ini missing %q:\n%s", mode, "build_flags = "+flag, config)
+		}
+	}
+}
+
+func TestProjectConfigUnflagsDefaultOnlyWhenOverriding(t *testing.T) {
+	// The platform injects -Os by default. Overriding it requires stripping
+	// the default first, otherwise PlatformIO's flag wins.
+	speed := Project{Dir: t.TempDir(), Env: DefaultEnv, Board: DefaultBoard, Optimize: OptimizeSpeed}
+	if config := speed.Config(); !strings.Contains(config, "build_unflags = -Os") {
+		t.Fatalf("speed mode must unflag the platform default:\n%s", config)
+	}
+
+	// Requesting the default must not unflag it, or the flag would be
+	// stripped and never re-added, leaving the build unoptimized.
+	size := Project{Dir: t.TempDir(), Env: DefaultEnv, Board: DefaultBoard, Optimize: OptimizeSize}
+	if config := size.Config(); strings.Contains(config, "build_unflags") {
+		t.Fatalf("size mode must not unflag its own flag:\n%s", config)
+	}
+}
+
+func TestProjectConfigOmitsFlagsWhenOptimizeUnset(t *testing.T) {
+	project := Project{Dir: t.TempDir(), Env: DefaultEnv, Board: DefaultBoard}
+	config := project.Config()
+	if strings.Contains(config, "build_flags") {
+		t.Fatalf("unset optimize must not emit build_flags:\n%s", config)
+	}
+	if strings.Contains(config, "build_unflags") {
+		t.Fatalf("unset optimize must not emit build_unflags:\n%s", config)
+	}
+}
+
 func TestProjectWriteConfig(t *testing.T) {
 	dir := t.TempDir()
 	project := Project{Dir: dir, Env: DefaultEnv, Board: DefaultBoard}

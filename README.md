@@ -65,6 +65,9 @@ jikascript flash <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--e
 jikascript export <input.jika> [--output=<dir>] [--target=ch32v003]   (deprecated)
 ```
 
+`--optimize` is optional. When omitted, the PlatformIO platform default is used
+unchanged. Pass `--optimize=size` for `-Os` or `--optimize=speed` for `-O2`.
+
 ### check
 
 Validate syntax and semantics (no C generation):
@@ -187,6 +190,21 @@ jikascript flash examples/blink.jika --port=/dev/ttyUSB0
 ```
 
 `flash` accepts the same `--board`, `--env`, and `--optimize` flags as `build`.
+
+### Optimization
+
+`--optimize` is optional and defaults to leaving the PlatformIO platform
+default untouched:
+
+| Flag | Compiler flags | Notes |
+| --- | --- | --- |
+| *(omitted)* | platform default | No `build_flags` emitted |
+| `--optimize=size` | `-Os` | Smallest firmware |
+| `--optimize=speed` | `-O2` | Faster code, slightly larger |
+
+Because PlatformIO appends its own default `-Os` after `build_flags`, selecting
+`speed` also emits `build_unflags = -Os` so the requested mode actually takes
+effect.
 
 Artifacts:
 
