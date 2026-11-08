@@ -48,7 +48,7 @@ If anything is typed incorrectly or out of bounds, the checker gives you clear, 
 Want to see how clean the generated C is? Run:
 
 ```bash
-jikascript transpile blink.jika -o out/blink.c
+jikascript transpile blink.jika --output=out/blink.c
 ```
 
 You'll get clean, standard C99 that sets up the pin, registers the periodic task callback, and initializes the scheduler. This is the perfect step to review or tweak by hand before building firmware.
@@ -57,37 +57,62 @@ You'll get clean, standard C99 that sets up the pin, registers the periodic task
 
 ## 3. Building Firmware (CH32V003)
 
-When you're ready to build for the CH32V003 using CH32fun, you have two easy options:
+When you're ready to build for the CH32V003, `jikascript` drives PlatformIO for
+you. PlatformIO fetches the CH32fun framework and the RISC-V toolchain on first
+build, so there is nothing else to install or configure.
 
 ### Option A: Direct source build
 ```bash
-# Optional: clone ch32fun if you haven't yet
-just get-ch32libs
-export JIKASCRIPT_CH32FUN="$(cd third_party/ch32fun && pwd)"
-
-jikascript build blink.jika --target ch32v003 --optimize size
+jikascript build blink.jika
 ```
 
 ### Option B: Transpile, review, then build
 ```bash
-jikascript transpile blink.jika -o out/blink.c
+jikascript transpile blink.jika --output=out/blink.c
 # inspect and edit out/blink.c if you want a final hand-tuned tweak
-jikascript build out/blink.c --target ch32v003 --optimize size
+jikascript build out/blink.c
 ```
 
 *(Tip: If you use [`just`](https://github.com/casey/just), you can simply run `just build`, `just transpile`, or `just build-c`!)*
 
-This produces ready-to-flash binaries in `build/`: `build/blink.bin`, `build/blink.hex`, and `build/blink.elf`. The readable C and temporary build-support files live separately in `out/`.
+This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
+`build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO
+project lives in `out/blink-pio/`.
+
+### Option C: Build and upload in one step
+```bash
+jikascript flash blink.jika
+```
+
+Add `--port=/dev/ttyUSB0` (or your programmer's device path) to target a
+specific device.
 
 ---
 
-## 4. Prefer PlatformIO? Export a Ready-to-Open Project
+## 4. Board Selection
+
+`--board` picks the CH32V003 package variant. The default is `ch32v003`, which
+maps to `genericCH32V003F4P6`:
+
+```bash
+jikascript build blink.jika --board=genericCH32V003J4M6
+```
+
+Use `--env` if you want to override the PlatformIO environment name (default
+`ch32v003`).
+
+---
+
+## 5. Export a Ready-to-Open Project (deprecated)
+
+> **Deprecated.** Use `jikascript build` or `jikascript flash` instead. `export`
+> will be removed in a future release.
 
 If you would rather build and upload from the PlatformIO IDE, JikaScript can
 prepare a little project folder for you:
 
 ```bash
-jikascript export blink.jika -o out/blink-platformio
+jikascript export blink.jika --output=out/blink-platformio
 ```
 
 That folder uses a typical PlatformIO layout: `src/main.c`, scheduler/GPIO

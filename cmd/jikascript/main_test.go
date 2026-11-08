@@ -52,6 +52,51 @@ func TestParseOptionsRejectsUnknownOption(t *testing.T) {
 	}
 }
 
+func TestParseOptionsAcceptsOutputFlag(t *testing.T) {
+	for _, args := range [][]string{
+		{"examples/blink.jika", "--output=build/blink.c"},
+		{"examples/blink.jika", "--output", "build/blink.c"},
+		{"examples/blink.jika", "-o", "build/blink.c"},
+	} {
+		opts, err := parseOptions(args)
+		if err != nil {
+			t.Fatalf("parseOptions(%v) error: %v", args, err)
+		}
+		if opts.output != "build/blink.c" {
+			t.Fatalf("parseOptions(%v) output = %q, want %q", args, opts.output, "build/blink.c")
+		}
+	}
+}
+
+func TestParseOptionsAcceptsEqualsFormForAllFlags(t *testing.T) {
+	opts, err := parseOptions([]string{
+		"examples/blink.jika",
+		"--output=build/blink.elf",
+		"--board=genericCH32V003J4M6",
+		"--env=ch32v003",
+		"--optimize=speed",
+		"--port=/dev/ttyUSB0",
+	})
+	if err != nil {
+		t.Fatalf("parseOptions error: %v", err)
+	}
+	if opts.output != "build/blink.elf" {
+		t.Fatalf("unexpected output: %s", opts.output)
+	}
+	if opts.board != "genericCH32V003J4M6" {
+		t.Fatalf("unexpected board: %s", opts.board)
+	}
+	if opts.env != "ch32v003" {
+		t.Fatalf("unexpected env: %s", opts.env)
+	}
+	if opts.optimize != "speed" {
+		t.Fatalf("unexpected optimize mode: %s", opts.optimize)
+	}
+	if opts.port != "/dev/ttyUSB0" {
+		t.Fatalf("unexpected port: %s", opts.port)
+	}
+}
+
 func TestParseOptionsRejectsUnknownOptimizeMode(t *testing.T) {
 	_, err := parseOptions([]string{"examples/blink.jika", "--optimize", "balanced"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported optimize mode") {

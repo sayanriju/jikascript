@@ -943,16 +943,20 @@ Requirements:
 - Parse and validate `.jika` source when the input is a source file.
 - Generate readable C during the transpile step if the input is `.jika`.
 - Accept a generated `.c` file as a build input so the generated code may be reviewed or hand-edited before flashing.
-- Require `JIKASCRIPT_CH32FUN` to point to a CH32fun checkout root that contains `ch32fun/ch32fun.h`.
-- Invoke the configured target C toolchain.
-- Link the required runtime and hardware libraries.
-- Ensure a minimal `funconfig.h` is available in the generated/input C directory when one is not already present.
-- Produce firmware artifacts.
+- Require PlatformIO Core (`pio`) to be available on `PATH`.
+- Generate a PlatformIO project for the selected board and environment.
+- Invoke `pio run` for that environment to compile and link the firmware.
+- Ensure a minimal `funconfig.h` is available in the generated project's include directory when one is not already present.
+- Copy the resulting firmware artifacts to the build output directory.
 - Report build errors clearly.
+
+PlatformIO supplies the CH32V platform, the `ch32v003fun` framework, and the
+RISC-V toolchain, so no separate CH32fun checkout or toolchain installation is
+required.
 
 The native compiler should use an optimization level suitable for embedded production builds.
 
-Default optimization should initially favor code size, such as GCC `-Os`.
+Default optimization should initially favor code size.
 
 Allow the user to override optimization settings.
 
@@ -961,7 +965,6 @@ Expected output:
 ```text
 build/
 ├── blink.elf
-├── blink.hex
 ├── blink.bin
 └── ...
 ```
@@ -970,7 +973,28 @@ The exact output formats depend on the target toolchain.
 
 Important: the compiler must not sacrifice correctness to minimize generated code.
 
-## 9.2 transpile
+## 9.2 flash
+
+Command:
+
+```bash
+jikascript flash blink.jika
+# or, after a transpile step and optional hand-edit:
+jikascript flash blink.c
+```
+
+Purpose:
+
+Build firmware and upload it to a connected device.
+
+Requirements:
+
+- Perform the same generation and build steps as `build`.
+- Invoke `pio run -t upload` for the selected environment.
+- Accept an optional `--port` to select the upload device.
+- Report upload errors clearly and exit non-zero on failure.
+
+## 9.3 transpile
 
 Command:
 
@@ -995,12 +1019,12 @@ Requirements:
 Example:
 
 ```bash
-jikascript transpile blink.jika -o blink.c
+jikascript transpile blink.jika --output=blink.c
 # review/edit blink.c
 jikascript build blink.c
 ```
 
-## 9.3 check
+## 9.4 check
 
 Command:
 
@@ -1012,26 +1036,49 @@ Purpose:
 
 Validate syntax and semantics without generating firmware.
 
-## 9.4 Additional options
+## 9.5 export (deprecated)
+
+Command:
+
+```bash
+jikascript export blink.jika --output=out/blink
+```
+
+Purpose:
+
+Write a self-contained PlatformIO source project for a `.jika` program.
+
+Status:
+
+Deprecated. `build` and `flash` drive PlatformIO directly, so `export` is
+retained only for users who want a project folder to open in the PlatformIO
+IDE. It must print a deprecation warning to stderr and will be removed in a
+future release.
+
+## 9.6 Additional options
 
 Potential options:
 
 ```bash
-jikascript build blink.jika --target ch32v003
-jikascript build blink.c --target ch32v003
-jikascript build blink.jika --optimize size
-jikascript build blink.c --optimize speed
-jikascript build blink.jika -o dist/blink.elf
-jikascript transpile blink.jika --target ch32v003
+jikascript build blink.jika --board=ch32v003
+jikascript build blink.c --board=genericCH32V003J4M6
+jikascript build blink.jika --env=ch32v003
+jikascript build blink.jika --optimize=size
+jikascript build blink.c --optimize=speed
+jikascript build blink.jika --output=dist/blink.elf
+jikascript flash blink.jika --port=/dev/ttyUSB0
+jikascript transpile blink.jika --target=ch32v003
 ```
+
+`--board` selects the CH32V003 package variant and defaults to `ch32v003`,
+which maps to the PlatformIO board `genericCH32V003F4P6`. `--env` overrides the
+PlatformIO environment name and defaults to `ch32v003`.
 
 Build environment variables:
 
 ```bash
-export JIKASCRIPT_CH32FUN=/absolute/path/to/ch32fun-root
-# optional overrides:
-export JIKASCRIPT_RISCV_GCC=/path/to/riscv64-unknown-elf-gcc
-export JIKASCRIPT_OBJCOPY=/path/to/riscv64-unknown-elf-objcopy
+# Optional: override the PlatformIO executable if it is not on PATH.
+export JIKASCRIPT_PIO=/path/to/pio
 ```
 
 The initial release only needs essential functionality. Do not implement every possible option prematurely.
@@ -1320,7 +1367,7 @@ Deliverable: Readable, compilable C output.
 - Add CH32V003 target configuration.
 - Add GPIO backend.
 - Integrate standalone scheduler.
-- Invoke RISC-V GCC.
+- Build firmware through PlatformIO with the `ch32v003fun` framework.
 - Produce firmware artifacts.
 - Test actual hardware.
 
@@ -1352,8 +1399,9 @@ JikaScript v0.1 is complete when:
 8. GPIO operations work on CH32V003 through CH32fun.
 9. `jikascript transpile` produces readable C.
 10. `jikascript build` produces optimized firmware.
-11. The generated firmware runs on a physical CH32V003 board.
-12. The generated code has no C++ dependency.
+11. `jikascript flash` uploads firmware to a connected device.
+12. The generated firmware runs on a physical CH32V003 board.
+13. The generated code has no C++ dependency.
 
 ---
 

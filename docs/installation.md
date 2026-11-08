@@ -6,10 +6,8 @@ If you are brand-new to embedded development, the easiest path is:
 
 1. install Go
 2. install `just`
-3. install the CH32fun checkout
-4. install the RISC-V toolchain
-5. set `JIKASCRIPT_CH32FUN`
-6. run your first `jikascript` command
+3. install PlatformIO
+4. run your first `jikascript` command
 
 ---
 
@@ -39,70 +37,31 @@ If `just` is not installed yet, install it before continuing.
 
 ---
 
-## 3. Install the CH32fun library
+## 3. Install PlatformIO
 
-JikaScript targets CH32V003 firmware via the CH32fun ecosystem. The compiler expects a real CH32fun checkout to exist on disk.
+JikaScript targets CH32V003 firmware through [PlatformIO](https://platformio.org/).
+PlatformIO downloads the CH32V platform, the `ch32v003fun` framework, and the
+RISC-V toolchain on first build, so you do not need a separate CH32fun checkout
+or a manually installed toolchain.
 
-The simplest route is to use the helper recipe included in the repo:
+Install PlatformIO Core:
 
 ```bash
-just get-ch32libs
+pip install platformio
 ```
 
-This will pull the CH32fun dependency into a local folder used by the project.
+Or install the PlatformIO IDE extension for VS Code, which bundles the same
+Core.
 
-If you prefer to do it manually, clone or place the CH32fun repo somewhere on your machine and note its parent directory.
-
----
-
-## 4. Install the RISC-V toolchain
-
-For real firmware builds, you need the CH32V003 toolchain:
-
-- `riscv64-unknown-elf-gcc`
-- `riscv64-unknown-elf-objcopy`
-
-Install the standard RISC-V GNU toolchain for your platform.
-
-You can verify it is available:
+Verify it is available on your `PATH`:
 
 ```bash
-riscv64-unknown-elf-gcc --version
-riscv64-unknown-elf-objcopy --version
+pio --version
 ```
 
 ---
 
-## 5. Set `JIKASCRIPT_CH32FUN`
-
-The build system requires `JIKASCRIPT_CH32FUN` to point to the parent directory of the CH32fun checkout.
-
-For example:
-
-```bash
-export JIKASCRIPT_CH32FUN="/absolute/path/to/ch32fun-root"
-```
-
-The expected layout is:
-
-```text
-/absolute/path/to/ch32fun-root/
-  ch32fun/
-    ch32fun.h
-    ...
-```
-
-If you're using the repo helper, this is typically the path to the folder containing the CH32fun checkout, for example:
-
-```bash
-export JIKASCRIPT_CH32FUN="$(cd third_party/ch32fun && pwd)"
-```
-
-If `JIKASCRIPT_CH32FUN` is missing or wrong, the firmware build will fail early with a clear error.
-
----
-
-## 6. Build the CLI
+## 4. Build the CLI
 
 From the project root:
 
@@ -124,13 +83,13 @@ Or use the repo shortcuts:
 just install
 just check
 just transpile
-just export
 just build
+just flash
 ```
 
 ---
 
-## 7. Your first check
+## 5. Your first check
 
 Try the checker:
 
@@ -141,19 +100,41 @@ jikascript check examples/blink.jika
 Then transpile:
 
 ```bash
-jikascript transpile examples/blink.jika -o out/blink.c
+jikascript transpile examples/blink.jika --output=out/blink.c
 ```
 
 If that works, you're ready to move on to the [Quickstart](quickstart.md) and build your first embedded program.
 
 ---
 
-## Export a PlatformIO project
+## Build firmware
+
+Build a CH32V003 firmware image with a single command:
+
+```bash
+jikascript build examples/blink.jika
+```
+
+This generates a PlatformIO project under `out/blink-pio/`, runs `pio run`, and
+copies the result to `build/blink.elf` and `build/blink.bin`.
+
+To build and upload in one step:
+
+```bash
+jikascript flash examples/blink.jika
+```
+
+---
+
+## Export a PlatformIO project (deprecated)
+
+> **Deprecated.** Use `jikascript build` or `jikascript flash` instead. `export`
+> will be removed in a future release.
 
 To create a clean, self-contained source package for PlatformIO, run:
 
 ```bash
-jikascript export examples/blink.jika -o out/blink
+jikascript export examples/blink.jika --output=out/blink
 ```
 
 The command recreates `out/blink/` with a standard PlatformIO layout:
@@ -165,13 +146,16 @@ Open that folder in PlatformIO and select the `ch32v003` environment.
 
 ## Troubleshooting
 
-### `JIKASCRIPT_CH32FUN must point to a CH32fun checkout`
+### `PlatformIO (pio) not found on PATH`
 
-This means the environment variable is missing or pointing at the wrong folder. Double-check the path and ensure it contains the `ch32fun/` directory.
+PlatformIO is not installed, or its executable is not on your `PATH`. Install it
+with `pip install platformio` and confirm `pio --version` works in a new shell.
 
-### `riscv64-unknown-elf-gcc: command not found`
+### `unsupported board "..."`
 
-Your toolchain is not installed or it is not on your `PATH`.
+The `--board` value is not one of the supported CH32V003 selectors. Run
+`jikascript build` with no `--board` to use the default, or pick one of the
+values listed in the [README](../README.md#board-and-environment-selection).
 
 ### `just` is not found
 
@@ -182,9 +166,9 @@ Install `just` first, then retry the helper commands.
 That's the recommended beginner workflow:
 
 ```bash
-jikascript transpile examples/blink.jika -o out/blink.c
+jikascript transpile examples/blink.jika --output=out/blink.c
 # inspect and edit out/blink.c if needed
-jikascript build out/blink.c --target ch32v003 --optimize size
+jikascript build out/blink.c --board=ch32v003 --optimize=size
 ```
 
 This is the easiest way to review the generated C before producing firmware.

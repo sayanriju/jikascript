@@ -464,6 +464,10 @@ func parseOptions(args []string) (cliOptions, error) {
 			opts.port = strings.TrimPrefix(arg, "--port=")
 			continue
 		}
+		if strings.HasPrefix(arg, "--output=") {
+			opts.output = strings.TrimPrefix(arg, "--output=")
+			continue
+		}
 		switch arg {
 		case "--target":
 			if i+1 >= len(args) {
@@ -495,6 +499,12 @@ func parseOptions(args []string) (cliOptions, error) {
 			}
 			i++
 			opts.port = args[i]
+		case "--output":
+			if i+1 >= len(args) {
+				return opts, fmt.Errorf("missing value for --output")
+			}
+			i++
+			opts.output = args[i]
 		case "-o":
 			if i+1 >= len(args) {
 				return opts, fmt.Errorf("missing value for -o")

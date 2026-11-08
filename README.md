@@ -14,8 +14,9 @@ Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.m
 
 ## Repository layout
 
-- [cmd/jikascript/](/Users/sayan/Code/JikaScript/cmd/jikascript): CLI (`check`, `transpile`, `export`, `build`)
+- [cmd/jikascript/](/Users/sayan/Code/JikaScript/cmd/jikascript): CLI (`check`, `transpile`, `build`, `flash`)
 - [internal/](/Users/sayan/Code/JikaScript/internal): lexer, parser, AST, semantic checker, C code generator
+- [internal/backend/platformio/](/Users/sayan/Code/MicroJS/internal/backend/platformio): PlatformIO build and upload runner
 - [runtime/periodic/](/Users/sayan/Code/JikaScript/runtime/periodic): standalone pure-C scheduler
 - [targets/ch32fun/](/Users/sayan/Code/JikaScript/targets/ch32fun): CH32V003 target config and GPIO backend
 - [examples/](/Users/sayan/Code/JikaScript/examples): `.jika` sample programs
@@ -26,10 +27,11 @@ Authoritative requirements live in [SPEC.md](/Users/sayan/Code/JikaScript/SPEC.m
 - C compiler for host-side runtime checks (`gcc` or compatible)
 
 For CH32V003 firmware builds:
-- CH32fun checkout
-- RISC-V GNU toolchain with:
-  - `riscv64-unknown-elf-gcc`
-  - `riscv64-unknown-elf-objcopy`
+- [PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/) (`pio` on `PATH`)
+
+PlatformIO downloads the CH32V platform, the `ch32v003fun` framework, and the
+RISC-V toolchain on first build, so no separate CH32fun checkout or toolchain
+install is required.
 
 ## Building the CLI
 
@@ -45,12 +47,11 @@ If you use [`just`](https://github.com/casey/just), the repo includes a [justfil
 just help
 just bin
 just install
-just get-ch32libs
 just check
 just transpile
-just export
 just build
 just build-c
+just flash
 ```
 
 ## CLI usage
@@ -58,9 +59,10 @@ just build-c
 ```text
 jikascript check <input.jika>
 jikascript version
-jikascript transpile <input.jika> [-o output.c] [--target ch32v003]
-jikascript export <input.jika> [-o output-dir] [--target ch32v003]
-jikascript build <input.jika|input.c> [-o output-prefix] [--target ch32v003] [--optimize size|speed]
+jikascript transpile <input.jika> [--output=<file.c>] [--target=ch32v003]
+jikascript build <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--optimize=size|speed]
+jikascript flash <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
+jikascript export <input.jika> [--output=<dir>] [--target=ch32v003]   (deprecated)
 ```
 
 ### check
@@ -86,108 +88,111 @@ The initial release is `0.1.0`.
 Generate readable C99:
 
 ```bash
-jikascript transpile examples/blink.jika -o out/blink.c
+jikascript transpile examples/blink.jika --output=out/blink.c
 ```
 
 For a beginner-friendly workflow, this is the recommended path:
 
 ```bash
-jikascript transpile examples/blink.jika -o out/blink.c
+jikascript transpile examples/blink.jika --output=out/blink.c
 # inspect and edit out/blink.c as needed
-jikascript build out/blink.c --target ch32v003 --optimize size
+jikascript build out/blink.c --board=ch32v003 --optimize=size
 ```
 
 This keeps the generated C readable and reviewable, and lets you make a final hand-tuned edit before building firmware. For quick iterations, `jikascript build examples/blink.jika ...` still works as a direct source build.
 
-### export
+### export (deprecated)
+
+> **Deprecated.** `build` and `flash` now drive PlatformIO directly. `export`
+> is kept only for users who want a project folder to open in the PlatformIO
+> IDE, and will be removed in a future release.
 
 Create a fresh, self-contained PlatformIO source project for a JikaScript
 program. Export intentionally replaces its destination, so it never retains
 stale generated or runtime files:
 
 ```bash
-jikascript export examples/blink.jika -o out/blink
+jikascript export examples/blink.jika --output=out/blink
 ```
 
 The exported directory follows a standard PlatformIO layout:
 `src/main.c`, `src/runtime/*.c`, `include/*.h`, and `platformio.ini`.
-Open `out/blink/` in PlatformIO and build the `ch32v003` environment.
-PlatformIO obtains the `ch32v003fun` framework declared by the exported
-configuration.
 
-### build (CH32V003 + CH32fun)
+### build (CH32V003 via PlatformIO)
 
-`build` accepts either a `.jika` source file or a generated readable `.c` file. This lets you review or hand-edit the transpiled C before building firmware.
-
-Set environment to the parent directory of a real CH32fun checkout:
+`build` accepts either a `.jika` source file or a generated readable `.c` file.
+This lets you review or hand-edit the transpiled C before building firmware.
 
 ```bash
-export JIKASCRIPT_CH32FUN=/absolute/path/to/ch32fun-root
+jikascript build examples/blink.jika
 ```
 
-You can also fetch CH32fun with the helper recipe, then point the env var there:
+The command generates a PlatformIO project under `out/<name>-pio/`, runs
+`pio run` for the selected environment, and copies the resulting firmware to
+`build/<name>.elf` and `build/<name>.bin`.
 
-```bash
-just get-ch32libs
-export JIKASCRIPT_CH32FUN="$(cd third_party/ch32fun && pwd)"
-```
-
-The build expects this layout under that path:
+PlatformIO must be installed and on `PATH`. If it is missing, the build fails
+immediately with an actionable message:
 
 ```text
-/absolute/path/to/ch32fun-root/
-  ch32fun/
-    ch32fun.h
-    ch32fun.c
-    ch32fun.ld
-    ...
-```
-
-The build compiles CH32fun's startup/runtime (`ch32fun.c`), generates its
-CH32V003 linker script from `ch32fun.ld`, and links the JikaScript GPIO and
-SysTick scheduler adapters with that framework. It is not a header-only
-integration.
-
-If `JIKASCRIPT_CH32FUN` is not set, the CH32fun build fails immediately with:
-
-```text
-JIKASCRIPT_CH32FUN must point to a CH32fun checkout
-```
-
-Optional tool overrides:
-
-```bash
-export JIKASCRIPT_RISCV_GCC=/path/to/riscv64-unknown-elf-gcc
-export JIKASCRIPT_OBJCOPY=/path/to/riscv64-unknown-elf-objcopy
-```
-
-Direct source build:
-
-```bash
-jikascript build examples/blink.jika --target ch32v003 --optimize size
+PlatformIO (pio) not found on PATH; install it with `pip install platformio` ...
 ```
 
 Editable generated-C workflow (recommended for review/edit before flashing):
 
 ```bash
-jikascript transpile examples/blink.jika -o out/blink.c
+jikascript transpile examples/blink.jika --output=out/blink.c
 # inspect and hand-edit out/blink.c
-jikascript build out/blink.c --target ch32v003 --optimize size
+jikascript build out/blink.c
 ```
 
 Optional custom artifact prefix:
 
 ```bash
-jikascript build examples/blink.jika -o dist/blink.elf
+jikascript build examples/blink.jika --output=dist/blink.elf
 ```
+
+#### Board and environment selection
+
+`--board` selects the CH32V003 package variant. Accepted values:
+
+| Selector | PlatformIO board |
+| --- | --- |
+| `ch32v003` (default) | `genericCH32V003F4P6` |
+| `genericCH32V003F4P6` | `genericCH32V003F4P6` |
+| `genericCH32V003F4U6` | `genericCH32V003F4U6` |
+| `genericCH32V003A4M6` | `genericCH32V003A4M6` |
+| `genericCH32V003J4M6` | `genericCH32V003J4M6` |
+| `ch32v003f4p6_evt_r0` | `ch32v003f4p6_evt_r0` |
+
+```bash
+jikascript build examples/blink.jika --board=genericCH32V003J4M6
+```
+
+`--env` overrides the PlatformIO environment name (default `ch32v003`). It is
+useful when you want to keep several build configurations side by side.
+
+### flash (CH32V003 via PlatformIO)
+
+`flash` builds the firmware and uploads it with `pio run -t upload`:
+
+```bash
+jikascript flash examples/blink.jika
+```
+
+Pass `--port` to select a specific programmer or serial device:
+
+```bash
+jikascript flash examples/blink.jika --port=/dev/ttyUSB0
+```
+
+`flash` accepts the same `--board`, `--env`, and `--optimize` flags as `build`.
 
 Artifacts:
 
-- `out/<name>.c` (generated/intermediate source)
-- `out/funconfig.h` and `out/jikascript_ch32v003.ld` (build support files)
-- `out/<name>/` (isolated PlatformIO export package)
+- `out/<name>.c` (generated source, when you run `transpile`)
+- `out/<name>-pio/` (generated PlatformIO project, including `.pio/build/<env>/`)
 - `build/<name>.elf`
-- `build/<name>.hex`
 - `build/<name>.bin`
 
 ## Examples
@@ -279,9 +284,8 @@ the task.
 
 ## CH32fun timer adapter (target-only)
 
-When a CH32fun checkout is configured (`JIKASCRIPT_CH32FUN`), the target build
-includes a timer adapter under `targets/ch32fun/runtime/` exposing exactly one
-initializer:
+The target build includes a timer adapter under `targets/ch32fun/runtime/`
+exposing exactly one initializer:
 
 ```c
 void periodic_ch32fun_init(void);
@@ -301,8 +305,9 @@ periodic_ch32fun_init();
 - **Host-tested**: verified with the Go test suite and host C99 compilation
   (`go test ./...` plus the portable scheduler test below). All features
   documented above are host-tested.
-- **Target-compiled**: verified by compiling firmware with the RISC-V
-  toolchain against a CH32fun checkout. Not yet claimed for any feature.
+- **Target-compiled**: verified by compiling firmware through PlatformIO
+  against the `ch32v003fun` framework. `jikascript build` produces a linked
+  `.elf` and `.bin` for CH32V003. Not yet claimed for any feature.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 

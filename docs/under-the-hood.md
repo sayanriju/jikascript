@@ -9,7 +9,7 @@ One of JikaScript's core design tenets is **readable, inspectable generated C**.
 When you run:
 
 ```bash
-jikascript transpile blink.jika -o out/blink.c
+jikascript transpile blink.jika --output=out/blink.c
 ```
 
 Here is the pipeline that transforms your code:
@@ -24,21 +24,23 @@ Here is the pipeline that transforms your code:
 1. **Lexing & Parsing:** Your `.jika` file is parsed into an Abstract Syntax Tree (AST).
 2. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
 3. **C Code Generation:** The compiler emits standard C99 code.
-4. **Firmware Build (Optional):** Target toolchains (e.g. GCC RISC-V with CH32fun) compile the C code directly into an `.elf` or `.bin`.
+4. **Firmware Build (Optional):** `jikascript build` generates a PlatformIO project and runs `pio run`, which compiles the C code with the RISC-V toolchain against the `ch32v003fun` framework and links an `.elf` and `.bin`.
 
 Generated source and firmware artifacts have separate homes:
 
 ```text
-blink.jika  →  out/blink.c  →  build/blink.elf
-                              build/blink.hex
-                              build/blink.bin
+blink.jika  →  out/blink.c  →  out/blink-pio/  →  build/blink.elf
+                                                   build/blink.bin
 ```
 
-`out/` is for inspectable generated material; `build/` is for final firmware.
+`out/` is for inspectable generated material, including the generated
+PlatformIO project; `build/` is for final firmware. `jikascript flash` runs the
+same pipeline and then uploads with `pio run -t upload`.
+
 If you need a fresh, ready-to-open PlatformIO source project, use
-`jikascript export blink.jika -o out/blink-platformio`. It packages `main.c`,
-the JikaScript C runtime, CH32fun configuration, and a PlatformIO manifest in
-the usual `src/` + `include/` project layout.
+`jikascript export blink.jika --output=out/blink-platformio` (deprecated). It packages
+`main.c`, the JikaScript C runtime, CH32fun configuration, and a PlatformIO
+manifest in the usual `src/` + `include/` project layout.
 
 ---
 
