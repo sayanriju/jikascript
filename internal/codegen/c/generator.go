@@ -303,6 +303,7 @@ func Generate(program *ast.Program) (string, error) {
 		}
 	}
 	if len(arrayDecls) > 0 {
+		b.WriteString("static void jikascript_fail(void);\n\n")
 		for _, meta := range arrayDecls {
 			b.WriteString(renderArrayDecl(meta))
 		}
@@ -1019,7 +1020,6 @@ func renderArrayDecl(meta arrayMeta) string {
 func renderArrayHelpers(meta arrayMeta) string {
 	name := sanitizeName(meta.Name)
 	var b strings.Builder
-	b.WriteString("static void jikascript_fail(void);\n\n")
 	b.WriteString(fmt.Sprintf("static %s %s_get(int32_t index) {\n", meta.CType, name))
 	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
 	b.WriteString(fmt.Sprintf("    return %s.data[index];\n", name))
