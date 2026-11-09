@@ -129,8 +129,11 @@ Detailed, exhaustive references available on demand:
   and memory-mapped data.
 - `==` and `===` are both strict and non-coercing. Mixed-type comparisons are
   compile-time errors — never compare a `number` to a `string`.
-- Reserve the words `task`, `scheduler`, `start`, `pin`, `include`: they are
-  language syntax, not identifiers.
+- Reserve the words `task`, `scheduler`, `start`, `pin`, `include`, `HIGH`, and
+  `LOW`: they are language syntax or fixed GPIO state constants, not ordinary
+  identifiers.
+- `HIGH` and `LOW` are predefined pin-state constants with fixed meanings
+  `HIGH == 1` and `LOW == 0`; do not shadow or rebind them in user code.
 - Array push/pop and index access are bounds- and capacity-checked at runtime;
   statically provable violations are rejected at compile time.
 - The scheduler runs callbacks in main context; a long callback delays others.

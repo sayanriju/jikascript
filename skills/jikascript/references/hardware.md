@@ -41,12 +41,17 @@ if (state == LOW) {
 }
 ```
 
-`HIGH` and `LOW` are the conventional logic constants. Compare reads with the
-strict equality operators (`==` / `===`), which are non-coercing.
+`HIGH` and `LOW` are predefined GPIO state constants. They are compiler-provided
+values with fixed meanings: `HIGH == 1` and `LOW == 0`.
+
+Treat them as built-in logic constants, not ordinary mutable user variables.
+Compare reads with the strict equality operators (`==` / `===`), which are
+non-coercing.
 
 ## Reserved names
 
-`pin` is reserved; do not use it as a variable name.
+`pin`, `HIGH`, and `LOW` are reserved or special built-ins; do not use them as
+variable names.
 
 ## Complete interactive example: button toggle
 

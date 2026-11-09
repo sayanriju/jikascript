@@ -27,8 +27,11 @@ if, else, while, do, for, switch, case, default
 break, continue
 true, false
 include
-task, pin, scheduler, start
+task, pin, scheduler, start, HIGH, LOW
 ```
+
+`HIGH` and `LOW` are predefined GPIO state constants with fixed values (`HIGH == 1`,
+`LOW == 0`), not ordinary user variables.
 
 Invalid examples:
 
@@ -37,6 +40,7 @@ let task = 1;          // invalid: `task` is reserved
 const scheduler = 5;   // invalid: `scheduler` is reserved
 let start = 1;         // invalid: `start` is reserved
 include = 2;           // invalid: `include` is reserved
+const HIGH = 99;       // invalid / not a valid user binding
 ```
 
 Valid alternatives:
