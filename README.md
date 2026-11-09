@@ -27,6 +27,10 @@ Authoritative requirements live in [SPEC.md](SPEC.md).
 - [runtime/periodic/](runtime/periodic): standalone pure-C scheduler
 - [targets/ch32fun/](targets/ch32fun): CH32V003 target config and GPIO backend
 - [examples/](examples): `.jika` sample programs
+- [skills/jikascript/](skills/jikascript): An agent/skills.sh skill for the
+  JikaScript language, CLI, and scheduler. Install it with the standard skills
+  CLI: `npx skills add sayanriju/jikascript --skill jikascript`
+  (add `-g` for a global install). Local fallback: `mkdir -p ~/.agents/skills && ln -s \"$PWD/skills/jikascript\" ~/.agents/skills/jikascript`
 
 ## Prerequisites
 
