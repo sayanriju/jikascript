@@ -353,6 +353,62 @@ func TestParseOptionsAcceptsBoardEnvAndPort(t *testing.T) {
 	}
 }
 
+// TestPrintUsageDocumentsEqualsForm guards against the usage text drifting away
+// from the flag convention the parser actually accepts.
+func TestPrintUsageDocumentsEqualsForm(t *testing.T) {
+	output := captureStdout(t, printUsage)
+
+	for _, want := range []string{
+		"--output=<file.c>",
+		"--target=<target>",
+		"--board=<board>",
+		"--env=<env>",
+		"--optimize=<size|speed>",
+		"--port=<device>",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("usage text missing %q\n---\n%s", want, output)
+		}
+	}
+
+	// The old space-separated placeholders must not come back.
+	for _, unwanted := range []string{
+		"--target ch32v003",
+		"--board <board>",
+		"--env <env>",
+		"--optimize size|speed",
+		"--port <device>",
+		"[-o output.c]",
+	} {
+		if strings.Contains(output, unwanted) {
+			t.Errorf("usage text still contains stale form %q\n---\n%s", unwanted, output)
+		}
+	}
+}
+
+// captureStdout runs fn and returns everything it wrote to stdout.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	original := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	os.Stdout = writer
+	defer func() { os.Stdout = original }()
+
+	fn()
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close pipe writer: %v", err)
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read pipe: %v", err)
+	}
+	return string(data)
+}
+
 func TestRunExportWarnsAboutDeprecation(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "blink.jika")

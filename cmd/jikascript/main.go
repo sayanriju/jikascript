@@ -61,10 +61,12 @@ func printUsage() {
 	fmt.Println("usage:")
 	fmt.Println("  jikascript version")
 	fmt.Println("  jikascript check <input.jika>")
-	fmt.Println("  jikascript transpile <input.jika> [-o output.c] [--target ch32v003]")
-	fmt.Println("  jikascript build <input.jika|input.c> [-o output-prefix] [--target ch32v003] [--board <board>] [--env <env>] [--optimize size|speed]")
-	fmt.Println("  jikascript flash <input.jika|input.c> [--board <board>] [--env <env>] [--port <device>] [--optimize size|speed]")
-	fmt.Println("  jikascript export <input.jika> [-o output-dir] [--target ch32v003]   (deprecated: use build/flash)")
+	fmt.Println("  jikascript transpile <input.jika> [--output=<file.c>] [--target=<target>]")
+	fmt.Println("  jikascript build <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--optimize=<size|speed>]")
+	fmt.Println("  jikascript flash <input.jika|input.c> [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
+	fmt.Println("  jikascript export <input.jika> [--output=<dir>] [--target=<target>]   (deprecated: use build/flash)")
+	fmt.Println()
+	fmt.Println("options accept both --name=value and --name value; -o is a short form of --output.")
 }
 
 func runCheck(args []string) error {
