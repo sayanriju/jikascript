@@ -47,3 +47,10 @@ func TestStringEscapedQuoteDoesNotTerminate(t *testing.T) {
 		t.Fatalf("literal = %q, want %q", tokens[0].Literal, `say "hi"`)
 	}
 }
+
+func TestIncludeIsKeyword(t *testing.T) {
+	tokens := lexAll(t, `include`)
+	if len(tokens) != 1 || tokens[0].Type != KEYWORD || tokens[0].Literal != "include" {
+		t.Fatalf("expected KEYWORD token 'include', got %+v", tokens)
+	}
+}

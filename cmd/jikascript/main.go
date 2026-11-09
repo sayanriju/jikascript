@@ -77,13 +77,9 @@ func runCheck(args []string) error {
 	if filepath.Ext(path) != ".jika" {
 		return fmt.Errorf("input must be a .jika source file: %s", path)
 	}
-	code, err := os.ReadFile(path)
+	program, err := parser.ParseFile(path)
 	if err != nil {
 		return err
-	}
-	program, err := parser.ParseProgram(string(code))
-	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
 	}
 	if err := checker.Check(program); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
@@ -106,13 +102,9 @@ func runTranspile(args []string) error {
 	if filepath.Ext(opts.input) != ".jika" {
 		return fmt.Errorf("input must be a .jika source file: %s", opts.input)
 	}
-	code, err := os.ReadFile(opts.input)
+	program, err := parser.ParseFile(opts.input)
 	if err != nil {
 		return err
-	}
-	program, err := parser.ParseProgram(string(code))
-	if err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
 	}
 	if err := checker.Check(program); err != nil {
 		return fmt.Errorf("%s: %w", opts.input, err)
@@ -178,13 +170,9 @@ func runExport(args []string) error {
 // When clean is true the destination is recreated from scratch; otherwise
 // existing files are overwritten in place.
 func generateProject(inputPath string, project platformio.Project, clean bool) error {
-	code, err := os.ReadFile(inputPath)
+	program, err := parser.ParseFile(inputPath)
 	if err != nil {
 		return err
-	}
-	program, err := parser.ParseProgram(string(code))
-	if err != nil {
-		return fmt.Errorf("%s: %w", inputPath, err)
 	}
 	if err := checker.Check(program); err != nil {
 		return fmt.Errorf("%s: %w", inputPath, err)

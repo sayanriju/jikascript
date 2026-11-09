@@ -1,0 +1,7 @@
+include "helpers.jika";
+
+task("blink", 1000, () => {
+    led.toggle();
+});
+
+scheduler.start();

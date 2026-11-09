@@ -446,6 +446,31 @@ Strings should be stored in read-only memory where supported by the target toolc
 
 Dynamic string allocation and garbage collection are excluded.
 
+### File includes
+
+Programs may be split across multiple `.jika` files by including one file from another:
+
+```javascript
+include "helpers.jika";
+
+scheduler.start();
+```
+
+Rules:
+
+- `include` is a compile-time construct: the included file's top-level statements are spliced into the including program before checking and code generation.
+- The argument is a single string literal naming a `.jika` file.
+- The path is resolved relative to the directory of the file that contains the `include` statement, not the current working directory.
+- The included file must end in `.jika`.
+- Only the included file's top-level statements are spliced in, in source order.
+- `include` is only valid at the top level of a file. Nested `include` statements (inside a function or block) are rejected at parse time.
+- Circular includes are rejected with a clear error.
+- Diamond includes (two files including a common helper) are permitted; any resulting duplicate declarations are caught by the semantic checker, as usual.
+
+`include` is a textual, compile-time mechanism akin to C's `#include`. It does not create modules or scopes. A future `import`/module feature should be designed separately.
+
+Known v0.1 limitation: diagnostics for declarations that come from an included file are attributed to the entry file's path and line in the same way as spliced top-level code.
+
 ---
 
 # 5. Cooperative Scheduling Model
@@ -747,6 +772,7 @@ Implement the following stages:
 3. Token definitions.
 4. Parser.
 5. AST construction.
+6. File include resolution (splicing included top-level statements into the program AST).
 6. Semantic analysis.
 7. Type checking.
 8. Target-specific code generation.
@@ -767,7 +793,8 @@ jikascript/
 │   │   └── token.go
 │   │
 │   ├── parser/
-│   │   └── parser.go
+│   │   ├── parser.go
+│   │   └── resolve.go
 │   │
 │   ├── ast/
 │   │   └── ast.go

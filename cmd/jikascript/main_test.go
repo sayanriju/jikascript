@@ -542,3 +542,37 @@ func TestRunBuildInvokesPlatformIO(t *testing.T) {
 		}
 	}
 }
+
+func TestRunCheckAndTranspileResolveIncludes(t *testing.T) {
+	tempDir := t.TempDir()
+	libDir := filepath.Join(tempDir, "lib")
+	if err := os.MkdirAll(libDir, 0o755); err != nil {
+		t.Fatalf("mkdir lib: %v", err)
+	}
+	helpersPath := filepath.Join(libDir, "helpers.jika")
+	appPath := filepath.Join(tempDir, "app.jika")
+	outPath := filepath.Join(tempDir, "app.c")
+	if err := os.WriteFile(helpersPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write helpers: %v", err)
+	}
+	if err := os.WriteFile(appPath, []byte("include \"lib/helpers.jika\";\ntask(\"blink\", 500, () => { led.toggle(); });\nscheduler.start();\n"), 0o644); err != nil {
+		t.Fatalf("write app: %v", err)
+	}
+
+	if err := runCheck([]string{appPath}); err != nil {
+		t.Fatalf("runCheck error: %v", err)
+	}
+	if err := runTranspile([]string{appPath, "-o", outPath}); err != nil {
+		t.Fatalf("runTranspile error: %v", err)
+	}
+	mainC, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read transpiled output: %v", err)
+	}
+	if !strings.Contains(string(mainC), "gpio_output(js_led);") || !strings.Contains(string(mainC), "gpio_toggle(js_led);") {
+		t.Fatalf("transpiled output missing included declarations:\n%s", mainC)
+	}
+	if strings.Contains(string(mainC), "helpers.jika") {
+		t.Fatalf("transpiled output must not retain source include statements:\n%s", mainC)
+	}
+}

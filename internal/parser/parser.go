@@ -11,9 +11,10 @@ import (
 
 // Parser converts tokens into an AST.
 type Parser struct {
-	tokens []lexer.Token
-	pos    int
-	cur    lexer.Token
+	tokens   []lexer.Token
+	pos      int
+	cur      lexer.Token
+	topLevel bool
 }
 
 // ParseProgram parses a complete source file.
@@ -32,7 +33,7 @@ func ParseProgram(source string) (*ast.Program, error) {
 
 // New creates a parser from already tokenized source.
 func New(tokens []lexer.Token) *Parser {
-	p := &Parser{tokens: tokens}
+	p := &Parser{tokens: tokens, topLevel: true}
 	if len(tokens) > 0 {
 		p.cur = tokens[0]
 	}
@@ -91,9 +92,28 @@ func (p *Parser) parseStatement() (ast.Stmt, error) {
 		return p.parseTaskDecl()
 	case tok.Type == lexer.KEYWORD && tok.Literal == "scheduler":
 		return p.parseSchedulerStmt()
+	case tok.Type == lexer.KEYWORD && tok.Literal == "include":
+		return p.parseIncludeStmt()
 	default:
 		return p.parseExpressionStmt()
 	}
+}
+
+func (p *Parser) parseIncludeStmt() (ast.Stmt, error) {
+	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+	if !p.topLevel {
+		return nil, fmt.Errorf("line %d:%d: include is only supported at the top level", pos.Line, pos.Column)
+	}
+	p.next() // include
+	if p.cur.Type != lexer.STRING {
+		return nil, fmt.Errorf("line %d:%d: expecting string literal after include", p.cur.Line, p.cur.Column)
+	}
+	path := p.cur.Literal
+	p.next()
+	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ";" {
+		return nil, fmt.Errorf("line %d:%d: expected ';' after include statement", p.cur.Line, p.cur.Column)
+	}
+	return &ast.IncludeStmt{Path: path, Pos: pos}, nil
 }
 
 func (p *Parser) parseWhileStmt() (ast.Stmt, error) {
@@ -153,8 +173,11 @@ func (p *Parser) parseForStmt() (ast.Stmt, error) {
 	p.next()
 	var init ast.Stmt
 	if !(p.cur.Type == lexer.PUNCT && p.cur.Literal == ";") {
+		prevTopLevel := p.topLevel
+		p.topLevel = false
 		var err error
 		init, err = p.parseStatement()
+		p.topLevel = prevTopLevel
 		if err != nil {
 			return nil, err
 		}
@@ -237,6 +260,8 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 		p.next()
 
 		body := []ast.Stmt{}
+		prevTopLevel := p.topLevel
+		p.topLevel = false
 		for !(p.cur.Type == lexer.KEYWORD && (p.cur.Literal == "case" || p.cur.Literal == "default")) &&
 			!(p.cur.Type == lexer.PUNCT && p.cur.Literal == "}") &&
 			!p.isEOF() {
@@ -249,6 +274,7 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 			}
 			p.consumeSemicolonIfPresent()
 		}
+		p.topLevel = prevTopLevel
 
 		cases = append(cases, ast.SwitchCase{Value: caseExpr, Body: body, Pos: casePos})
 	}
@@ -535,6 +561,9 @@ func (p *Parser) parseBlock() ([]ast.Stmt, error) {
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "{" {
 		return nil, fmt.Errorf("line %d:%d: expected '{'", p.cur.Line, p.cur.Column)
 	}
+	prevTopLevel := p.topLevel
+	p.topLevel = false
+	defer func() { p.topLevel = prevTopLevel }()
 	p.next()
 	stmts := []ast.Stmt{}
 	for !(p.cur.Type == lexer.PUNCT && p.cur.Literal == "}") && !p.isEOF() {

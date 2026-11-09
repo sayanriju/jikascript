@@ -459,3 +459,35 @@ func TestGenerateGuardsTaskRegistration(t *testing.T) {
 		t.Fatalf("expected shared non-returning jikascript_fail helper, got:\n%s", out)
 	}
 }
+
+func TestGenerateFlattensIncludedSource(t *testing.T) {
+	loader := func(path string) (string, error) {
+		switch path {
+		case "/proj/app.jika":
+			return `include "lib/helpers.jika";
+task("blink", 500, () => { led.toggle(); });
+scheduler.start();`, nil
+		case "/proj/lib/helpers.jika":
+			return `const led = pin("PC1");
+led.output();`, nil
+		}
+		return "", fmt.Errorf("open %s: no such file or directory", path)
+	}
+	program, err := parser.ParseFileWithLoader("/proj/app.jika", loader)
+	if err != nil {
+		t.Fatalf("resolve error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "gpio_output(js_led);") || !strings.Contains(out, "gpio_toggle(js_led);") {
+		t.Fatalf("expected declarations from included file in generated C:\n%s", out)
+	}
+	if strings.Contains(out, "helpers.jika") {
+		t.Fatalf("generated C must not retain source include statements:\n%s", out)
+	}
+}

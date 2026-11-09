@@ -48,6 +48,7 @@ var Keywords = map[string]TokenType{
 	"pin":       KEYWORD,
 	"scheduler": KEYWORD,
 	"start":     KEYWORD,
+	"include":   KEYWORD,
 }
 
 // Punctuators and operators recognized by the lexer.

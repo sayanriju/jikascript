@@ -2,6 +2,8 @@ package parser
 
 import "testing"
 
+import "jikascript/internal/ast"
+
 func TestParseBlinkProgram(t *testing.T) {
 	program, err := ParseProgram(`const led = pin("PC1");
 led.output();
@@ -94,5 +96,40 @@ device.pin = 4;`)
 	}
 	if len(program.Statements) != 2 {
 		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+}
+
+func TestParseTopLevelInclude(t *testing.T) {
+	program, err := ParseProgram(`include "helpers.jika";
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+	inc, ok := program.Statements[0].(*ast.IncludeStmt)
+	if !ok {
+		t.Fatalf("first statement is %T, want IncludeStmt", program.Statements[0])
+	}
+	if inc.Path != "helpers.jika" {
+		t.Fatalf("include path = %q, want %q", inc.Path, "helpers.jika")
+	}
+}
+
+func TestParseNestedIncludeRejected(t *testing.T) {
+	_, err := ParseProgram(`function f() { include "helpers.jika"; }
+`)
+	if err == nil {
+		t.Fatalf("expected error for nested include, got nil")
+	}
+}
+
+func TestParseIncludeMissingSemicolonRejected(t *testing.T) {
+	_, err := ParseProgram(`include "helpers.jika"
+`)
+	if err == nil {
+		t.Fatalf("expected error for missing semicolon, got nil")
 	}
 }
