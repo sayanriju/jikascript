@@ -32,6 +32,11 @@ The initial language subset reserves the following names:
 - `true`, `false`
 - `include`
 - `task`, `pin`, `scheduler`, `start`
+- `HIGH`, `LOW` (predefined GPIO state constants)
+
+`HIGH` and `LOW` are built-in pin-state constants, not ordinary user variables.
+They are provided by the compiler and should be treated as fixed values for GPIO
+logic. Do not shadow them with your own bindings.
 
 ---
 

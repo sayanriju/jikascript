@@ -19,6 +19,16 @@ button.input();
 
 ---
 
+## Pin State Constants
+
+`HIGH` and `LOW` are predefined pin-state constants used with GPIO reads and writes.
+They are compiler-provided values with the fixed meanings `HIGH == 1` and
+`LOW == 0`.
+
+Treat them as built-in GPIO state constants, not as ordinary variables you
+redefine or mutate. If you need a named value in your own code, create a separate
+binding such as `const ledOn = HIGH` rather than shadowing the built-in name.
+
 ## Reading and Writing Pins
 
 Interact with inputs and outputs cleanly:

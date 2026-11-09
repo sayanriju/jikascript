@@ -716,6 +716,11 @@ led.write(HIGH);
 led.toggle();
 ```
 
+`HIGH` and `LOW` are predefined GPIO state constants. They are compiler-provided
+values with fixed meanings (`HIGH == 1`, `LOW == 0`) and are used for pin reads
+and writes. They are not ordinary user variables and must not be shadowed by
+application code.
+
 Input:
 
 ```javascript
