@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -135,7 +136,24 @@ func (l *Lexer) readString(quote rune) Token {
 				return Token{Type: ILLEGAL, Literal: "unterminated string", Line: startLine, Column: startColumn}
 			}
 			escaped := l.source[l.pos]
-			b.WriteRune(escaped)
+			switch escaped {
+			case 'n':
+				b.WriteRune('\n')
+			case 't':
+				b.WriteRune('\t')
+			case 'r':
+				b.WriteRune('\r')
+			case '0':
+				b.WriteRune(0)
+			case '\\':
+				b.WriteRune('\\')
+			case '"':
+				b.WriteRune('"')
+			case '\'':
+				b.WriteRune('\'')
+			default:
+				return Token{Type: ILLEGAL, Literal: fmt.Sprintf("unknown escape sequence \\%c", escaped), Line: startLine, Column: startColumn}
+			}
 			l.advance()
 			continue
 		}
