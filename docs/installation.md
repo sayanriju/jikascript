@@ -1,17 +1,45 @@
 # Installation
 
-Getting started with JikaScript is simple, and the goal is to keep the setup process straightforward for first-timers.
+Getting started with JikaScript is simplest when you start from this repository,
+then run the included examples and commands.
 
 If you are brand-new to embedded development, the easiest path is:
 
-1. install Go
-2. install `just`
-3. install PlatformIO
-4. run your first `jikascript` command
+1. clone/create a project from the JikaScript repo
+2. install Go
+3. install `just`
+4. install PlatformIO
+5. run your first `jikascript` command
 
 ---
 
-## 1. Install Go
+## 1. Get the repository (recommended first step)
+
+### Option A: shallow clone (fastest)
+
+```bash
+git clone --depth 1 https://github.com/sayanriju/jikascript.git
+cd jikascript
+```
+
+### Option B: create your own repo from the template (with GitHub CLI)
+
+If you have `gh` installed, you can start from the template and clone your new
+repo in one step:
+
+```bash
+gh repo create my-jikascript-project \
+  --template sayanriju/jikascript \
+  --public \
+  --clone
+cd my-jikascript-project
+```
+
+Use `--private` instead of `--public` if you want a private repository.
+
+---
+
+## 2. Install Go
 
 Install Go 1.22 or newer.
 
@@ -23,7 +51,7 @@ If the command prints a version, you're ready to build the CLI.
 
 ---
 
-## 2. Install `just` (recommended)
+## 3. Install `just` (recommended)
 
 The project includes a friendly [`justfile`](../justfile) with common setup and build commands.
 
@@ -37,7 +65,7 @@ If `just` is not installed yet, install it before continuing.
 
 ---
 
-## 3. Install PlatformIO
+## 4. Install PlatformIO
 
 JikaScript targets CH32V003 firmware through [PlatformIO](https://platformio.org/).
 PlatformIO downloads the CH32V platform, the `ch32v003fun` framework, and the
@@ -61,9 +89,9 @@ pio --version
 
 ---
 
-## 4. Build the CLI
+## 5. Build the CLI
 
-From the project root:
+From your cloned/template project root:
 
 ```bash
 go build ./cmd/jikascript
@@ -85,7 +113,7 @@ just install
 just check --file=examples/blink.jika
 just transpile --file=examples/blink.jika
 just build --source=examples/blink.jika
-just build-c --source=examples/blink.jika
+just build-c --source=out/blink.c
 just flash --source=examples/blink.jika
 ```
 
@@ -96,7 +124,7 @@ options for each recipe.
 
 ---
 
-## 5. Your first check
+## 6. Your first check
 
 Try the checker:
 

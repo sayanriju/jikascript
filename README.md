@@ -10,6 +10,13 @@ Project docs, the beginner-friendly installation guide, and the quickstart live 
 
 Start here: [Installation](https://sayanriju.github.io/jikascript/installation.html)
 
+Quick repo-first start:
+
+```bash
+git clone --depth 1 https://github.com/sayanriju/jikascript.git
+cd jikascript
+```
+
 Authoritative requirements live in [SPEC.md](SPEC.md).
 
 ## Repository layout

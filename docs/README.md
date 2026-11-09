@@ -38,7 +38,14 @@ scheduler.start();
 
 No obscure register bit-manipulation, no confusing ISR declarations — just clean, readable logic that compiles down to tiny microcontroller firmware.
 
-Ready to dive in? Let's get [Blink running in 5 minutes](quickstart.md)!
+Ready to dive in? Start by cloning the repo, then follow the install guide:
+
+```bash
+git clone --depth 1 https://github.com/sayanriju/jikascript.git
+cd jikascript
+```
+
+Then get [Blink running in 5 minutes](quickstart.md).
 
 Already comfortable with PlatformIO? The [installation guide](installation.md#build-firmware) shows how to build and upload firmware directly.
 

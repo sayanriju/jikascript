@@ -4,9 +4,20 @@ Let's walk through your very first JikaScript program from start to finish!
 
 ---
 
-## 0. Install First
+## 0. Start from the Repo + Install First
 
-Before writing or building firmware, make sure your environment is ready. See the [Installation](installation.md) guide for the full setup steps.
+Before writing or building firmware, start from the JikaScript repository (or a
+repo created from its template), then finish environment setup.
+
+Fast path:
+
+```bash
+git clone --depth 1 https://github.com/sayanriju/jikascript.git
+cd jikascript
+```
+
+Then follow the [Installation](installation.md) guide for full setup (Go,
+PlatformIO, and optional `just`).
 
 ---
 
@@ -73,7 +84,7 @@ jikascript transpile blink.jika --output=out/blink.c
 jikascript build out/blink.c
 ```
 
-*(Tip: If you use [`just`](https://github.com/casey/just), the repo has recipes for the same steps. Recipe parameters are flags, not positional arguments: `just build --source=blink.jika`, `just transpile --file=blink.jika`, `just build-c --source=blink.jika`. Run `just --list` to see every option.)*
+*(Tip: If you use [`just`](https://github.com/casey/just), the repo has recipes for the same steps. Recipe parameters are flags, not positional arguments: `just build --source=blink.jika`, `just transpile --file=blink.jika`, `just build-c --source=out/blink.c`. Run `just --list` to see every option.)*
 
 This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
 `build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO
