@@ -281,15 +281,48 @@ func Generate(program *ast.Program) (string, error) {
 		b.WriteString("\n")
 	}
 
+	// Pre-pass: collect array declarations so their accessor helpers and the
+	// shared failure handler can be emitted before any function or task body
+	// that references them. C requires declaration before use.
+	arrayDecls := []arrayMeta{}
+	arrayInitStmts := map[string][]string{}
+	for _, stmt := range program.Statements {
+		switch node := stmt.(type) {
+		case *ast.VarDecl:
+			if meta, init, ok := buildArrayDeclFromVar(node); ok {
+				arrayDecls = append(arrayDecls, meta)
+				generatedArrays[node.Name] = meta
+				arrayInitStmts[node.Name] = init
+			}
+		case *ast.ConstDecl:
+			if meta, init, ok := buildArrayDeclFromConst(node); ok {
+				arrayDecls = append(arrayDecls, meta)
+				generatedArrays[node.Name] = meta
+				arrayInitStmts[node.Name] = init
+			}
+		}
+	}
+	if len(arrayDecls) > 0 {
+		for _, meta := range arrayDecls {
+			b.WriteString(renderArrayDecl(meta))
+		}
+		for _, meta := range arrayDecls {
+			b.WriteString(renderArrayHelpers(meta))
+		}
+		b.WriteString("static void jikascript_fail(void) {\n")
+		b.WriteString("    while (1) { }\n")
+		b.WriteString("}\n\n")
+	}
+
 	taskHandlers := []taskRegistration{}
 	mainStmts := []string{}
-	arrayDecls := []arrayMeta{}
 	for _, stmt := range program.Statements {
 		switch node := stmt.(type) {
 		case *ast.FunctionDecl:
 			b.WriteString(emitFunction(node))
 		case *ast.TaskDecl:
 			taskName := taskHandlerName(node.Name)
+			b.WriteString(fmt.Sprintf("static periodic_task_t %s_task;\n", taskName))
 			b.WriteString(fmt.Sprintf("static void %s(void) {\n", taskName))
 			for _, inner := range node.Callback.Body {
 				b.WriteString(renderStmt(inner, "    "))
@@ -301,11 +334,10 @@ func Generate(program *ast.Program) (string, error) {
 				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
 				break
 			}
-			if meta, initStmts, ok := buildArrayDeclFromVar(node); ok {
-				arrayDecls = append(arrayDecls, meta)
-				generatedArrays[node.Name] = meta
-				b.WriteString(renderArrayDecl(meta))
-				for _, init := range initStmts {
+			if _, ok := generatedArrays[node.Name]; ok {
+				// Array declaration already emitted in the pre-pass; queue its
+				// runtime initialization statements for main().
+				for _, init := range arrayInitStmts[node.Name] {
 					mainStmts = append(mainStmts, "    "+init+";\n")
 				}
 				break
@@ -321,11 +353,10 @@ func Generate(program *ast.Program) (string, error) {
 				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
 				break
 			}
-			if meta, initStmts, ok := buildArrayDeclFromConst(node); ok {
-				arrayDecls = append(arrayDecls, meta)
-				generatedArrays[node.Name] = meta
-				b.WriteString(renderArrayDecl(meta))
-				for _, init := range initStmts {
+			if _, ok := generatedArrays[node.Name]; ok {
+				// Array declaration already emitted in the pre-pass; queue its
+				// runtime initialization statements for main().
+				for _, init := range arrayInitStmts[node.Name] {
 					mainStmts = append(mainStmts, "    "+init+";\n")
 				}
 				break
@@ -345,23 +376,10 @@ func Generate(program *ast.Program) (string, error) {
 		}
 	}
 
-	if len(arrayDecls) > 0 {
-		for _, meta := range arrayDecls {
-			b.WriteString(renderArrayHelpers(meta))
-		}
-	}
-
-	if len(taskHandlers) > 0 || len(arrayDecls) > 0 {
+	if len(taskHandlers) > 0 && len(arrayDecls) == 0 {
 		b.WriteString("static void jikascript_fail(void) {\n")
 		b.WriteString("    while (1) { }\n")
 		b.WriteString("}\n\n")
-	}
-
-	for _, task := range taskHandlers {
-		b.WriteString(fmt.Sprintf("static periodic_task_t %s_task;\n", task.name))
-	}
-	if len(taskHandlers) > 0 {
-		b.WriteString("\n")
 	}
 
 	b.WriteString("int main(void) {\n")
@@ -984,6 +1002,7 @@ func renderArrayDecl(meta arrayMeta) string {
 func renderArrayHelpers(meta arrayMeta) string {
 	name := sanitizeName(meta.Name)
 	var b strings.Builder
+	b.WriteString("static void jikascript_fail(void);\n\n")
 	b.WriteString(fmt.Sprintf("static %s %s_get(int32_t index) {\n", meta.CType, name))
 	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
 	b.WriteString(fmt.Sprintf("    return %s.data[index];\n", name))
@@ -992,10 +1011,11 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
 	b.WriteString(fmt.Sprintf("    %s.data[index] = value;\n", name))
 	b.WriteString("}\n\n")
-	b.WriteString(fmt.Sprintf("static void %s_push(%s value) {\n", name, meta.CType))
+	b.WriteString(fmt.Sprintf("static uint32_t %s_push(%s value) {\n", name, meta.CType))
 	b.WriteString(fmt.Sprintf("    if (%s.length >= %s.capacity) { jikascript_fail(); }\n", name, name))
 	b.WriteString(fmt.Sprintf("    %s.data[%s.length] = value;\n", name, name))
 	b.WriteString(fmt.Sprintf("    %s.length++;\n", name))
+	b.WriteString(fmt.Sprintf("    return %s.length;\n", name))
 	b.WriteString("}\n\n")
 	b.WriteString(fmt.Sprintf("static %s %s_pop(void) {\n", meta.CType, name))
 	b.WriteString(fmt.Sprintf("    if (%s.length == 0) { jikascript_fail(); }\n", name))
