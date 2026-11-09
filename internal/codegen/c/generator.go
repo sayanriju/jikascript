@@ -854,9 +854,26 @@ var cKeywordIdentifiers = map[string]struct{}{
 }
 
 func escape(s string) string {
-	e := strings.ReplaceAll(s, "\\", "\\\\")
-	e = strings.ReplaceAll(e, "\"", "\\\"")
-	return e
+	var b strings.Builder
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString("\\\\")
+		case '"':
+			b.WriteString("\\\"")
+		case '\n':
+			b.WriteString("\\n")
+		case '\t':
+			b.WriteString("\\t")
+		case '\r':
+			b.WriteString("\\r")
+		case 0:
+			b.WriteString("\\0")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func renderParams(params []string) string {

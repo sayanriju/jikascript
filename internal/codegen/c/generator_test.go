@@ -319,6 +319,50 @@ function add(a, b) { return a + b; }`)
 	}
 }
 
+func TestGenerateTaskWithArrayAndEscapedStringAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`let readings: int32[4] = [10, 20];
+readings.push(30);
+let msg = "a\tb\nc";
+task("tick", 500, () => {
+    readings[1] = readings[0];
+});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, `"a\tb\nc"`) {
+		t.Fatalf("expected escaped control characters in generated string literal, got:\n%s", out)
+	}
+	if !strings.Contains(out, "static periodic_task_t jikascript_task_tick_task;") {
+		t.Fatalf("expected static task registration variable, got:\n%s", out)
+	}
+	if !strings.Contains(out, "periodic_task_add(&jikascript_task_tick_task, jikascript_task_tick, 500)") {
+		t.Fatalf("expected task registration to reference the static task variable, got:\n%s", out)
+	}
+	tmp := filepath.Join(t.TempDir(), "task_array.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve generator test location")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
+	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
+		"-I", filepath.Join(root, "runtime", "periodic"),
+		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated task/array C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
 func TestGenerateLexicalShadowingUsesDistinctLocalSymbols(t *testing.T) {
 	program, err := parser.ParseProgram(`let value = 1;
 function read(value) {
