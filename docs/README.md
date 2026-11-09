@@ -13,6 +13,7 @@ JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers (st
 - **Zero VM Overhead:** There is no heavy JS engine on the chip. Your code compiles directly to native C99 and machine code.
 - **Predictable & Safe:** Zero dynamic heap allocation by default. Everything has static capacity and bounds-checking.
 - **Familiar Syntax:** Variables, arrow functions, object literals, and arrays feel just like modern JavaScript.
+- **Multi-file Programs:** Split code across `.jika` files with `include`, resolved at compile time.
 - **Built-in Cooperative Multitasking:** Forget juggling raw timer interrupts. Schedule periodic tasks cleanly with simple `task(...)` calls.
 - **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood, then review or tweak it before you build firmware.
 - **One-Command Build & Flash:** `jikascript build` and `jikascript flash` drive PlatformIO for you, fetching the toolchain on first run.

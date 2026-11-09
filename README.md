@@ -244,6 +244,22 @@ Artifacts:
 - [blink.jika](examples/blink.jika)
 - [multiple_tasks.jika](examples/multiple_tasks.jika)
 - [conditional_task.jika](examples/conditional_task.jika)
+- [multi-file/app.jika](examples/multi-file/app.jika)
+
+## Multi-file programs (v0.1)
+
+Programs may be split across multiple `.jika` files with the compile-time
+`include` statement:
+
+```javascript
+include "helpers.jika";
+```
+
+Included files' top-level statements are spliced into the program before
+checking and code generation, so the result is one flattened program. Paths are
+resolved relative to the including file, included files must end in `.jika`,
+`include` is top-level only, and circular includes are rejected. See
+[SPEC.md](SPEC.md) §4.3 and `docs/language/includes.md` for details.
 
 ## Bounded arrays (v0.1)
 

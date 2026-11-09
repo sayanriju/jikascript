@@ -22,9 +22,10 @@ Here is the pipeline that transforms your code:
 ```
 
 1. **Lexing & Parsing:** Your `.jika` file is parsed into an Abstract Syntax Tree (AST).
-2. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
-3. **C Code Generation:** The compiler emits standard C99 code.
-4. **Firmware Build (Optional):** `jikascript build` generates a PlatformIO project and runs `pio run`, which compiles the C code with the RISC-V toolchain against the `ch32v003fun` framework and links an `.elf` and `.bin`.
+2. **Include Resolution:** `include` statements are resolved and the included files' top-level statements are spliced into the program AST, so checking and code generation see one flattened program.
+3. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
+4. **C Code Generation:** The compiler emits standard C99 code.
+5. **Firmware Build (Optional):** `jikascript build` generates a PlatformIO project and runs `pio run`, which compiles the C code with the RISC-V toolchain against the `ch32v003fun` framework and links an `.elf` and `.bin`.
 
 Generated source and firmware artifacts have separate homes:
 
