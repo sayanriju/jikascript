@@ -124,30 +124,6 @@ produces a 916-byte one.
 
 ---
 
-## 6. Export a Ready-to-Open Project (deprecated)
-
-> **Deprecated.** Use `jikascript build` or `jikascript flash` instead. `export`
-> will be removed in a future release.
-
-If you would rather build and upload from the PlatformIO IDE, JikaScript can
-prepare a little project folder for you:
-
-```bash
-jikascript export blink.jika --output=out/blink-platformio
-```
-
-That folder uses a typical PlatformIO layout: `src/main.c`, scheduler/GPIO
-runtime sources in `src/runtime/`, headers in `include/`, and a
-`platformio.ini` already configured for CH32fun on the CH32V003.
-Open `out/blink-platformio/` as a PlatformIO project, select the `ch32v003`
-environment, and use PlatformIO's normal **Build** or **Upload** buttons.
-
-One small heads-up: export recreates its destination each time. That keeps the
-project neat and prevents old generated files from tagging along, so keep any
-personal edits in your `.jika` source or outside the export directory.
-
----
-
 ## What's Next?
 
 Now that you've seen the basics, let's explore the language features in detail:

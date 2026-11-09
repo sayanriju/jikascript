@@ -21,11 +21,6 @@ transpile file="examples/blink.jika" dest="out/blink.c": bin
 	mkdir -p "$(dirname "{{dest}}")"
 	./jikascript transpile {{file}} --output={{dest}}
 
-[arg("file", long)]
-[arg("dest", long)]
-export file="examples/blink.jika" dest="out/blink": bin
-	./jikascript export {{file}} --output={{dest}}
-
 [arg("source", long)]
 [arg("board", long)]
 [arg("optimize", long)]

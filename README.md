@@ -79,7 +79,6 @@ jikascript version
 jikascript transpile <input.jika> [--output=<file.c>] [--target=ch32v003]
 jikascript build <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--optimize=size|speed]
 jikascript flash <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
-jikascript export <input.jika> [--output=<dir>] [--target=ch32v003]   (deprecated)
 ```
 
 `--optimize` is optional. When omitted, the PlatformIO platform default is used
@@ -120,23 +119,6 @@ jikascript build out/blink.c --board=ch32v003 --optimize=size
 ```
 
 This keeps the generated C readable and reviewable, and lets you make a final hand-tuned edit before building firmware. For quick iterations, `jikascript build examples/blink.jika ...` still works as a direct source build.
-
-### export (deprecated)
-
-> **Deprecated.** `build` and `flash` now drive PlatformIO directly. `export`
-> is kept only for users who want a project folder to open in the PlatformIO
-> IDE, and will be removed in a future release.
-
-Create a fresh, self-contained PlatformIO source project for a JikaScript
-program. Export intentionally replaces its destination, so it never retains
-stale generated or runtime files:
-
-```bash
-jikascript export examples/blink.jika --output=out/blink
-```
-
-The exported directory follows a standard PlatformIO layout:
-`src/main.c`, `src/runtime/*.c`, `include/*.h`, and `platformio.ini`.
 
 ### build (CH32V003 via PlatformIO)
 

@@ -1062,26 +1062,7 @@ Purpose:
 
 Validate syntax and semantics without generating firmware.
 
-## 9.5 export (deprecated)
-
-Command:
-
-```bash
-jikascript export blink.jika --output=out/blink
-```
-
-Purpose:
-
-Write a self-contained PlatformIO source project for a `.jika` program.
-
-Status:
-
-Deprecated. `build` and `flash` drive PlatformIO directly, so `export` is
-retained only for users who want a project folder to open in the PlatformIO
-IDE. It must print a deprecation warning to stderr and will be removed in a
-future release.
-
-## 9.6 Additional options
+## 9.5 Additional options
 
 Potential options:
 

@@ -45,10 +45,10 @@ default flag is removed first — otherwise the two would stack and the override
 would be silently ignored. Omitting `--optimize` leaves the file untouched and
 lets PlatformIO decide.
 
-If you need a fresh, ready-to-open PlatformIO source project, use
-`jikascript export blink.jika --output=out/blink-platformio` (deprecated). It packages
-`main.c`, the JikaScript C runtime, CH32fun configuration, and a PlatformIO
-manifest in the usual `src/` + `include/` project layout.
+If you want to open the generated PlatformIO project on its own, it lives under
+`out/<name>-pio/` and packages `main.c`, the JikaScript C runtime, CH32fun
+configuration, and a PlatformIO manifest in the usual `src/` + `include/`
+project layout.
 
 ---
 

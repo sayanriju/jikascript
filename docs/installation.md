@@ -137,24 +137,6 @@ keeps PlatformIO's default `-Os`.
 
 ---
 
-## Export a PlatformIO project (deprecated)
-
-> **Deprecated.** Use `jikascript build` or `jikascript flash` instead. `export`
-> will be removed in a future release.
-
-To create a clean, self-contained source package for PlatformIO, run:
-
-```bash
-jikascript export examples/blink.jika --output=out/blink
-```
-
-The command recreates `out/blink/` with a standard PlatformIO layout:
-`src/main.c`, runtime sources under `src/runtime/`, headers under `include/`,
-and `platformio.ini` configured for the CH32V003 CH32fun framework.
-Open that folder in PlatformIO and select the `ch32v003` environment.
-
----
-
 ## Troubleshooting
 
 ### `PlatformIO (pio) not found on PATH`

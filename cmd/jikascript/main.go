@@ -36,11 +36,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-	case "export":
-		if err := runExport(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
 	case "build":
 		if err := runBuild(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -64,7 +59,6 @@ func printUsage() {
 	fmt.Println("  jikascript transpile <input.jika> [--output=<file.c>] [--target=<target>]")
 	fmt.Println("  jikascript build <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--optimize=<size|speed>]")
 	fmt.Println("  jikascript flash <input.jika|input.c> [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
-	fmt.Println("  jikascript export <input.jika> [--output=<dir>] [--target=<target>]   (deprecated: use build/flash)")
 	fmt.Println()
 	fmt.Println("options accept both --name=value and --name value; -o is a short form of --output.")
 }
@@ -123,53 +117,9 @@ func runTranspile(args []string) error {
 	return os.WriteFile(opts.output, []byte(output), 0o644)
 }
 
-// runExport creates a self-contained PlatformIO project. Unlike transpile and
-// build, export deliberately recreates its destination so no stale generated
-// or runtime files remain in the package.
-//
-// Deprecated: `build` and `flash` now drive PlatformIO directly, so export is
-// kept only for users who want a project folder to open in the PlatformIO IDE.
-func runExport(args []string) error {
-	fmt.Fprintln(os.Stderr, "warning: `jikascript export` is deprecated and will be removed in a future release; use `jikascript build` or `jikascript flash` instead")
-	opts, err := parseOptions(args)
-	if err != nil {
-		return err
-	}
-	if err := validateTarget(opts.target); err != nil {
-		return err
-	}
-	if opts.input == "" {
-		return fmt.Errorf("missing input file")
-	}
-	if filepath.Ext(opts.input) != ".jika" {
-		return fmt.Errorf("input must be a .jika source file: %s", opts.input)
-	}
-
-	outputDir := strings.TrimSpace(opts.output)
-	if outputDir == "" {
-		base := strings.TrimSuffix(filepath.Base(opts.input), filepath.Ext(opts.input))
-		outputDir = filepath.Join("out", base)
-	}
-	if err := validateExportDir(outputDir); err != nil {
-		return err
-	}
-
-	board, err := platformio.ResolveBoard(opts.board)
-	if err != nil {
-		return err
-	}
-	project := platformio.Project{Dir: outputDir, Env: platformio.DefaultEnv, Board: board}
-	if err := generateProject(opts.input, project, true); err != nil {
-		return err
-	}
-	fmt.Printf("export: generated PlatformIO project in %s\n", outputDir)
-	return nil
-}
-
-// generateProject writes a PlatformIO project for the given .jika source.
-// When clean is true the destination is recreated from scratch; otherwise
-// existing files are overwritten in place.
-func generateProject(inputPath string, project platformio.Project, clean bool) error {
+// generateProject writes a PlatformIO project for the given .jika source by
+// staging the generated main.c, runtime files, and PlatformIO configuration.
+func generateProject(inputPath string, project platformio.Project) error {
 	program, err := parser.ParseFile(inputPath)
 	if err != nil {
 		return err
@@ -182,11 +132,6 @@ func generateProject(inputPath string, project platformio.Project, clean bool) e
 		return fmt.Errorf("%s: %w", inputPath, err)
 	}
 
-	if clean {
-		if err := os.RemoveAll(project.Dir); err != nil {
-			return err
-		}
-	}
 	srcDir := filepath.Join(project.Dir, "src")
 	includeDir := filepath.Join(project.Dir, "include")
 	if err := os.MkdirAll(srcDir, 0o755); err != nil {
@@ -201,7 +146,7 @@ func generateProject(inputPath string, project platformio.Project, clean bool) e
 	if err := ensureFunConfig(includeDir); err != nil {
 		return err
 	}
-	for _, file := range exportedRuntimeFiles {
+	for _, file := range runtimeFiles {
 		sourcePath, err := resolveProjectPath(file.source)
 		if err != nil {
 			return err
@@ -210,18 +155,10 @@ func generateProject(inputPath string, project platformio.Project, clean bool) e
 			return err
 		}
 	}
-	if err := project.WriteConfig(); err != nil {
-		return err
-	}
-	if clean {
-		if err := os.WriteFile(filepath.Join(project.Dir, "README.md"), []byte(exportReadme), 0o644); err != nil {
-			return err
-		}
-	}
-	return nil
+	return project.WriteConfig()
 }
 
-var exportedRuntimeFiles = []struct {
+var runtimeFiles = []struct {
 	source      string
 	destination string
 }{
@@ -231,28 +168,6 @@ var exportedRuntimeFiles = []struct {
 	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
-}
-
-const exportReadme = `# JikaScript export
-
-This directory is a generated, self-contained PlatformIO source project for a
-CH32V003. Open it in PlatformIO, then build or upload the ch32v003
-environment. Change the board in platformio.ini if your CH32V003 package
-differs from genericCH32V003F4P6.
-
-Do not edit generated runtime files; regenerate this directory with
-jikascript export after changing the JikaScript source.
-`
-
-func validateExportDir(dir string) error {
-	cleaned := filepath.Clean(dir)
-	if cleaned == "." || cleaned == string(filepath.Separator) {
-		return fmt.Errorf("export output directory must not be %q", dir)
-	}
-	if volume := filepath.VolumeName(cleaned); volume != "" && cleaned == volume+string(filepath.Separator) {
-		return fmt.Errorf("export output directory must not be a filesystem root")
-	}
-	return nil
 }
 
 func copyFile(source, destination string) error {
@@ -376,7 +291,7 @@ func preparePlatformIOProject(opts cliOptions) (platformio.Project, string, stri
 
 	switch strings.ToLower(filepath.Ext(opts.input)) {
 	case ".jika":
-		if err := generateProject(opts.input, project, false); err != nil {
+		if err := generateProject(opts.input, project); err != nil {
 			return platformio.Project{}, "", "", err
 		}
 	case ".c":
@@ -410,7 +325,7 @@ func generateProjectFromC(inputPath string, project platformio.Project) error {
 	if err := ensureFunConfig(includeDir); err != nil {
 		return err
 	}
-	for _, file := range exportedRuntimeFiles {
+	for _, file := range runtimeFiles {
 		sourcePath, err := resolveProjectPath(file.source)
 		if err != nil {
 			return err

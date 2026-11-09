@@ -111,63 +111,6 @@ func TestRunCheckRejectsNonMicInput(t *testing.T) {
 	}
 }
 
-func TestRunExportCreatesSelfContainedPlatformIOProject(t *testing.T) {
-	tempDir := t.TempDir()
-	inputPath := filepath.Join(tempDir, "blink.jika")
-	outputDir := filepath.Join(tempDir, "blink-export")
-	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
-		t.Fatalf("write source: %v", err)
-	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		t.Fatalf("create export directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(outputDir, "stale.txt"), []byte("stale"), 0o644); err != nil {
-		t.Fatalf("write stale file: %v", err)
-	}
-
-	if err := runExport([]string{inputPath, "-o", outputDir}); err != nil {
-		t.Fatalf("runExport error: %v", err)
-	}
-	for _, name := range []string{
-		"src/main.c",
-		"src/runtime/periodic.c",
-		"src/runtime/gpio.c",
-		"src/runtime/periodic_ch32fun.c",
-		"include/periodic.h",
-		"include/gpio.h",
-		"include/periodic_ch32fun.h",
-		"include/funconfig.h",
-		"platformio.ini",
-		"README.md",
-	} {
-		if _, err := os.Stat(filepath.Join(outputDir, name)); err != nil {
-			t.Errorf("export missing %s: %v", name, err)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(outputDir, "stale.txt")); !os.IsNotExist(err) {
-		t.Fatalf("export should remove stale files, stat error = %v", err)
-	}
-	config, err := os.ReadFile(filepath.Join(outputDir, "platformio.ini"))
-	if err != nil {
-		t.Fatalf("read PlatformIO configuration: %v", err)
-	}
-	if !strings.Contains(string(config), "framework = ch32v003fun") {
-		t.Fatalf("export should select the CH32fun PlatformIO framework, got:\n%s", config)
-	}
-	if !strings.Contains(string(config), "src_dir = src") {
-		t.Fatalf("export should use src/ as PlatformIO source dir, got:\n%s", config)
-	}
-	if !strings.Contains(string(config), "include_dir = include") {
-		t.Fatalf("export should use include/ as PlatformIO include dir, got:\n%s", config)
-	}
-}
-
-func TestValidateExportDirRejectsCurrentDirectory(t *testing.T) {
-	if err := validateExportDir("."); err == nil {
-		t.Fatal("expected current directory to be rejected")
-	}
-}
-
 func TestValidateTargetRejectsUnknown(t *testing.T) {
 	err := validateTarget("invalid")
 	if err == nil || !strings.Contains(err.Error(), "unsupported target") {
@@ -407,51 +350,6 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("read pipe: %v", err)
 	}
 	return string(data)
-}
-
-func TestRunExportWarnsAboutDeprecation(t *testing.T) {
-	tempDir := t.TempDir()
-	inputPath := filepath.Join(tempDir, "blink.jika")
-	outputDir := filepath.Join(tempDir, "blink-export")
-	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
-		t.Fatalf("write source: %v", err)
-	}
-
-	stderr, err := captureStderr(t, func() error {
-		return runExport([]string{inputPath, "-o", outputDir})
-	})
-	if err != nil {
-		t.Fatalf("runExport error: %v", err)
-	}
-	if !strings.Contains(stderr, "deprecated") {
-		t.Fatalf("expected deprecation warning on stderr, got %q", stderr)
-	}
-}
-
-// captureStderr redirects os.Stderr for the duration of fn and returns what
-// was written to it.
-func captureStderr(t *testing.T, fn func() error) (string, error) {
-	t.Helper()
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	original := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-
-	runErr := fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	captured, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("read captured stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(captured), runErr
 }
 
 // fakePio installs a stub `pio` executable on PATH that records its arguments
