@@ -178,6 +178,26 @@ device.enabled = false;
 	}
 }
 
+func TestGenerateNestedObjectTypedefOrder(t *testing.T) {
+	program, err := parser.ParseProgram(`const device = { name: "s1", nested: { a: 1 } };
+const v = device.nested.a;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	out, genErr := Generate(program)
+	if genErr != nil {
+		t.Fatalf("generate error: %v", genErr)
+	}
+	inner := strings.Index(out, "} jikascript_object_1_t;")
+	outer := strings.Index(out, "} jikascript_object_2_t;")
+	if inner < 0 || outer < 0 || inner > outer {
+		t.Fatalf("expected nested object typedef emitted before embedding struct, got:\n%s", out)
+	}
+	if !strings.Contains(out, "js_v = js_device.nested.a;") {
+		t.Fatalf("expected nested property access, got:\n%s", out)
+	}
+}
+
 func TestGenerateObjectFunctionArgumentAndReturn(t *testing.T) {
 	program, err := parser.ParseProgram(`function setPin(device) { device.pin = 4; return { pin: 4 }; }
 const device = { pin: 3 };

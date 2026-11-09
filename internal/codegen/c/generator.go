@@ -1234,6 +1234,11 @@ func collectObjectTypes(program *ast.Program) {
 	var register func(ast.Expr)
 	register = func(expr ast.Expr) {
 		if lit, ok := expr.(*ast.ObjectLiteralExpr); ok {
+			// Register nested object literals first so their typedefs are
+			// emitted before any struct that embeds them by value.
+			for _, property := range lit.Properties {
+				register(property.Value)
+			}
 			shape := objectShapeForLiteral(lit)
 			if _, exists := generatedObjects[shape]; !exists {
 				generatedObjects[shape] = objectMeta{Shape: shape, CName: fmt.Sprintf("jikascript_object_%d_t", len(generatedObjects)+1), Fields: lit.Properties}
