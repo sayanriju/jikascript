@@ -137,6 +137,22 @@ readings[0] = latest;
 	if pushPos == -1 || popPos == -1 || pushPos > popPos {
 		t.Fatal("expected top-level array operations to preserve source order")
 	}
+
+	tmp := filepath.Join(t.TempDir(), "array.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve generator test location")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
+	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
+		"-I", filepath.Join(root, "runtime", "periodic"),
+		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated array C failed C99 syntax check: %v\n%s", err, output)
+	}
 }
 
 func TestGenerateObjectRecordsAndPropertyAccess(t *testing.T) {
