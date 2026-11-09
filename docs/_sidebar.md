@@ -5,6 +5,7 @@
 - **Language Guide**
   - [Variables & Types](language/variables-and-types.md)
   - [Reserved Keywords](language/reserved-keywords.md)
+  - [File Includes](language/includes.md)
   - [Functions](language/functions.md)
   - [Objects & Records](language/objects.md)
   - [Arrays](language/arrays.md)

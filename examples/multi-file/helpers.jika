@@ -1,0 +1,7 @@
+const led = pin("PC1");
+
+led.output();
+
+function twice(value) {
+    return value + value;
+}

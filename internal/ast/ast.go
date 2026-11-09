@@ -43,6 +43,16 @@ type ConstDecl struct {
 
 func (*ConstDecl) stmtNode() {}
 
+// IncludeStmt describes a compile-time file include (`include "path.jika";`).
+// It is resolved by the parser's file resolver before the checker and code
+// generator run, so those stages never encounter IncludeStmt nodes.
+type IncludeStmt struct {
+	Path string
+	Pos  Position
+}
+
+func (*IncludeStmt) stmtNode() {}
+
 // FunctionDecl describes a named function.
 type FunctionDecl struct {
 	Name         string

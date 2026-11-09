@@ -1,7 +1,7 @@
 # JikaScript
 ## Language, Compiler & Runtime Specification
 
-**Specification version:** 0.1.0  
+**Specification version:** 0.2.0  
 **Status:** Initial implementation specification  
 **Language reference:** ECMAScript 2024  
 **Compiler implementation:** Go  
@@ -446,6 +446,31 @@ Strings should be stored in read-only memory where supported by the target toolc
 
 Dynamic string allocation and garbage collection are excluded.
 
+### File includes
+
+Programs may be split across multiple `.jika` files by including one file from another:
+
+```javascript
+include "helpers.jika";
+
+scheduler.start();
+```
+
+Rules:
+
+- `include` is a compile-time construct: the included file's top-level statements are spliced into the including program before checking and code generation.
+- The argument is a single string literal naming a `.jika` file.
+- The path is resolved relative to the directory of the file that contains the `include` statement, not the current working directory.
+- The included file must end in `.jika`.
+- Only the included file's top-level statements are spliced in, in source order.
+- `include` is only valid at the top level of a file. Nested `include` statements (inside a function or block) are rejected at parse time.
+- Circular includes are rejected with a clear error.
+- Diamond includes (two files including a common helper) are permitted; any resulting duplicate declarations are caught by the semantic checker, as usual.
+
+`include` is a textual, compile-time mechanism akin to C's `#include`. It does not create modules or scopes. A future `import`/module feature should be designed separately.
+
+Known v0.1 limitation: diagnostics for declarations that come from an included file are attributed to the entry file's path and line in the same way as spliced top-level code.
+
 ---
 
 # 5. Cooperative Scheduling Model
@@ -747,6 +772,7 @@ Implement the following stages:
 3. Token definitions.
 4. Parser.
 5. AST construction.
+6. File include resolution (splicing included top-level statements into the program AST).
 6. Semantic analysis.
 7. Type checking.
 8. Target-specific code generation.
@@ -767,7 +793,8 @@ jikascript/
 │   │   └── token.go
 │   │
 │   ├── parser/
-│   │   └── parser.go
+│   │   ├── parser.go
+│   │   └── resolve.go
 │   │
 │   ├── ast/
 │   │   └── ast.go
@@ -943,25 +970,27 @@ Requirements:
 - Parse and validate `.jika` source when the input is a source file.
 - Generate readable C during the transpile step if the input is `.jika`.
 - Accept a generated `.c` file as a build input so the generated code may be reviewed or hand-edited before flashing.
-- Require `JIKASCRIPT_CH32FUN` to point to a CH32fun checkout root that contains `ch32fun/ch32fun.h`.
-- Invoke the configured target C toolchain.
-- Link the required runtime and hardware libraries.
-- Ensure a minimal `funconfig.h` is available in the generated/input C directory when one is not already present.
-- Produce firmware artifacts.
+- Require PlatformIO Core (`pio`) to be available on `PATH`.
+- Generate a PlatformIO project for the selected board and environment.
+- Invoke `pio run` for that environment to compile and link the firmware.
+- Ensure a minimal `funconfig.h` is available in the generated project's include directory when one is not already present.
+- Copy the resulting firmware artifacts to the build output directory.
 - Report build errors clearly.
+
+PlatformIO supplies the CH32V platform, the `ch32v003fun` framework, and the
+RISC-V toolchain, so no separate CH32fun checkout or toolchain installation is
+required.
 
 The native compiler should use an optimization level suitable for embedded production builds.
 
-Default optimization should initially favor code size, such as GCC `-Os`.
+Default optimization should initially favor code size.
 
 Allow the user to override optimization settings.
-
 Expected output:
 
 ```text
 build/
 ├── blink.elf
-├── blink.hex
 ├── blink.bin
 └── ...
 ```
@@ -970,7 +999,28 @@ The exact output formats depend on the target toolchain.
 
 Important: the compiler must not sacrifice correctness to minimize generated code.
 
-## 9.2 transpile
+## 9.2 flash
+
+Command:
+
+```bash
+jikascript flash blink.jika
+# or, after a transpile step and optional hand-edit:
+jikascript flash blink.c
+```
+
+Purpose:
+
+Build firmware and upload it to a connected device.
+
+Requirements:
+
+- Perform the same generation and build steps as `build`.
+- Invoke `pio run -t upload` for the selected environment.
+- Accept an optional `--port` to select the upload device.
+- Report upload errors clearly and exit non-zero on failure.
+
+## 9.3 transpile
 
 Command:
 
@@ -995,12 +1045,12 @@ Requirements:
 Example:
 
 ```bash
-jikascript transpile blink.jika -o blink.c
+jikascript transpile blink.jika --output=blink.c
 # review/edit blink.c
 jikascript build blink.c
 ```
 
-## 9.3 check
+## 9.4 check
 
 Command:
 
@@ -1012,26 +1062,36 @@ Purpose:
 
 Validate syntax and semantics without generating firmware.
 
-## 9.4 Additional options
+## 9.5 Additional options
 
 Potential options:
 
 ```bash
-jikascript build blink.jika --target ch32v003
-jikascript build blink.c --target ch32v003
-jikascript build blink.jika --optimize size
-jikascript build blink.c --optimize speed
-jikascript build blink.jika -o dist/blink.elf
-jikascript transpile blink.jika --target ch32v003
+jikascript build blink.jika --board=ch32v003
+jikascript build blink.c --board=genericCH32V003J4M6
+jikascript build blink.jika --env=ch32v003
+jikascript build blink.jika --optimize=size
+jikascript build blink.c --optimize=speed
+jikascript build blink.jika --output=dist/blink.elf
+jikascript flash blink.jika --port=/dev/ttyUSB0
+jikascript transpile blink.jika --target=ch32v003
 ```
+
+`--board` selects the CH32V003 package variant and defaults to `ch32v003`,
+which maps to the PlatformIO board `genericCH32V003F4P6`. `--env` overrides the
+PlatformIO environment name and defaults to `ch32v003`.
+
+`--optimize` is optional. When omitted, the PlatformIO platform default is used
+unchanged and no `build_flags` are emitted. `--optimize=size` selects `-Os` and
+`--optimize=speed` selects `-O2`; the latter also emits `build_unflags = -Os`
+because PlatformIO appends its own default optimization flag after
+`build_flags`.
 
 Build environment variables:
 
 ```bash
-export JIKASCRIPT_CH32FUN=/absolute/path/to/ch32fun-root
-# optional overrides:
-export JIKASCRIPT_RISCV_GCC=/path/to/riscv64-unknown-elf-gcc
-export JIKASCRIPT_OBJCOPY=/path/to/riscv64-unknown-elf-objcopy
+# Optional: override the PlatformIO executable if it is not on PATH.
+export JIKASCRIPT_PIO=/path/to/pio
 ```
 
 The initial release only needs essential functionality. Do not implement every possible option prematurely.
@@ -1320,7 +1380,7 @@ Deliverable: Readable, compilable C output.
 - Add CH32V003 target configuration.
 - Add GPIO backend.
 - Integrate standalone scheduler.
-- Invoke RISC-V GCC.
+- Build firmware through PlatformIO with the `ch32v003fun` framework.
 - Produce firmware artifacts.
 - Test actual hardware.
 
@@ -1352,8 +1412,9 @@ JikaScript v0.1 is complete when:
 8. GPIO operations work on CH32V003 through CH32fun.
 9. `jikascript transpile` produces readable C.
 10. `jikascript build` produces optimized firmware.
-11. The generated firmware runs on a physical CH32V003 board.
-12. The generated code has no C++ dependency.
+11. `jikascript flash` uploads firmware to a connected device.
+12. The generated firmware runs on a physical CH32V003 board.
+13. The generated code has no C++ dependency.
 
 ---
 

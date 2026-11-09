@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+void gpio_ch32fun_init(void) {}
+
 int pin(const char *name) {
     if (name == 0) {
         return -1;

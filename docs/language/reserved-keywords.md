@@ -18,7 +18,7 @@ task("blink", 1000, () => {
 scheduler.start();
 ```
 
-Here, `task` is not a variable name; it is the task declaration syntax. `scheduler` is not a normal object you can shadow; it is the scheduler API. `start` is the special scheduler method name.
+Here, `task` is not a variable name; it is the task declaration syntax. `scheduler` is not a normal object you can shadow; it is the scheduler API. `start` is the special scheduler method name. `include` is the file-include syntax, not a variable name.
 
 ---
 
@@ -30,6 +30,7 @@ The initial language subset reserves the following names:
 - `if`, `else`, `while`, `do`, `for`, `switch`, `case`, `default`
 - `break`, `continue`
 - `true`, `false`
+- `include`
 - `task`, `pin`, `scheduler`, `start`
 
 ---
@@ -42,6 +43,7 @@ Using a reserved word as a variable name will fail during parsing or checking.
 let task = 1;          // invalid
 const scheduler = 5;   // invalid
 let start = 1;         // invalid
+include = 2;           // invalid
 ```
 
 Use a different name instead:

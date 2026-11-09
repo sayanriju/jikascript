@@ -9,6 +9,7 @@ bin/
 
 # Build outputs
 build/
+out/
 
 # C build/test artifacts
 *.o
@@ -23,6 +24,7 @@ coverage.out
 .DS_Store
 .vscode/
 .idea/
+.kilo/
 
 # Third-party dependencies (like ch32fun)
 third_party/*

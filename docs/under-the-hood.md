@@ -9,7 +9,7 @@ One of JikaScript's core design tenets is **readable, inspectable generated C**.
 When you run:
 
 ```bash
-jikascript transpile blink.jika -o blink.c
+jikascript transpile blink.jika --output=out/blink.c
 ```
 
 Here is the pipeline that transforms your code:
@@ -22,9 +22,33 @@ Here is the pipeline that transforms your code:
 ```
 
 1. **Lexing & Parsing:** Your `.jika` file is parsed into an Abstract Syntax Tree (AST).
-2. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
-3. **C Code Generation:** The compiler emits standard C99 code.
-4. **Firmware Build (Optional):** Target toolchains (e.g. GCC RISC-V with CH32fun) compile the C code directly into an `.elf` or `.bin`.
+2. **Include Resolution:** `include` statements are resolved and the included files' top-level statements are spliced into the program AST, so checking and code generation see one flattened program.
+3. **Type Inference & Checking:** Types are inferred from values, expressions, and call sites. Mismatches and array capacity violations are caught right here.
+4. **C Code Generation:** The compiler emits standard C99 code.
+5. **Firmware Build (Optional):** `jikascript build` generates a PlatformIO project and runs `pio run`, which compiles the C code with the RISC-V toolchain against the `ch32v003fun` framework and links an `.elf` and `.bin`.
+
+Generated source and firmware artifacts have separate homes:
+
+```text
+blink.jika  →  out/blink.c  →  out/blink-pio/  →  build/blink.elf
+                                                   build/blink.bin
+```
+
+`out/` is for inspectable generated material, including the generated
+PlatformIO project; `build/` is for final firmware. `jikascript flash` runs the
+same pipeline and then uploads with `pio run -t upload`.
+
+`--optimize` is written straight into the generated `platformio.ini` as a
+`build_flags` entry (`-Os` for `size`, `-O2` for `speed`). When you override the
+default, the generator also emits `build_unflags = -Os` so PlatformIO's own
+default flag is removed first — otherwise the two would stack and the override
+would be silently ignored. Omitting `--optimize` leaves the file untouched and
+lets PlatformIO decide.
+
+If you want to open the generated PlatformIO project on its own, it lives under
+`out/<name>-pio/` and packages `main.c`, the JikaScript C runtime, CH32fun
+configuration, and a PlatformIO manifest in the usual `src/` + `include/`
+project layout.
 
 ---
 

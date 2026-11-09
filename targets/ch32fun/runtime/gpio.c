@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#include "ch32fun.h"
+#include <ch32fun.h>
 
 enum {
     JIKASCRIPT_PIN_INVALID = -1,
@@ -50,6 +50,11 @@ static int resolve_fun_pin(int pin_id) {
     }
 }
 
+void gpio_ch32fun_init(void) {
+    SystemInit();
+    funGpioInitAll();
+}
+
 int pin(const char *name) {
     if (name == 0) {
         return JIKASCRIPT_PIN_INVALID;
@@ -90,7 +95,7 @@ void gpio_input(int pin_id) {
     if (p < 0) {
         return;
     }
-    funPinMode(p, GPIO_CFGLR_IN_FLOATING);
+    funPinMode(p, GPIO_CFGLR_IN_FLOAT);
 }
 
 void gpio_toggle(int pin_id) {
