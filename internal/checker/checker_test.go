@@ -211,13 +211,25 @@ func TestCheckAllowsInferredArrayOfObjects(t *testing.T) {
 	}
 }
 
-func TestCheckRejectsNarrowingNumericDeclaration(t *testing.T) {
-	program, err := parser.ParseProgram(`let small: uint8 = 255;`)
+func TestCheckRejectsOutOfRangeIntegerLiteral(t *testing.T) {
+	program, err := parser.ParseProgram(`let small: uint8 = 300;`)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	if err := Check(program); err == nil || !strings.Contains(err.Error(), "type mismatch") {
 		t.Fatalf("expected declaration type mismatch error, got %v", err)
+	}
+}
+
+func TestCheckAllowsInRangeIntegerLiteralForDeclaredType(t *testing.T) {
+	program, err := parser.ParseProgram(`let count: uint32 = 100;
+let small: uint8 = 255;
+let temp: int8 = -128;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
 	}
 }
 

@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -743,7 +744,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 							return err
 						}
 						argType, ok := inferLiteralType(node.Args[0], scopeStack)
-						if ok && !typeCompatible(arrayElemType(binding), argType) {
+						if ok && !typeCompatible(arrayElemType(binding), argType) && !literalFitsType(node.Args[0], arrayElemType(binding)) {
 							return fmt.Errorf("line %d:%d: push() type mismatch for array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
 						}
 						return nil
@@ -875,7 +876,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 					}
 				}
 				valueType, ok := inferLiteralType(node.Right, scopeStack)
-				if ok && !typeCompatible(arrayElemType(binding), valueType) {
+				if ok && !typeCompatible(arrayElemType(binding), valueType) && !literalFitsType(node.Right, arrayElemType(binding)) {
 					return fmt.Errorf("line %d:%d: type mismatch for array '%s' assignment", node.Pos.Line, node.Pos.Column, ident.Name)
 				}
 			}
@@ -886,7 +887,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 				if binding, exists := lookup(scopeStack, ident.Name); exists {
 					expectedType, typed := scalarBindingType(binding)
 					actualType, known := inferLiteralType(node.Right, scopeStack)
-					if typed && known && !typeCompatible(expectedType, actualType) {
+					if typed && known && !typeCompatible(expectedType, actualType) && !literalFitsType(node.Right, expectedType) {
 						return fmt.Errorf("line %d:%d: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, ident.Name, expectedType, actualType)
 					}
 				}
@@ -1015,7 +1016,7 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 		}
 		for _, elem := range lit.Elements {
 			et, ok := inferLiteralType(elem, scopeStack)
-			if !ok || !typeCompatible(elemType, et) {
+			if !ok || (!typeCompatible(elemType, et) && !literalFitsType(elem, elemType)) {
 				return "", fmt.Errorf("array element type mismatch for declared type '%s'", elemType)
 			}
 		}
@@ -1084,7 +1085,7 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 		resolvedType = "int32"
 	}
 	if inferred, ok := inferLiteralType(value, scopeStack); ok && !strings.Contains(inferred, ":") {
-		if !typeCompatible(resolvedType, inferred) {
+		if !typeCompatible(resolvedType, inferred) && !literalFitsType(value, resolvedType) {
 			return "", fmt.Errorf("type mismatch for declaration: expected %s, got %s", resolvedType, inferred)
 		}
 	}
@@ -1289,6 +1290,59 @@ func typeCompatible(expected string, actual string) bool {
 	}
 	if strings.Contains(expected, ":") && strings.Contains(actual, ":") {
 		return expected == actual
+	}
+	return false
+}
+
+// intLiteralValue returns the value of an integer (non-float) number literal,
+// optionally negated by a unary minus (e.g. -128 parses as UnaryExpr).
+func intLiteralValue(expr ast.Expr) (int64, bool) {
+	negate := false
+	if unary, ok := expr.(*ast.UnaryExpr); ok && unary.Op == "-" {
+		negate = true
+		expr = unary.Expr
+	}
+	lit, ok := expr.(*ast.NumberLiteral)
+	if !ok || strings.Contains(lit.Value, ".") {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(lit.Value, 0, 64)
+	if err != nil {
+		return 0, false
+	}
+	if negate {
+		v = -v
+	}
+	return v, true
+}
+
+// literalFitsType reports whether a literal expression is acceptable for a
+// declared scalar type. Integer literals are typed int32 by default, so a
+// literal is also accepted for other integer types when its value fits the
+// target range (e.g. let count: uint32 = 100).
+func literalFitsType(expr ast.Expr, declaredType string) bool {
+	if v, ok := intLiteralValue(expr); ok {
+		switch declaredType {
+		case "int8":
+			return v >= math.MinInt8 && v <= math.MaxInt8
+		case "int16":
+			return v >= math.MinInt16 && v <= math.MaxInt16
+		case "int32":
+			return v >= math.MinInt32 && v <= math.MaxInt32
+		case "uint8":
+			return v >= 0 && v <= math.MaxUint8
+		case "uint16":
+			return v >= 0 && v <= math.MaxUint16
+		case "uint32":
+			return v >= 0 && v <= math.MaxUint32
+		case "float32", "number":
+			return true
+		default:
+			return false
+		}
+	}
+	if lit, ok := expr.(*ast.NumberLiteral); ok && strings.Contains(lit.Value, ".") {
+		return declaredType == "float32" || declaredType == "number"
 	}
 	return false
 }
