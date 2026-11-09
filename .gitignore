@@ -24,6 +24,7 @@ coverage.out
 .DS_Store
 .vscode/
 .idea/
+.kilo/
 
 # Third-party dependencies (like ch32fun)
 third_party/*
