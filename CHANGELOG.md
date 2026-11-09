@@ -8,21 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
-## [Unreleased]
+## [0.3.0] - 2026-11-09
+
+Language specification: `0.2.0`
+
+This release adds multi-file program support and removes the deprecated
+`jikascript export` subcommand.
 
 ### Added
 
 - Multi-file programs via the `include` statement. A `.jika` file can splice
   another file's top-level statements into the program before checking and code
-  generation, resolving paths relative to the including file. Includes are
-  top-level only, required to end in `.jika`, and circular includes are rejected
-  (see SPEC §4.3 and `docs/language/includes.md`).
+  generation, resolving paths relative to the including file.
+- Include files are limited to top-level use, must end in `.jika`, and reject
+  circular references to avoid ambiguous program structure.
 
 ### Removed
 
-- The deprecated `jikascript export` subcommand and its associated code and
-  documentation. `jikascript build` and `jikascript flash` generate and build
-  PlatformIO projects directly.
+- The deprecated `jikascript export` subcommand and its remaining code and
+  documentation. `jikascript build` and `jikascript flash` are the supported
+  ways to generate and build PlatformIO projects directly.
 
 ## [0.2.0] - 2026-11-09
 
@@ -77,5 +82,6 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.3.0]: https://github.com/sayanriju/jikascript/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sayanriju/jikascript/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sayanriju/jikascript/releases/tag/v0.1.0

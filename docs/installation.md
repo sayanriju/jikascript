@@ -76,7 +76,7 @@ jikascript version
 ```
 
 It reports the compiler version and the language specification it targets, for
-example JikaScript `0.2.0` and language spec `0.1.0`.
+example JikaScript `0.3.0` and language spec `0.2.0`.
 
 Or use the repo shortcuts:
 
