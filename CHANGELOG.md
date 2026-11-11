@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [0.3.3] - 2026-11-11
+
+Language specification: `0.2.0`
+
+This patch release fixes the generated CH32V003 `funconfig.h` so SysTick uses the
+correct HCLK source for task scheduling.
+
+### Fixed
+
+- Generated `funconfig.h` now enables `SysTick` on HCLK instead of leaving the
+  clock source disabled.
+- CH32V003 firmware generated via `jikascript transpile` and `jikascript build`
+  now uses the proper timer base for cooperative task scheduling.
+
+### Changed
+
+- The project version metadata and release notes now reflect the latest patch
+  release.
+
 ## [0.3.1] - 2026-11-11
 
 Language specification: `0.2.0`
@@ -104,6 +123,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.3.3]: https://github.com/sayanriju/jikascript/compare/v0.3.1...v0.3.3
 [0.3.1]: https://github.com/sayanriju/jikascript/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sayanriju/jikascript/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sayanriju/jikascript/compare/v0.1.0...v0.2.0
