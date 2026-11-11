@@ -481,6 +481,7 @@ func ensureFunConfig(dir string) error {
 #define _FUNCONFIG_H
 
 #define FUNCONF_USE_HSI 1
+#define FUNCONF_SYSTICK_USE_HCLK 1
 #define FUNCONF_USE_PLL 0
 #define FUNCONF_USE_DEBUGPRINTF 0
 #define FUNCONF_USE_UARTPRINTF 0
