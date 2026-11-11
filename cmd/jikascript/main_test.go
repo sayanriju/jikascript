@@ -29,7 +29,7 @@ func TestParseOptionsDefaults(t *testing.T) {
 }
 
 func TestVersionMetadata(t *testing.T) {
-	if version.Compiler != "0.3.0" || version.Spec != "0.2.0" {
+	if version.Compiler != "0.3.1" || version.Spec != "0.2.0" {
 		t.Fatalf("unexpected version metadata: compiler=%q spec=%q", version.Compiler, version.Spec)
 	}
 }
