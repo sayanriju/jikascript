@@ -19,7 +19,7 @@ void periodic_ch32fun_init(void) {
 /* Keep interrupt work bounded: application callbacks always run in periodic_run(). */
 void SysTick_Handler(void) __attribute__((interrupt));
 void SysTick_Handler(void) {
-    SysTick->CMP += DELAY_MS_TIME;
+    SysTick->CMP = SysTick->CNT + DELAY_MS_TIME;
     SysTick->SR = 0U;
     periodic_tick_ms(1U);
 }
