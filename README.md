@@ -209,6 +209,12 @@ jikascript flash examples/blink.jika --port=/dev/ttyUSB0
 
 `flash` accepts the same `--board`, `--env`, and `--optimize` flags as `build`.
 
+`pio run -t upload` is the source of truth for flash success. After a successful
+upload, JikaScript copies any available PlatformIO artifacts (`firmware.elf`,
+`firmware.bin`) into the requested output location. Missing post-upload
+artifacts are treated as non-fatal; in particular, a missing `.bin` does not
+fail `flash`.
+
 ### Optimization
 
 `--optimize` is optional and defaults to leaving the PlatformIO platform

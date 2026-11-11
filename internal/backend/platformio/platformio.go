@@ -256,9 +256,12 @@ func (r *Runner) run(dir string, args ...string) error {
 // CopyArtifacts copies the PlatformIO build outputs into destDir using the
 // supplied base name. It returns the list of written paths.
 //
-// PlatformIO always names its outputs firmware.elf/firmware.bin, so the
-// artifacts are renamed to <base>.elf and <base>.bin to match the artifact
-// naming used by the rest of the JikaScript CLI.
+// PlatformIO usually emits firmware.elf/firmware.bin, and these files are
+// renamed to <base>.elf/<base>.bin to match the artifact naming used by the
+// rest of the JikaScript CLI.
+//
+// Some successful PlatformIO flows may omit one or both files. Missing
+// artifacts are treated as optional and skipped.
 func CopyArtifacts(project Project, destDir, base string) ([]string, error) {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return nil, err
@@ -275,6 +278,9 @@ func CopyArtifacts(project Project, destDir, base string) ([]string, error) {
 		sourcePath := project.ArtifactPath(artifact.from)
 		contents, err := os.ReadFile(sourcePath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			return nil, fmt.Errorf("read PlatformIO artifact %s: %w", sourcePath, err)
 		}
 		destination := filepath.Join(destDir, artifact.to)

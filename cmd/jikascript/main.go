@@ -262,6 +262,20 @@ func runFlash(args []string) error {
 	if err != nil {
 		return err
 	}
+	copiedELF := false
+	for _, artifact := range artifacts {
+		if filepath.Ext(artifact) == ".elf" {
+			copiedELF = true
+			break
+		}
+	}
+	if !copiedELF {
+		fmt.Fprintf(os.Stderr, "flash: warning: upload succeeded but expected artifact %s was not found\n", project.ArtifactPath("firmware.elf"))
+	}
+	if len(artifacts) == 0 {
+		fmt.Println("flash: upload succeeded")
+		return nil
+	}
 	fmt.Printf("flash: uploaded %s\n", strings.Join(artifacts, ", "))
 	return nil
 }

@@ -3,9 +3,47 @@ package platformio
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+func writeFakePioLogger(t *testing.T, dir, logPath string) string {
+	t.Helper()
+	script := filepath.Join(dir, "fake-pio")
+	if runtime.GOOS == "windows" {
+		script += ".cmd"
+		contents := "@echo off\r\nfor %%A in (%*) do @echo %%~A>> \"" + logPath + "\"\r\nexit /b 0\r\n"
+		if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+			t.Fatalf("write fake pio: %v", err)
+		}
+		return script
+	}
+	contents := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"" + logPath + "\"\n"
+	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+		t.Fatalf("write fake pio: %v", err)
+	}
+	return script
+}
+
+func writeFakePioFailure(t *testing.T, dir string, exitCode int) string {
+	t.Helper()
+	script := filepath.Join(dir, "fake-pio")
+	if runtime.GOOS == "windows" {
+		script += ".cmd"
+		contents := "@echo off\r\nexit /b " + strconv.Itoa(exitCode) + "\r\n"
+		if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+			t.Fatalf("write fake pio: %v", err)
+		}
+		return script
+	}
+	contents := "#!/bin/sh\nexit " + strconv.Itoa(exitCode) + "\n"
+	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+		t.Fatalf("write fake pio: %v", err)
+	}
+	return script
+}
 
 func TestResolveBoardDefaults(t *testing.T) {
 	board, err := ResolveBoard("")
@@ -191,11 +229,40 @@ func TestCopyArtifactsRenamesFirmware(t *testing.T) {
 	}
 }
 
-func TestCopyArtifactsReportsMissingArtifact(t *testing.T) {
+func TestCopyArtifactsSkipsMissingArtifacts(t *testing.T) {
 	project := Project{Dir: t.TempDir(), Env: DefaultEnv}
-	_, err := CopyArtifacts(project, t.TempDir(), "blink")
-	if err == nil || !strings.Contains(err.Error(), "firmware.elf") {
-		t.Fatalf("expected missing artifact error, got %v", err)
+	written, err := CopyArtifacts(project, t.TempDir(), "blink")
+	if err != nil {
+		t.Fatalf("CopyArtifacts error: %v", err)
+	}
+	if len(written) != 0 {
+		t.Fatalf("expected no copied artifacts, got %d", len(written))
+	}
+}
+
+func TestCopyArtifactsCopiesAvailableSubset(t *testing.T) {
+	projectDir := t.TempDir()
+	project := Project{Dir: projectDir, Env: DefaultEnv}
+	if err := os.MkdirAll(project.ArtifactDir(), 0o755); err != nil {
+		t.Fatalf("create artifact dir: %v", err)
+	}
+	if err := os.WriteFile(project.ArtifactPath("firmware.elf"), []byte("elf-bytes"), 0o644); err != nil {
+		t.Fatalf("write firmware.elf: %v", err)
+	}
+
+	destDir := filepath.Join(t.TempDir(), "build")
+	written, err := CopyArtifacts(project, destDir, "blink")
+	if err != nil {
+		t.Fatalf("CopyArtifacts error: %v", err)
+	}
+	if len(written) != 1 {
+		t.Fatalf("expected 1 copied artifact, got %d", len(written))
+	}
+	if got := filepath.Base(written[0]); got != "blink.elf" {
+		t.Fatalf("unexpected copied artifact: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "blink.bin")); !os.IsNotExist(err) {
+		t.Fatalf("blink.bin should not exist, stat err=%v", err)
 	}
 }
 
@@ -243,11 +310,7 @@ func TestEnsureAvailableReportsMissingOverridePath(t *testing.T) {
 func TestRunnerBuildInvokesPioWithEnv(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "pio.log")
-	script := filepath.Join(dir, "fake-pio")
-	contents := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + logPath + "\n"
-	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write fake pio: %v", err)
-	}
+	script := writeFakePioLogger(t, dir, logPath)
 
 	project := Project{Dir: dir, Env: DefaultEnv, Board: DefaultBoard}
 	runner := &Runner{Executable: script}
@@ -258,7 +321,8 @@ func TestRunnerBuildInvokesPioWithEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read pio log: %v", err)
 	}
-	if got, want := strings.TrimSpace(string(logged)), "run\n-e\nch32v003"; got != want {
+	got := strings.ReplaceAll(strings.TrimSpace(string(logged)), "\r\n", "\n")
+	if want := "run\n-e\nch32v003"; got != want {
 		t.Fatalf("pio build args = %q, want %q", got, want)
 	}
 }
@@ -266,11 +330,7 @@ func TestRunnerBuildInvokesPioWithEnv(t *testing.T) {
 func TestRunnerUploadInvokesPioWithUploadTarget(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "pio.log")
-	script := filepath.Join(dir, "fake-pio")
-	contents := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + logPath + "\n"
-	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write fake pio: %v", err)
-	}
+	script := writeFakePioLogger(t, dir, logPath)
 
 	project := Project{Dir: dir, Env: DefaultEnv, Board: DefaultBoard}
 	runner := &Runner{Executable: script}
@@ -292,11 +352,7 @@ func TestRunnerUploadInvokesPioWithUploadTarget(t *testing.T) {
 func TestRunnerUploadOmitsPortWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "pio.log")
-	script := filepath.Join(dir, "fake-pio")
-	contents := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + logPath + "\n"
-	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write fake pio: %v", err)
-	}
+	script := writeFakePioLogger(t, dir, logPath)
 
 	project := Project{Dir: dir, Env: DefaultEnv, Board: DefaultBoard}
 	runner := &Runner{Executable: script}
@@ -314,10 +370,7 @@ func TestRunnerUploadOmitsPortWhenEmpty(t *testing.T) {
 
 func TestRunnerBuildReportsFailure(t *testing.T) {
 	dir := t.TempDir()
-	script := filepath.Join(dir, "fake-pio")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
-		t.Fatalf("write fake pio: %v", err)
-	}
+	script := writeFakePioFailure(t, dir, 3)
 
 	project := Project{Dir: dir, Env: DefaultEnv, Board: DefaultBoard}
 	runner := &Runner{Executable: script}

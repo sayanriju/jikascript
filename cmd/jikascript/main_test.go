@@ -4,9 +4,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"jikascript/internal/backend/platformio"
 	"jikascript/internal/version"
 )
 
@@ -127,7 +129,7 @@ func TestResolveBuildOutputDefault(t *testing.T) {
 
 func TestResolveBuildOutputWithCustomPath(t *testing.T) {
 	dir, base := resolveBuildOutput("examples/blink.jika", "dist/fw/blink.elf")
-	if dir != "dist/fw" || base != "blink" {
+	if dir != filepath.Join("dist", "fw") || base != "blink" {
 		t.Fatalf("unexpected custom build output: dir=%q base=%q", dir, base)
 	}
 }
@@ -355,9 +357,52 @@ func captureStdout(t *testing.T, fn func()) string {
 // fakePio installs a stub `pio` executable on PATH that records its arguments
 // and creates the firmware artifacts PlatformIO would normally produce.
 func fakePio(t *testing.T) string {
+	return fakePioWithArtifacts(t, true, true)
+}
+
+func fakePioWithArtifacts(t *testing.T, emitELF, emitBIN bool) string {
 	t.Helper()
 	binDir := t.TempDir()
 	logPath := filepath.Join(binDir, "pio.log")
+	scriptPath := filepath.Join(binDir, "pio")
+	if runtime.GOOS == "windows" {
+		scriptPath += ".cmd"
+		artifactWrites := ""
+		if emitELF {
+			artifactWrites += ">\".pio\\build\\!envname!\\firmware.elf\" (echo|set /p=elf)\n"
+		}
+		if emitBIN {
+			artifactWrites += ">\".pio\\build\\!envname!\\firmware.bin\" (echo|set /p=bin)\n"
+		}
+		script := `@echo off
+setlocal EnableDelayedExpansion
+echo %*>> "` + logPath + `"
+set envname=
+set prev=
+for %%A in (%*) do (
+	if "!prev!"=="-e" set envname=%%~A
+	set prev=%%~A
+)
+if not "!envname!"=="" (
+	if not exist ".pio\build\!envname!" mkdir ".pio\build\!envname!"
+` + artifactWrites + `
+)
+exit /b 0
+`
+		if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+			t.Fatalf("write fake pio: %v", err)
+		}
+		t.Setenv(platformio.ExecutableEnvVar, scriptPath)
+		return logPath
+	}
+
+	artifactWrites := ""
+	if emitELF {
+		artifactWrites += "printf 'elf' > \".pio/build/$env/firmware.elf\"\n"
+	}
+	if emitBIN {
+		artifactWrites += "printf 'bin' > \".pio/build/$env/firmware.bin\"\n"
+	}
 	script := `#!/bin/sh
 echo "$@" >> "` + logPath + `"
 env=""
@@ -368,16 +413,37 @@ for arg in "$@"; do
 done
 if [ -n "$env" ]; then
 	mkdir -p ".pio/build/$env"
-	printf 'elf' > ".pio/build/$env/firmware.elf"
-	printf 'bin' > ".pio/build/$env/firmware.bin"
+` + artifactWrites + `
 fi
 exit 0
 `
-	if err := os.WriteFile(filepath.Join(binDir, "pio"), []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake pio: %v", err)
 	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv(platformio.ExecutableEnvVar, scriptPath)
 	return logPath
+}
+
+func captureStderrErr(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	original := os.Stderr
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	os.Stderr = writer
+	defer func() { os.Stderr = original }()
+
+	runErr := fn()
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close pipe writer: %v", err)
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read pipe: %v", err)
+	}
+	return string(data), runErr
 }
 
 func TestRunFlashUploadsViaPlatformIO(t *testing.T) {
@@ -407,6 +473,61 @@ func TestRunFlashUploadsViaPlatformIO(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(tempDir, name)); err != nil {
 			t.Errorf("flash missing artifact %s: %v", name, err)
 		}
+	}
+}
+
+func TestRunFlashSucceedsWhenBinArtifactMissing(t *testing.T) {
+	logPath := fakePioWithArtifacts(t, true, false)
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	outputPrefix := filepath.Join(tempDir, "blink-missing-bin.elf")
+
+	if err := runFlash([]string{inputPath, "-o", outputPrefix}); err != nil {
+		t.Fatalf("runFlash error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tempDir, "blink-missing-bin.elf")); err != nil {
+		t.Fatalf("flash missing elf artifact: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tempDir, "blink-missing-bin.bin")); !os.IsNotExist(err) {
+		t.Fatalf("flash should not fail or synthesize missing bin; stat err=%v", err)
+	}
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake pio log: %v", err)
+	}
+	if !strings.Contains(string(logged), "-t upload") {
+		t.Fatalf("pio invocation missing upload target:\n%s", logged)
+	}
+}
+
+func TestRunFlashWarnsWhenElfArtifactMissing(t *testing.T) {
+	logPath := fakePioWithArtifacts(t, false, false)
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "blink.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	outputPrefix := filepath.Join(tempDir, "blink-missing-elf.elf")
+
+	stderr, err := captureStderrErr(t, func() error {
+		return runFlash([]string{inputPath, "-o", outputPrefix})
+	})
+	if err != nil {
+		t.Fatalf("runFlash error: %v", err)
+	}
+	if !strings.Contains(stderr, "flash: warning: upload succeeded") || !strings.Contains(stderr, "firmware.elf") {
+		t.Fatalf("expected missing-elf warning, got stderr:\n%s", stderr)
+	}
+	logged, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake pio log: %v", err)
+	}
+	if !strings.Contains(string(logged), "-t upload") {
+		t.Fatalf("pio invocation missing upload target:\n%s", logged)
 	}
 }
 
