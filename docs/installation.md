@@ -91,20 +91,27 @@ pio --version
 
 ## 5. Build the CLI
 
-From your cloned/template project root:
+From your cloned/template project root, build the project-local binary into the repo's `bin/` directory:
 
 ```bash
-go build ./cmd/jikascript
+go build -o bin/jikascript ./cmd/jikascript
 ```
 
-Check the installed compiler and language specification version:
+Then run it directly:
 
 ```bash
-jikascript version
+./bin/jikascript version
 ```
 
 It reports the compiler version and the language specification it targets, for
 example JikaScript `0.3.0` and language spec `0.2.0`.
+
+Or install it to your Go `PATH` and use the command name directly:
+
+```bash
+go install ./cmd/jikascript
+jikascript version
+```
 
 Or use the repo shortcuts:
 

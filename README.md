@@ -46,8 +46,16 @@ install is required.
 
 ## Building the CLI
 
+Build the project-local binary into the repo's `bin/` directory:
+
 ```bash
-go build ./cmd/jikascript
+go build -o bin/jikascript ./cmd/jikascript
+```
+
+Then run it explicitly from the repo root:
+
+```bash
+./bin/jikascript version
 ```
 
 ## Optional: justfile shortcuts
