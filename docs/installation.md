@@ -124,6 +124,14 @@ just build-c --source=out/blink.c
 just flash --source=examples/blink.jika
 ```
 
+Common helper recipes:
+
+```bash
+just clean          # remove generated build output (build/, out/)
+just erase          # erase the connected CH32 flash
+just unbrick        # recovery flow: erase then reflash the device
+```
+
 Recipe parameters are **flags, not positional arguments**. Pass them with
 `--name=value`; the positional form (`just build examples/blink.jika`) fails
 with `justfile does not contain recipe`. Run `just --list` to see the available

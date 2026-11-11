@@ -39,3 +39,19 @@ build-c source="out/blink.c" board="ch32v003" optimize="size": bin
 [arg("port", long)]
 flash source="examples/blink.jika" board="ch32v003" port="": bin
 	./bin/jikascript flash {{source}} --board={{board}} {{ if port != "" { "--port=" + port } else { "" } }}
+
+clean:
+	rm -rf build out
+	@echo "Cleaned generated build outputs (build/, out/)"
+
+[arg("board", long)]
+[arg("port", long)]
+erase board="ch32v003" port="": bin
+	@echo "Erasing flash on board {{board}}"
+	@pio run -e {{board}} -t erase {{ if port != "" { "--upload-port=" + port } else { "" } }}
+
+[arg("source", long)]
+[arg("board", long)]
+[arg("port", long)]
+unbrick source="examples/blink.jika" board="ch32v003" port="": erase bin
+	./bin/jikascript flash {{source}} --board={{board}} {{ if port != "" { "--port=" + port } else { "" } }}

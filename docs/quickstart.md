@@ -86,6 +86,14 @@ jikascript build out/blink.c
 
 *(Tip: If you use [`just`](https://github.com/casey/just), the repo has recipes for the same steps. Recipe parameters are flags, not positional arguments: `just build --source=blink.jika`, `just transpile --file=blink.jika`, `just build-c --source=out/blink.c`. Run `just --list` to see every option.)*
 
+Useful recovery helpers:
+
+```bash
+just clean   # remove generated build output
+just erase   # erase the connected CH32 flash
+just unbrick # recovery flow: erase then reflash after a bad device state
+```
+
 This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
 `build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO
 project lives in `out/blink-pio/`.
