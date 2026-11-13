@@ -2,7 +2,6 @@
 #define JIKASCRIPT_CH32FUN_GPIO_H
 
 void gpio_ch32fun_init(void);
-int pin(const char *name);
 void gpio_output(int pin_id);
 void gpio_input(int pin_id);
 void gpio_toggle(int pin_id);

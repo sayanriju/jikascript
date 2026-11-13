@@ -70,6 +70,47 @@ func TestCheckRejectsUnsupportedPinMethod(t *testing.T) {
 	}
 }
 
+func TestCheckRejectsPinMethodArity(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pin("PC1"); led.output(1);`, "output() expects no arguments"},
+		{`const led = pin("PC1"); led.input(1);`, "input() expects no arguments"},
+		{`const led = pin("PC1"); led.toggle(1);`, "toggle() expects no arguments"},
+		{`const led = pin("PC1"); led.read(1);`, "read() expects no arguments"},
+		{`const led = pin("PC1"); led.write(1, 2);`, "write() expects at most one argument"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsPinMethodArity(t *testing.T) {
+	for _, source := range []string{
+		`const led = pin("PC1"); led.output();`,
+		`const led = pin("PC1"); led.input();`,
+		`const led = pin("PC1"); led.toggle();`,
+		`const led = pin("PC1"); let x = led.read();`,
+		`const led = pin("PC1"); led.write(HIGH);`,
+		`const led = pin("PC1"); led.write();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
 func TestCheckRejectsDuplicateTaskNames(t *testing.T) {
 	program, err := parser.ParseProgram(`task("blink", 1000, () => { }); task("blink", 500, () => { });`)
 	if err != nil {
@@ -77,6 +118,47 @@ func TestCheckRejectsDuplicateTaskNames(t *testing.T) {
 	}
 	if err := Check(program); err == nil || !strings.Contains(err.Error(), "duplicate task name") {
 		t.Fatalf("expected duplicate task error, got %v", err)
+	}
+}
+
+func TestCheckRejectsNonPositiveTaskInterval(t *testing.T) {
+	for _, source := range []string{
+		`task("blink", 0, () => { });`,
+		`task("blink", -1, () => { });`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "task interval must be greater than zero") {
+			t.Fatalf("expected interval error for %q, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsPositiveTaskInterval(t *testing.T) {
+	for _, source := range []string{
+		`task("blink", 1, () => { });`,
+		`task("blink", 1000, () => { });`,
+		`let period = 500; task("blink", period, () => { });`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsTaskCallbackParameters(t *testing.T) {
+	program, err := parser.ParseProgram(`task("blink", 1000, (elapsed) => { });`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "task callback must not declare parameters") {
+		t.Fatalf("expected callback parameter error, got %v", err)
 	}
 }
 

@@ -166,6 +166,7 @@ var runtimeFiles = []struct {
 	{source: "runtime/periodic/periodic.h", destination: "include/periodic.h"},
 	{source: "targets/ch32fun/runtime/gpio.c", destination: "src/runtime/gpio.c"},
 	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
+	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
 }

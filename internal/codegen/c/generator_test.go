@@ -14,6 +14,34 @@ import (
 	"jikascript/internal/version"
 )
 
+// hostIncludeFlags returns gcc -I flags that let generated C compile on the
+// host. Generated code includes "jikascript_pins.h", whose firmware version
+// pulls in CH32fun, so the stub pin map is staged into a temporary directory
+// and placed first on the include path.
+func hostIncludeFlags(t *testing.T) []string {
+	t.Helper()
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve generator test location")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
+	gpioInc := filepath.Join(root, "targets", "ch32fun", "runtime")
+
+	stubPins, err := os.ReadFile(filepath.Join(gpioInc, "jikascript_pins_stub.h"))
+	if err != nil {
+		t.Fatalf("read stub pin header: %v", err)
+	}
+	pinInc := t.TempDir()
+	if err := os.WriteFile(filepath.Join(pinInc, "jikascript_pins.h"), stubPins, 0o644); err != nil {
+		t.Fatalf("write stub pin header: %v", err)
+	}
+	return []string{
+		"-I", pinInc,
+		"-I", filepath.Join(root, "runtime", "periodic"),
+		"-I", gpioInc,
+	}
+}
+
 func TestGenerateContainsMainAndTask(t *testing.T) {
 	program, err := parser.ParseProgram(`task("blink", 1000, () => {
     led.toggle();
@@ -76,8 +104,8 @@ scheduler.start();
 	if !strings.Contains(out, "static int js_led;") {
 		t.Fatal("expected deferred top-level declaration for runtime pin initialization")
 	}
-	if !strings.Contains(out, "js_led = pin(\"PC1\");") {
-		t.Fatal("expected runtime initialization assignment for pin binding")
+	if !strings.Contains(out, "js_led = JIKA_PIN_PC1;") {
+		t.Fatal("expected compile-time pin constant for pin binding")
 	}
 }
 
@@ -142,14 +170,8 @@ readings[0] = latest;
 	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
 		t.Fatalf("write generated C: %v", err)
 	}
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve generator test location")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
-	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
-		"-I", filepath.Join(root, "runtime", "periodic"),
-		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated array C failed C99 syntax check: %v\n%s", err, output)
 	}
@@ -293,14 +315,8 @@ const message = "Hello";
 	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
 		t.Fatalf("write generated C: %v", err)
 	}
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve generator test location")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
-	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
-		"-I", filepath.Join(root, "runtime", "periodic"),
-		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
@@ -326,14 +342,8 @@ function add(a, b) { return a + b; }`)
 	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
 		t.Fatalf("write generated C: %v", err)
 	}
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve generator test location")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
-	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
-		"-I", filepath.Join(root, "runtime", "periodic"),
-		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated function C failed C99 syntax check: %v\n%s", err, output)
 	}
@@ -370,14 +380,8 @@ task("tick", 500, () => {
 	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
 		t.Fatalf("write generated C: %v", err)
 	}
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve generator test location")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
-	cmd := exec.Command("gcc", "-std=c99", "-fsyntax-only", tmp,
-		"-I", filepath.Join(root, "runtime", "periodic"),
-		"-I", filepath.Join(root, "targets", "ch32fun", "runtime"))
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("generated task/array C failed C99 syntax check: %v\n%s", err, output)
 	}
@@ -435,8 +439,8 @@ led.output();`)
 	if err != nil {
 		t.Fatalf("generate error: %v", err)
 	}
-	if !strings.Contains(out, `js_led = pin("PC1");`) {
-		t.Fatalf("expected canonical pin name in generated C, got:\n%s", out)
+	if !strings.Contains(out, `js_led = JIKA_PIN_PC1;`) {
+		t.Fatalf("expected canonical pin constant in generated C, got:\n%s", out)
 	}
 	if strings.Contains(out, `" pc1 "`) || strings.Contains(out, `"pc1"`) {
 		t.Fatalf("expected raw pin literal to be replaced by canonical form, got:\n%s", out)

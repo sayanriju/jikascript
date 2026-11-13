@@ -1,123 +1,37 @@
 #include "gpio.h"
 
-#include <string.h>
-
 #include <ch32fun.h>
 
-enum {
-    JIKASCRIPT_PIN_INVALID = -1,
-    JIKASCRIPT_PIN_PC0 = 0,
-    JIKASCRIPT_PIN_PC1,
-    JIKASCRIPT_PIN_PC2,
-    JIKASCRIPT_PIN_PC3,
-    JIKASCRIPT_PIN_PC4,
-    JIKASCRIPT_PIN_PC5,
-    JIKASCRIPT_PIN_PC6,
-    JIKASCRIPT_PIN_PC7,
-    JIKASCRIPT_PIN_PD0,
-    JIKASCRIPT_PIN_PD1,
-    JIKASCRIPT_PIN_PD2,
-    JIKASCRIPT_PIN_PD3,
-    JIKASCRIPT_PIN_PD4,
-    JIKASCRIPT_PIN_PD5,
-    JIKASCRIPT_PIN_PD6,
-    JIKASCRIPT_PIN_PD7,
-    JIKASCRIPT_PIN_PA1,
-    JIKASCRIPT_PIN_PA2
-};
-
-static int resolve_fun_pin(int pin_id) {
-    switch (pin_id) {
-        case JIKASCRIPT_PIN_PC0: return PC0;
-        case JIKASCRIPT_PIN_PC1: return PC1;
-        case JIKASCRIPT_PIN_PC2: return PC2;
-        case JIKASCRIPT_PIN_PC3: return PC3;
-        case JIKASCRIPT_PIN_PC4: return PC4;
-        case JIKASCRIPT_PIN_PC5: return PC5;
-        case JIKASCRIPT_PIN_PC6: return PC6;
-        case JIKASCRIPT_PIN_PC7: return PC7;
-        case JIKASCRIPT_PIN_PD0: return PD0;
-        case JIKASCRIPT_PIN_PD1: return PD1;
-        case JIKASCRIPT_PIN_PD2: return PD2;
-        case JIKASCRIPT_PIN_PD3: return PD3;
-        case JIKASCRIPT_PIN_PD4: return PD4;
-        case JIKASCRIPT_PIN_PD5: return PD5;
-        case JIKASCRIPT_PIN_PD6: return PD6;
-        case JIKASCRIPT_PIN_PD7: return PD7;
-        case JIKASCRIPT_PIN_PA1: return PA1;
-        case JIKASCRIPT_PIN_PA2: return PA2;
-        default: return -1;
-    }
-}
+/*
+ * GPIO operations for the CH32V003 backend.
+ *
+ * Pin identifiers arrive as JIKA_PIN_* constants from jikascript_pins.h, which
+ * expand to CH32fun pin constants at compile time. The checker validates pin
+ * names before code generation, so no runtime pin lookup or validation is
+ * needed here.
+ */
 
 void gpio_ch32fun_init(void) {
     SystemInit();
     funGpioInitAll();
 }
 
-int pin(const char *name) {
-    if (name == 0) {
-        return JIKASCRIPT_PIN_INVALID;
-    }
-
-    if (strcmp(name, "PC0") == 0) return JIKASCRIPT_PIN_PC0;
-    if (strcmp(name, "PC1") == 0) return JIKASCRIPT_PIN_PC1;
-    if (strcmp(name, "PC2") == 0) return JIKASCRIPT_PIN_PC2;
-    if (strcmp(name, "PC3") == 0) return JIKASCRIPT_PIN_PC3;
-    if (strcmp(name, "PC4") == 0) return JIKASCRIPT_PIN_PC4;
-    if (strcmp(name, "PC5") == 0) return JIKASCRIPT_PIN_PC5;
-    if (strcmp(name, "PC6") == 0) return JIKASCRIPT_PIN_PC6;
-    if (strcmp(name, "PC7") == 0) return JIKASCRIPT_PIN_PC7;
-    if (strcmp(name, "PD0") == 0) return JIKASCRIPT_PIN_PD0;
-    if (strcmp(name, "PD1") == 0) return JIKASCRIPT_PIN_PD1;
-    if (strcmp(name, "PD2") == 0) return JIKASCRIPT_PIN_PD2;
-    if (strcmp(name, "PD3") == 0) return JIKASCRIPT_PIN_PD3;
-    if (strcmp(name, "PD4") == 0) return JIKASCRIPT_PIN_PD4;
-    if (strcmp(name, "PD5") == 0) return JIKASCRIPT_PIN_PD5;
-    if (strcmp(name, "PD6") == 0) return JIKASCRIPT_PIN_PD6;
-    if (strcmp(name, "PD7") == 0) return JIKASCRIPT_PIN_PD7;
-    if (strcmp(name, "PA1") == 0) return JIKASCRIPT_PIN_PA1;
-    if (strcmp(name, "PA2") == 0) return JIKASCRIPT_PIN_PA2;
-
-    return JIKASCRIPT_PIN_INVALID;
-}
-
 void gpio_output(int pin_id) {
-    int p = resolve_fun_pin(pin_id);
-    if (p < 0) {
-        return;
-    }
-    funPinMode(p, GPIO_CFGLR_OUT_10Mhz_PP);
+    funPinMode(pin_id, GPIO_CFGLR_OUT_10Mhz_PP);
 }
 
 void gpio_input(int pin_id) {
-    int p = resolve_fun_pin(pin_id);
-    if (p < 0) {
-        return;
-    }
-    funPinMode(p, GPIO_CFGLR_IN_FLOAT);
+    funPinMode(pin_id, GPIO_CFGLR_IN_FLOAT);
 }
 
 void gpio_toggle(int pin_id) {
-    int p = resolve_fun_pin(pin_id);
-    if (p < 0) {
-        return;
-    }
-    funDigitalWrite(p, !funDigitalRead(p));
+    funDigitalWrite(pin_id, !funDigitalRead(pin_id));
 }
 
 int gpio_read(int pin_id) {
-    int p = resolve_fun_pin(pin_id);
-    if (p < 0) {
-        return 0;
-    }
-    return (int)funDigitalRead(p);
+    return (int)funDigitalRead(pin_id);
 }
 
 void gpio_write(int pin_id, int value) {
-    int p = resolve_fun_pin(pin_id);
-    if (p < 0) {
-        return;
-    }
-    funDigitalWrite(p, value ? FUN_HIGH : FUN_LOW);
+    funDigitalWrite(pin_id, value ? FUN_HIGH : FUN_LOW);
 }

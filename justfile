@@ -48,10 +48,10 @@ clean:
 [arg("port", long)]
 erase board="ch32v003" port="": bin
 	@echo "Erasing flash on board {{board}}"
-	@pio run -e {{board}} -t erase {{ if port != "" { "--upload-port=" + port } else { "" } }}
+	@minichlink -E {{ if port != "" { "-l " + port } else { "" } }}
 
-[arg("source", long)]
 [arg("board", long)]
 [arg("port", long)]
-unbrick source="examples/blink.jika" board="ch32v003" port="": erase bin
-	./bin/jikascript flash {{source}} --board={{board}} {{ if port != "" { "--port=" + port } else { "" } }}
+unbrick board="ch32v003" port="": bin
+	@echo "Unbricking board {{board}} (power-cycles target, resets option bytes, erases flash)"
+	@minichlink -u {{ if port != "" { "-l " + port } else { "" } }}
