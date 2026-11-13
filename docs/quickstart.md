@@ -84,7 +84,7 @@ jikascript transpile blink.jika --output=out/blink.c
 jikascript build out/blink.c
 ```
 
-*(Tip: If you use [`just`](https://github.com/casey/just), the repo has recipes for the same steps. Recipe parameters are flags, not positional arguments: `just build --source=blink.jika`, `just transpile --file=blink.jika`, `just build-c --source=out/blink.c`. Run `just --list` to see every option.)*
+*(Tip: If you use [`just`](https://github.com/casey/just), the repo keeps only the setup and recovery helpers there. The main compiler workflow stays CLI-first: use `jikascript transpile`, `jikascript build`, and `jikascript flash` directly.)*
 
 Useful recovery helpers:
 
@@ -99,7 +99,7 @@ directory and do not need a generated PlatformIO project. `unbrick` power-cycles
 the target, resets its option bytes to factory defaults, and erases flash. Use it
 when the chip no longer responds to a normal flash — for example after enabling
 read protection or writing a bad option byte. It leaves the chip blank, so run
-`just flash` afterwards to load a program.
+`jikascript flash ...` afterwards to load a program.
 
 This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
 `build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO

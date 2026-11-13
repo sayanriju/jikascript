@@ -113,35 +113,26 @@ go install ./cmd/jikascript
 jikascript version
 ```
 
-Or use the repo shortcuts:
+Or use the repo helpers for setup and recovery:
 
 ```bash
 just install
-just check --file=examples/blink.jika
-just transpile --file=examples/blink.jika
-just build --source=examples/blink.jika
-just build-c --source=out/blink.c
-just flash --source=examples/blink.jika
+just clean
+just erase
+just unbrick
 ```
 
-Common helper recipes:
-
-```bash
-just clean          # remove generated build output (build/, out/)
-just erase          # erase the connected CH32 flash
-just unbrick        # recover a bricked chip
-```
+The compiler and firmware workflow remains CLI-first: use `jikascript check`,
+`jikascript transpile`, `jikascript build`, and `jikascript flash` directly.
+The [`justfile`](../justfile) intentionally does not duplicate those commands so
+there is no ambiguity about which file is being built or flashed.
 
 `erase` and `unbrick` call `minichlink` directly rather than going through
 PlatformIO, so they work from any directory and do not require a generated
 project. Both accept `--port=` to select a specific programmer. `unbrick`
 power-cycles the target, restores factory option bytes, and erases flash,
-leaving the chip blank — run `just flash` afterwards to load a program.
-
-Recipe parameters are **flags, not positional arguments**. Pass them with
-`--name=value`; the positional form (`just build examples/blink.jika`) fails
-with `justfile does not contain recipe`. Run `just --list` to see the available
-options for each recipe.
+leaving the chip blank — run `jikascript flash ...` afterwards to load a
+program.
 
 ---
 

@@ -58,37 +58,20 @@ Then run it explicitly from the repo root:
 ./bin/jikascript version
 ```
 
-## Optional: justfile shortcuts
+## Optional: justfile helpers
 
-If you use [`just`](https://github.com/casey/just), the repo includes a [justfile](justfile) with beginner-friendly recipes:
+If you use [`just`](https://github.com/casey/just), the repo includes a small [justfile](justfile) with setup, cleanup, and hardware-recovery helpers:
 
 ```bash
 just help
 just bin
 just install
-just check
-just transpile
-just build
-just build-c
-just flash
+just clean
+just erase
+just unbrick
 ```
 
-Recipe parameters are **flags, not positional arguments**. Pass them with
-`--name=value`:
-
-```bash
-just build --source=examples/blink.jika --board=ch32v003 --optimize=speed
-just flash --source=examples/blink.jika --port=/dev/ttyUSB0
-```
-
-The positional form (`just build examples/blink.jika`) does not work and fails
-with `justfile does not contain recipe`. Run `just --list` to see the available
-options for each recipe.
-
-One difference worth knowing: the `just` recipes default to `--optimize=size`,
-while the CLI itself omits the flag and lets PlatformIO choose. Both currently
-produce the same `-Os` build, but `just build --optimize=speed` is the way to
-opt into `-O2`.
+The CLI itself is the canonical workflow for checking, transpiling, building, and flashing firmware. The just helpers intentionally avoid re-wrapping those commands so the defaults stay unambiguous and the main interface remains the `jikascript` binary.
 
 ## CLI usage
 
