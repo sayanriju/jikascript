@@ -61,7 +61,7 @@ Print compiler and language specification versions:
 jikascript version
 ```
 
-(Current release 0.3.3, language spec 0.2.0.)
+(Current release 0.3.4, language spec 0.2.0.)
 
 ### transpile
 
@@ -174,22 +174,29 @@ effect.
 - `build/<name>.elf`
 - `build/<name>.bin`
 
-## justfile shortcuts (optional)
+## justfile helpers (optional)
 
-If the repo provides a `justfile`, recipes are **flag-based**, not positional:
+The repo's `justfile` intentionally keeps only the setup and recovery helpers. The
+CLI remains the canonical interface for checking, transpiling, building, and
+flashing firmware.
 
 ```bash
 just help
 just bin
 just install
-just check
-just transpile
-just build --source=examples/blink.jika --board=ch32v003 --optimize=speed
-just build-c
-just flash --source=examples/blink.jika --port=/dev/ttyUSB0
+just clean
+just erase
+just unbrick
 ```
 
-Note: `just build examples/blink.jika` (positional) does **not** work; pass flags.
+Use `jikascript` directly for the main development workflow:
+
+```bash
+jikascript check examples/blink.jika
+jikascript transpile examples/blink.jika --output=out/blink.c
+jikascript build examples/blink.jika --board=ch32v003
+jikascript flash examples/blink.jika --port=/dev/ttyUSB0
+```
 
 ## Validation commands
 

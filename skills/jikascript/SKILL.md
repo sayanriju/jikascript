@@ -1,7 +1,7 @@
 ---
 name: jikascript
 description: Develop embedded firmware with JikaScript, a lightweight ECMAScript-inspired language that compiles ahead-of-time to pure C99 for microcontrollers (CH32V003 via CH32fun). Use when writing, building, transpiling, flashing, or debugging .jika source files, or explaining JikaScript language constructs, cooperative scheduling, or its CLI.
-version: 0.1.0
+version: 0.3.4
 author: Sayan Chakrabarti (sayanriju)
 license: MIT
 platforms: [linux, macos, windows]
