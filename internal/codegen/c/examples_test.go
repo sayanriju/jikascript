@@ -35,6 +35,20 @@ func TestExamplesTranspileAndCompile(t *testing.T) {
 	periodicInc := filepath.Join(repoRoot, "runtime", "periodic")
 	gpioInc := filepath.Join(repoRoot, "targets", "ch32fun", "runtime")
 
+	// Generated C includes "jikascript_pins.h". The firmware header pulls in
+	// CH32fun, so host builds use the stub pin map instead.
+	pinInc := filepath.Join(workDir, "pins")
+	if err := os.MkdirAll(pinInc, 0o755); err != nil {
+		t.Fatalf("create pin include dir: %v", err)
+	}
+	stubPins, err := os.ReadFile(filepath.Join(gpioInc, "jikascript_pins_stub.h"))
+	if err != nil {
+		t.Fatalf("read stub pin header: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pinInc, "jikascript_pins.h"), stubPins, 0o644); err != nil {
+		t.Fatalf("write stub pin header: %v", err)
+	}
+
 	found := false
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jika") {
@@ -64,7 +78,7 @@ func TestExamplesTranspileAndCompile(t *testing.T) {
 			}
 			binary := filepath.Join(workDir, name+".bin")
 			cmd := exec.Command("gcc", "-std=c99", "-Wall", "-Wextra", "-Werror",
-				"-I", periodicInc, "-I", gpioInc,
+				"-I", pinInc, "-I", periodicInc, "-I", gpioInc,
 				cFile,
 				filepath.Join(periodicInc, "periodic.c"),
 				filepath.Join(gpioInc, "gpio_stub.c"),
