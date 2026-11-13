@@ -43,8 +43,16 @@ const count = queue.length; // Returns 2
 ## Safety & Bounds Checking
 
 JikaScript keeps your firmware safe:
-- **Capacity Checking:** Calling `push()` on a full array is safely checked.
+- **Capacity Checking:** Calling `push()` on a full array is checked in the generated C.
 - **Bounds Checking:** Index access (like `queue[i]`) and `pop()` operations are bounds-checked in the generated C.
 - **Homogeneous Elements:** Every element must match the declared type.
 
-Next: [Control Flow](language/control-flow.md) in JikaScript.
+A failed check calls the generated `jikascript_fail()` helper, which halts the
+device in an infinite loop. That is deliberate: on a microcontroller there is no
+exception handler or console to report to, so stopping is safer than continuing
+with corrupted state. Treat a hang as a bounds violation and fix the logic.
+
+Constant indices are validated at compile time, so `queue[99]` on a
+capacity-8 array is a compiler error rather than a runtime halt.
+
+Next: [Control Flow](control-flow.md) in JikaScript.

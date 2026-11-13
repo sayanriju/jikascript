@@ -65,4 +65,4 @@ task("heartbeat", 500, () => {
 
 Clean, readable, and zero boilerplate.
 
-Next up: [Objects & Records](language/objects.md)!
+Next up: [Objects & Records](objects.md)!

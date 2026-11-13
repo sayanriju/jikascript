@@ -52,6 +52,35 @@ project layout.
 
 ---
 
+## The Fatal Path: `jikascript_fail()`
+
+Some errors cannot be caught by the checker because they depend on values only
+known at runtime — a dynamic array index, a `pop()` on an empty array, a `push()`
+past capacity, or registering more tasks than `PERIODIC_MAX_TASKS` allows.
+
+For those cases the generated C calls `jikascript_fail()`, which halts the
+device in an infinite loop:
+
+```c
+static void jikascript_fail(void) {
+    while (1) { }
+}
+```
+
+This is a deliberate design choice. A microcontroller has no exception handler,
+no stack unwinder, and usually no console, so there is nowhere to report an
+error to. Continuing past a bounds violation would corrupt memory and produce
+failures far from the real cause. Halting makes the bug immediately visible: the
+board simply stops responding.
+
+The practical consequence is that **a hang is an error report**. If your device
+freezes, check for out-of-bounds array access, an empty `pop()`, or too many
+tasks. Wherever possible, prefer constructs the checker can validate at compile
+time — constant indices, literal task intervals, and correctly-arity pin method
+calls are all rejected before a single byte is flashed.
+
+---
+
 ## Why Pure C99 Output Matters
 
 - **Target Flexibility:** C99 can be compiled by virtually any microcontroller toolchain in existence.

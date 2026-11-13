@@ -51,4 +51,4 @@ Because object shapes are statically resolved:
 - **Typo Protection:** Accessing an unknown property (e.g. `device.temprature`) triggers a compiler error before your code ever touches hardware.
 - **Type Checking:** Assigning an incompatible type (e.g. `device.reading = "high"`) is caught at compile time.
 
-Next, let's look at how [Arrays](language/arrays.md) work.
+Next, let's look at how [Arrays](arrays.md) work.
