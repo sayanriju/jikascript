@@ -121,6 +121,47 @@ func TestCheckRejectsDuplicateTaskNames(t *testing.T) {
 	}
 }
 
+func TestCheckRejectsNonPositiveTaskInterval(t *testing.T) {
+	for _, source := range []string{
+		`task("blink", 0, () => { });`,
+		`task("blink", -1, () => { });`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "task interval must be greater than zero") {
+			t.Fatalf("expected interval error for %q, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsPositiveTaskInterval(t *testing.T) {
+	for _, source := range []string{
+		`task("blink", 1, () => { });`,
+		`task("blink", 1000, () => { });`,
+		`let period = 500; task("blink", period, () => { });`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsTaskCallbackParameters(t *testing.T) {
+	program, err := parser.ParseProgram(`task("blink", 1000, (elapsed) => { });`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "task callback must not declare parameters") {
+		t.Fatalf("expected callback parameter error, got %v", err)
+	}
+}
+
 func TestCheckRejectsBreakOutsideLoopOrSwitch(t *testing.T) {
 	program, err := parser.ParseProgram(`break;`)
 	if err != nil {

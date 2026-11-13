@@ -657,7 +657,13 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Interval, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := checkTaskInterval(node.Interval, node.Pos); err != nil {
+			return err
+		}
 		if node.Callback != nil {
+			if len(node.Callback.Params) != 0 {
+				return fmt.Errorf("line %d:%d: task callback must not declare parameters", node.Callback.Pos.Line, node.Callback.Pos.Column)
+			}
 			callbackScope := map[string]string{}
 			for _, param := range node.Callback.Params {
 				callbackScope[param] = "callback-param"
@@ -1145,6 +1151,46 @@ func checkPinMethodArity(method string, argc int, pos ast.Position) error {
 		}
 	}
 	return nil
+}
+
+// checkTaskInterval rejects a literal interval of zero or less. The runtime's
+// periodic_task_add() refuses a zero interval, and the generated main() treats
+// that refusal as fatal, so a zero interval would hang the device at startup
+// instead of failing visibly.
+func checkTaskInterval(interval ast.Expr, pos ast.Position) error {
+	value, ok := literalNumber(interval)
+	if !ok {
+		return nil
+	}
+	if value <= 0 {
+		return fmt.Errorf("line %d:%d: task interval must be greater than zero", pos.Line, pos.Column)
+	}
+	return nil
+}
+
+// literalNumber resolves a numeric literal, including a negated one, to its
+// value. It reports false for anything that is not a plain literal.
+func literalNumber(expr ast.Expr) (float64, bool) {
+	negate := false
+	if unary, ok := expr.(*ast.UnaryExpr); ok {
+		if unary.Op != "-" {
+			return 0, false
+		}
+		negate = true
+		expr = unary.Expr
+	}
+	lit, ok := expr.(*ast.NumberLiteral)
+	if !ok {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(lit.Value, 64)
+	if err != nil {
+		return 0, false
+	}
+	if negate {
+		value = -value
+	}
+	return value, true
 }
 
 func encodeArrayBinding(baseKind, elemType string, capacity int) string {
