@@ -129,8 +129,14 @@ Common helper recipes:
 ```bash
 just clean          # remove generated build output (build/, out/)
 just erase          # erase the connected CH32 flash
-just unbrick        # recovery flow: erase then reflash the device
+just unbrick        # recover a bricked chip
 ```
+
+`erase` and `unbrick` call `minichlink` directly rather than going through
+PlatformIO, so they work from any directory and do not require a generated
+project. Both accept `--port=` to select a specific programmer. `unbrick`
+power-cycles the target, restores factory option bytes, and erases flash,
+leaving the chip blank — run `just flash` afterwards to load a program.
 
 Recipe parameters are **flags, not positional arguments**. Pass them with
 `--name=value`; the positional form (`just build examples/blink.jika`) fails

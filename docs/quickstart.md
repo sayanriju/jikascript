@@ -91,8 +91,15 @@ Useful recovery helpers:
 ```bash
 just clean   # remove generated build output
 just erase   # erase the connected CH32 flash
-just unbrick # recovery flow: erase then reflash after a bad device state
+just unbrick # recover a bricked chip
 ```
+
+`erase` and `unbrick` drive `minichlink` directly, so they work from any
+directory and do not need a generated PlatformIO project. `unbrick` power-cycles
+the target, resets its option bytes to factory defaults, and erases flash. Use it
+when the chip no longer responds to a normal flash — for example after enabling
+read protection or writing a bad option byte. It leaves the chip blank, so run
+`just flash` afterwards to load a program.
 
 This produces ready-to-flash binaries in `build/`: `build/blink.elf` and
 `build/blink.bin`. The readable C lives in `out/`, and the generated PlatformIO
