@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [0.3.4] - 2026-11-13
+
+Language specification: `0.2.0`
+
+This patch release keeps the `jikascript` CLI as the canonical workflow and
+reduces the `just` helper layer to setup and recovery tasks so the default
+developer flow stays clear and unambiguous.
+
+### Changed
+
+- Removed the redundant `just` wrappers for `check`, `transpile`, `build`,
+  `build-c`, and `flash` to keep the CLI as the primary user-facing interface.
+- Updated the docs to emphasize the CLI-first workflow while leaving `just`
+  reserved for `bin`, `install`, `clean`, `erase`, and `unbrick`.
+
+### Removed
+
+- The `just check`, `just transpile`, `just build`, `just build-c`, and
+  `just flash` convenience recipes are no longer provided as supported helpers.
+
 ## [0.3.3] - 2026-11-11
 
 Language specification: `0.2.0`
@@ -123,6 +143,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.3.4]: https://github.com/sayanriju/jikascript/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/sayanriju/jikascript/compare/v0.3.1...v0.3.3
 [0.3.1]: https://github.com/sayanriju/jikascript/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sayanriju/jikascript/compare/v0.2.0...v0.3.0
