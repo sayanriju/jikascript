@@ -733,17 +733,96 @@ if (button.read() == LOW) {
 }
 ```
 
-The backend must validate pin names and supported operations.
+The backend must validate pin names and supported operations. `write` takes a
+number, or no argument (meaning `LOW`).
 
 Do not assume all MCUs have identical pin names or peripheral capabilities.
 
-## 7.2 Future peripherals
+## 7.2 UART
+
+Example:
+
+```javascript
+const serial = uart("PD5", "PD6");
+
+serial.write("hello");
+serial.println("ok");
+let ch = serial.read();
+```
+
+`uart()` takes two string-literal pin arguments: TX then RX. The CH32V003
+backend supports the default USART1 pair `uart("PD5", "PD6")`; the compiler
+rejects any other pair. The configuration is fixed at 8N1, 115200 baud.
+
+A uart object supports exactly three methods:
+
+- `write(text)` transmits a string.
+- `println(text)` transmits a string followed by `\r\n`.
+- `read()` returns the next received byte as an `int`, or `-1` when no byte is
+  available. Reads are non-blocking.
+
+The backend must validate the pin pair and supported methods. `write` and
+`println` take a string.
+
+## 7.3 PWM
+
+Example:
+
+```javascript
+const led = pwm("PC1");
+
+led.set(50);
+led.setFrequency(1000);
+```
+
+`pwm()` takes one string-literal pin argument. The CH32V003 backend supports the
+TIM1 default channels (PD2, PA1, PC3, PC4) and the TIM2 partial remap 2 channels
+(PC1, PD3, PC0, PD7); the compiler rejects any other pin.
+
+A pwm object supports exactly two methods:
+
+- `set(duty)` sets the duty cycle as a percentage from 0 to 100.
+- `setFrequency(hz)` optionally sets the PWM frequency in hertz. The default is
+  1000 Hz.
+
+The backend must validate the timer-capable pin and supported methods. `set`
+and `setFrequency` take a number. PD7 is the NRST pin, so using it requires
+disabling NRST on the target.
+
+## 7.4 ADC
+
+Example:
+
+```javascript
+const sensor = adc("PD4");
+
+let value = sensor.read();
+```
+
+`adc()` takes one string-literal pin argument. The CH32V003 backend supports the
+eight external channels A0..A7 on PA2, PA1, PC4, PD2, PD3, PD5, PD6, and PD4; the
+compiler rejects any other pin.
+
+An adc object supports exactly one method:
+
+- `read()` starts a single-ended conversion and returns the raw 10-bit sample
+  (0..1023) as an `int`.
+
+The backend must validate the analog-capable pin and supported methods. `read`
+takes no arguments.
+
+For every peripheral above, argument counts and types are validated at compile
+time: an erroneous call fails the transpile with a clean error instead of
+reaching the C compiler and failing the firmware build. A peripheral handle is
+an opaque value — it cannot be assigned to a scalar binding or passed as a
+value argument to another peripheral method. Method calls require a peripheral
+receiver, either a `pin()`, `uart()`, `pwm()`, or `adc()` binding or a
+constructor used directly; a scalar has no properties or methods.
+
+## 7.5 Future peripherals
 
 The following are planned extensions:
 
-- ADC
-- PWM
-- UART
 - SPI
 - I2C
 - Hardware timers

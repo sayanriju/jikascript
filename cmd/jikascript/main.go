@@ -169,6 +169,12 @@ var runtimeFiles = []struct {
 	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
+	{source: "targets/ch32fun/runtime/uart.c", destination: "src/runtime/uart.c"},
+	{source: "targets/ch32fun/runtime/uart.h", destination: "include/uart.h"},
+	{source: "targets/ch32fun/runtime/pwm.c", destination: "src/runtime/pwm.c"},
+	{source: "targets/ch32fun/runtime/pwm.h", destination: "include/pwm.h"},
+	{source: "targets/ch32fun/runtime/adc.c", destination: "src/runtime/adc.c"},
+	{source: "targets/ch32fun/runtime/adc.h", destination: "include/adc.h"},
 }
 
 func copyFile(source, destination string) error {
