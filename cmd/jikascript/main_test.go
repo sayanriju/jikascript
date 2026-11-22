@@ -611,3 +611,16 @@ func TestRunCheckDiagnosticFormat(t *testing.T) {
 		t.Fatalf("diagnostic %q does not contain %q", err.Error(), want)
 	}
 }
+
+func TestRequireBuildArtifactsRejectsEmpty(t *testing.T) {
+	err := requireBuildArtifacts(nil, "out/blink-pio/.pio/build/ch32v003")
+	if err == nil || !strings.Contains(err.Error(), "no firmware artifacts") {
+		t.Fatalf("expected empty-artifact error, got %v", err)
+	}
+}
+
+func TestRequireBuildArtifactsAcceptsArtifact(t *testing.T) {
+	if err := requireBuildArtifacts([]string{"build/blink.elf"}, "out/blink-pio/.pio/build/ch32v003"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

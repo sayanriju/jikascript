@@ -237,7 +237,29 @@ func runBuild(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireBuildArtifacts(artifacts, project.ArtifactDir()); err != nil {
+		return err
+	}
+	copiedELF := false
+	for _, artifact := range artifacts {
+		if filepath.Ext(artifact) == ".elf" {
+			copiedELF = true
+			break
+		}
+	}
+	if !copiedELF {
+		fmt.Fprintf(os.Stderr, "build: warning: expected artifact %s was not found\n", project.ArtifactPath("firmware.elf"))
+	}
 	fmt.Printf("build: generated %s\n", strings.Join(artifacts, ", "))
+	return nil
+}
+
+// requireBuildArtifacts fails a build that produced no firmware artifacts so a
+// successful exit status always means something was written.
+func requireBuildArtifacts(artifacts []string, artifactDir string) error {
+	if len(artifacts) == 0 {
+		return fmt.Errorf("build: PlatformIO produced no firmware artifacts in %s", artifactDir)
+	}
 	return nil
 }
 
