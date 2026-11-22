@@ -106,6 +106,19 @@ func TestParseOptionsRejectsUnknownOptimizeMode(t *testing.T) {
 	}
 }
 
+func TestParseOptionsNormalizesOptimizeMode(t *testing.T) {
+	for _, input := range []string{"SIZE", " Speed ", "sPeEd"} {
+		opts, err := parseOptions([]string{"examples/blink.jika", "--optimize", input})
+		if err != nil {
+			t.Fatalf("parseOptions(%q): %v", input, err)
+		}
+		want := strings.ToLower(strings.TrimSpace(input))
+		if opts.optimize != want {
+			t.Fatalf("parseOptions(%q) optimize = %q, want %q", input, opts.optimize, want)
+		}
+	}
+}
+
 func TestRunCheckRejectsNonMicInput(t *testing.T) {
 	err := runCheck([]string{"example.txt"})
 	if err == nil || !strings.Contains(err.Error(), ".jika source file") {

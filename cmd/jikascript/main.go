@@ -58,7 +58,7 @@ func printUsage() {
 	fmt.Println("  jikascript check <input.jika>")
 	fmt.Println("  jikascript transpile <input.jika> [--output=<file.c>] [--target=<target>]")
 	fmt.Println("  jikascript build <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--optimize=<size|speed>]")
-	fmt.Println("  jikascript flash <input.jika|input.c> [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
+	fmt.Println("  jikascript flash <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
 	fmt.Println()
 	fmt.Println("options accept both --name=value and --name value; -o is a short form of --output.")
 }
@@ -478,8 +478,9 @@ func parseOptions(args []string) (cliOptions, error) {
 			return opts, fmt.Errorf("unexpected argument: %s", arg)
 		}
 	}
-	if opts.optimize != "" && opts.optimize != "size" && opts.optimize != "speed" {
-		return opts, fmt.Errorf("unsupported optimize mode %q (use size or speed)", opts.optimize)
+	opts.optimize = strings.ToLower(strings.TrimSpace(opts.optimize))
+	if opts.optimize != "" && opts.optimize != platformio.OptimizeSize && opts.optimize != platformio.OptimizeSpeed {
+		return opts, fmt.Errorf("unsupported optimize mode %q (use %s or %s)", opts.optimize, platformio.OptimizeSize, platformio.OptimizeSpeed)
 	}
 	return opts, nil
 }

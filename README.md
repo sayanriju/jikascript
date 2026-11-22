@@ -80,8 +80,8 @@ The CLI itself is the canonical workflow for checking, transpiling, building, an
 jikascript check <input.jika>
 jikascript version
 jikascript transpile <input.jika> [--output=<file.c>] [--target=ch32v003]
-jikascript build <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--optimize=size|speed]
-jikascript flash <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
+jikascript build <input.jika|input.c> [--output=<prefix>] [--target=ch32v003] [--board=<board>] [--env=<env>] [--optimize=size|speed]
+jikascript flash <input.jika|input.c> [--output=<prefix>] [--target=ch32v003] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
 ```
 
 `--optimize` is optional. When omitted, the PlatformIO platform default is used
@@ -140,8 +140,9 @@ The command generates a PlatformIO project under `out/<name>-pio/`, runs
 `pio run` for the selected environment, and copies the resulting firmware to
 `build/<name>.elf` and `build/<name>.bin`.
 
-PlatformIO must be installed and on `PATH`. If it is missing, the build fails
-immediately with an actionable message:
+PlatformIO must be installed and on `PATH`. If it is missing, the build stops
+with an actionable message (the generated project under `out/<name>-pio/` may
+already exist):
 
 ```text
 PlatformIO (pio) not found on PATH; install it with `pip install platformio` ...
@@ -193,6 +194,12 @@ Pass `--port` to select a specific programmer or serial device:
 
 ```bash
 jikascript flash examples/blink.jika --port=/dev/ttyUSB0
+```
+
+Pass `--output=<prefix>` to copy the post-upload artifacts to a custom location:
+
+```bash
+jikascript flash examples/blink.jika --output=dist/blink
 ```
 
 `flash` accepts the same `--board`, `--env`, and `--optimize` flags as `build`.
