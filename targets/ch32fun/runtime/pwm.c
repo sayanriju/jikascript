@@ -22,10 +22,11 @@
 
 #define JIKA_PWM_STEPS 1000U
 #define JIKA_PWM_DEFAULT_FREQ_HZ 1000U
-#define JIKA_PWM_MAX_HANDLES 4
+#define JIKA_PWM_MAX_HANDLES 8
 
 typedef struct {
     int used;
+    int pin;
     int timer;
     int channel;
 } pwm_handle_t;
@@ -137,19 +138,33 @@ int pwm_open(int pin) {
     if (!pwm_lookup(pin, &timer, &channel)) {
         return -1;
     }
+    /* Reuse the handle for a pin that is already open. The generated code may
+     * call pwm_open() on every use of a direct constructor expression, so
+     * allocating a fresh slot each time would exhaust the table. */
+    for (int i = 0; i < JIKA_PWM_MAX_HANDLES; i++) {
+        if (pwm_handles[i].used && pwm_handles[i].pin == pin) {
+            return i;
+        }
+    }
+    int slot = -1;
+    for (int i = 0; i < JIKA_PWM_MAX_HANDLES; i++) {
+        if (!pwm_handles[i].used) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0) {
+        return -1;
+    }
     pwm_init_timer(timer);
     funPinMode(pin, GPIO_CFGLR_OUT_10Mhz_AF_PP);
     pwm_config_channel(timer, channel);
     pwm_write_compare(timer, channel, 0U);
-    for (int i = 0; i < JIKA_PWM_MAX_HANDLES; i++) {
-        if (!pwm_handles[i].used) {
-            pwm_handles[i].used = 1;
-            pwm_handles[i].timer = timer;
-            pwm_handles[i].channel = channel;
-            return i;
-        }
-    }
-    return -1;
+    pwm_handles[slot].used = 1;
+    pwm_handles[slot].pin = pin;
+    pwm_handles[slot].timer = timer;
+    pwm_handles[slot].channel = channel;
+    return slot;
 }
 
 void pwm_set(int handle, int duty) {

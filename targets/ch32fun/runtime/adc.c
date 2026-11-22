@@ -12,10 +12,11 @@
  * handle's channel and runs the regular conversion path.
  */
 
-#define JIKA_ADC_MAX_HANDLES 4
+#define JIKA_ADC_MAX_HANDLES 8
 
 static int adc_used[JIKA_ADC_MAX_HANDLES];
 static int adc_channels[JIKA_ADC_MAX_HANDLES];
+static int adc_pins[JIKA_ADC_MAX_HANDLES];
 static int adc_ready;
 
 static int adc_lookup(int pin) {
@@ -37,19 +38,33 @@ int adc_open(int pin) {
     if (channel < 0) {
         return -1;
     }
+    /* Reuse the handle for a pin that is already open. The generated code may
+     * call adc_open() on every use of a direct constructor expression, so
+     * allocating a fresh slot each time would exhaust the table. */
+    for (int i = 0; i < JIKA_ADC_MAX_HANDLES; i++) {
+        if (adc_used[i] && adc_pins[i] == pin) {
+            return i;
+        }
+    }
+    int slot = -1;
+    for (int i = 0; i < JIKA_ADC_MAX_HANDLES; i++) {
+        if (!adc_used[i]) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0) {
+        return -1;
+    }
     if (!adc_ready) {
         funAnalogInit();
         adc_ready = 1;
     }
     funPinMode(pin, GPIO_CFGLR_IN_ANALOG);
-    for (int i = 0; i < JIKA_ADC_MAX_HANDLES; i++) {
-        if (!adc_used[i]) {
-            adc_used[i] = 1;
-            adc_channels[i] = channel;
-            return i;
-        }
-    }
-    return -1;
+    adc_used[slot] = 1;
+    adc_channels[slot] = channel;
+    adc_pins[slot] = pin;
+    return slot;
 }
 
 int adc_read(int handle) {
