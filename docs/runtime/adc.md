@@ -17,5 +17,5 @@ An adc object supports exactly one method:
 | --- | --- | --- | --- |
 | `.read()` | none | `int` | Single-ended conversion, raw 10-bit sample (0–1023). |
 
-See also: [GPIO](gpio.md) · [UART](uart.md) · [PWM](pwm.md) ·
-[Peripherals overview](hardware.md)
+See also: [GPIO](#/runtime/gpio) · [UART](#/runtime/uart) · [PWM](#/runtime/pwm) ·
+[Peripherals overview](#/runtime/hardware)

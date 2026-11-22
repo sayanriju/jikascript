@@ -152,7 +152,7 @@ Then transpile:
 jikascript transpile examples/blink.jika --output=out/blink.c
 ```
 
-If that works, you're ready to move on to the [Quickstart](quickstart.md) and build your first embedded program.
+If that works, you're ready to move on to the [Quickstart](#/quickstart) and build your first embedded program.
 
 ---
 
@@ -218,4 +218,4 @@ jikascript build out/blink.c --board=ch32v003 --optimize=size
 
 This is the easiest way to review the generated C before producing firmware.
 
-Next: [Quickstart: Blink in 5 Minutes](quickstart.md)
+Next: [Quickstart: Blink in 5 Minutes](#/quickstart)

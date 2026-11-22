@@ -7,10 +7,10 @@ methods do the work â€” no register bit-poking.
 
 | Peripheral | Constructor | Reference |
 | --- | --- | --- |
-| GPIO | `pin("PC1")` | [GPIO](gpio.md) |
-| UART | `uart("PD5", "PD6")` | [UART](uart.md) |
-| PWM | `pwm("PC1")` | [PWM](pwm.md) |
-| ADC | `adc("PD4")` | [ADC](adc.md) |
+| GPIO | `pin("PC1")` | [GPIO](#/runtime/gpio) |
+| UART | `uart("PD5", "PD6")` | [UART](#/runtime/uart) |
+| PWM | `pwm("PC1")` | [PWM](#/runtime/pwm) |
+| ADC | `adc("PD4")` | [ADC](#/runtime/adc) |
 
 ```javascript
 const led = pin("PC1");
@@ -41,4 +41,4 @@ Everything compiles down to direct register writes through the CH32fun backend â
 fast, efficient, and direct.
 
 Curious how it all turns into C? Check out
-[How Compilation Works](../under-the-hood.md)!
+[How Compilation Works](#/under-the-hood)!

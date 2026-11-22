@@ -48,9 +48,9 @@ git clone --depth 1 https://github.com/sayanriju/jikascript.git
 cd jikascript
 ```
 
-Then get [Blink running in 5 minutes](quickstart.md).
+Then get [Blink running in 5 minutes](#/quickstart).
 
-Already comfortable with PlatformIO? The [installation guide](installation.md#build-firmware) shows how to build and upload firmware directly.
+Already comfortable with PlatformIO? The [installation guide](#/installation#build-firmware) shows how to build and upload firmware directly.
 
 ## Explore the examples
 

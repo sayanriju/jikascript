@@ -32,7 +32,7 @@ let myTask = 1;        // valid
 let schedulerState = 5; // valid
 ```
 
-If you're learning the language, this is worth remembering early. See [Reserved Keywords](reserved-keywords.md) for a fuller reference.
+If you're learning the language, this is worth remembering early. See [Reserved Keywords](#/language/reserved-keywords) for a fuller reference.
 
 ---
 
@@ -117,4 +117,4 @@ if (count == 5) {
 // if (count == "5") { ... }
 ```
 
-Next, let's explore how [Functions](functions.md) work in JikaScript!
+Next, let's explore how [Functions](#/language/functions) work in JikaScript!

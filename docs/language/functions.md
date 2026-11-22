@@ -76,4 +76,4 @@ callback can delay the others.
 
 Clean, readable, and zero boilerplate.
 
-Next up: [Objects & Records](objects.md)!
+Next up: [Objects & Records](#/language/objects)!
