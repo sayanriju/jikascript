@@ -680,7 +680,47 @@ func (p *Parser) parseUnary() (ast.Expr, error) {
 	return p.parsePostfix(primary)
 }
 
+// looksLikeArrowFunction reports whether the tokens starting at the current
+// position form an arrow function parameter list followed by "=>". It scans
+// ahead without consuming tokens so parsePrimary can choose between an arrow
+// function and an ordinary expression.
+func (p *Parser) looksLikeArrowFunction() bool {
+	if p.cur.Type == lexer.IDENT {
+		if p.pos+1 < len(p.tokens) {
+			next := p.tokens[p.pos+1]
+			return next.Type == lexer.OPERATOR && next.Literal == "=>"
+		}
+		return false
+	}
+	if p.cur.Type == lexer.PUNCT && p.cur.Literal == "(" {
+		depth := 0
+		for i := p.pos; i < len(p.tokens); i++ {
+			tok := p.tokens[i]
+			if tok.Type != lexer.PUNCT {
+				continue
+			}
+			switch tok.Literal {
+			case "(":
+				depth++
+			case ")":
+				depth--
+				if depth == 0 {
+					if i+1 < len(p.tokens) {
+						next := p.tokens[i+1]
+						return next.Type == lexer.OPERATOR && next.Literal == "=>"
+					}
+					return false
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (p *Parser) parsePrimary() (ast.Expr, error) {
+	if p.looksLikeArrowFunction() {
+		return p.parseArrowFunction()
+	}
 	switch p.cur.Type {
 	case lexer.IDENT:
 		ident := &ast.Identifier{Name: p.cur.Literal, Pos: ast.Position{Line: p.cur.Line, Column: p.cur.Column}}

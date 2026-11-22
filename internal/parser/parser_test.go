@@ -147,3 +147,37 @@ const led = pin("PC1");
 		t.Fatalf("expected 4 statements, got %d", len(program.Statements))
 	}
 }
+
+func TestParseArrowFunctionBinding(t *testing.T) {
+	program, err := ParseProgram(`const square = x => x * x;
+const toggle = () => { led.toggle(); };
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+	first, ok := program.Statements[0].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("first statement is %T, want ConstDecl", program.Statements[0])
+	}
+	arrow, ok := first.Value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		t.Fatalf("first value is %T, want ArrowFunctionExpr", first.Value)
+	}
+	if len(arrow.Params) != 1 || arrow.Params[0] != "x" {
+		t.Fatalf("arrow params = %v, want [x]", arrow.Params)
+	}
+	second, ok := program.Statements[1].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("second statement is %T, want ConstDecl", program.Statements[1])
+	}
+	blockArrow, ok := second.Value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		t.Fatalf("second value is %T, want ArrowFunctionExpr", second.Value)
+	}
+	if len(blockArrow.Params) != 0 {
+		t.Fatalf("block arrow params = %v, want none", blockArrow.Params)
+	}
+}

@@ -181,9 +181,12 @@ func (*BlockStmt) stmtNode() {}
 
 // ArrowFunctionExpr describes a callback or anonymous function.
 type ArrowFunctionExpr struct {
-	Params []string
-	Body   []Stmt
-	Pos    Position
+	Params       []string
+	ParamTypes   []string
+	ParamSymbols []string
+	ReturnType   string
+	Body         []Stmt
+	Pos          Position
 }
 
 func (*ArrowFunctionExpr) exprNode() {}

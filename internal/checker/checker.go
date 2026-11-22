@@ -29,26 +29,56 @@ func Check(program *ast.Program) error {
 	functionReturns := map[string]string{}
 	functionArity := inferFunctionArity(program)
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
-			info := functionTypes[fn.Name]
-			fn.ParamTypes = append([]string(nil), info.ParamTypes...)
-			fn.ReturnType = info.ReturnType
-			functionReturns[fn.Name] = info.ReturnType
-			scopeStack[0][fn.Name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+		decl, ok := stmt.(*ast.FunctionDecl)
+		if !ok {
+			continue
 		}
+		info := functionTypes[decl.Name]
+		functionReturns[decl.Name] = info.ReturnType
+		scopeStack[0][decl.Name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+		decl.ParamTypes = append([]string(nil), info.ParamTypes...)
+		decl.ReturnType = info.ReturnType
 	}
 	for _, stmt := range program.Statements {
-		if err := checkStmt(stmt, scopeStack, taskNames, 0, 0, functionReturns, functionArity); err != nil {
+		if err := checkStmt(stmt, scopeStack, taskNames, 0, 0, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// functionLike describes a named function declaration or an arrow function
+// bound to a variable, so the type resolver can treat both uniformly.
+type functionLike struct {
+	Name   string
+	Params []string
+	Body   []ast.Stmt
+	Pos    ast.Position
+}
+
+// functionLikeFromStmt returns the function-like shape of a statement. Arrow
+// functions bound with let/const are treated as named functions for type
+// resolution and code generation.
+func functionLikeFromStmt(stmt ast.Stmt) (functionLike, bool) {
+	switch node := stmt.(type) {
+	case *ast.FunctionDecl:
+		return functionLike{Name: node.Name, Params: node.Params, Body: node.Body, Pos: node.Pos}, true
+	case *ast.VarDecl:
+		if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+			return functionLike{Name: node.Name, Params: arrow.Params, Body: arrow.Body, Pos: node.Pos}, true
+		}
+	case *ast.ConstDecl:
+		if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+			return functionLike{Name: node.Name, Params: arrow.Params, Body: arrow.Body, Pos: node.Pos}, true
+		}
+	}
+	return functionLike{}, false
+}
+
 func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, error) {
 	infos := map[string]functionTypeInfo{}
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
+		if fn, ok := functionLikeFromStmt(stmt); ok {
 			infos[fn.Name] = functionTypeInfo{ParamTypes: make([]string, len(fn.Params))}
 		}
 	}
@@ -90,7 +120,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 			return nil, resolveErr
 		}
 		for _, stmt := range program.Statements {
-			fn, ok := stmt.(*ast.FunctionDecl)
+			fn, ok := functionLikeFromStmt(stmt)
 			if !ok {
 				continue
 			}
@@ -150,7 +180,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 		}
 	}
 	for _, stmt := range program.Statements {
-		fn, ok := stmt.(*ast.FunctionDecl)
+		fn, ok := functionLikeFromStmt(stmt)
 		if !ok {
 			continue
 		}
@@ -429,7 +459,7 @@ func walkStatementExpressions(stmt ast.Stmt, visit func(ast.Expr)) {
 
 func validateFunctionReturnConsistency(program *ast.Program) error {
 	for _, stmt := range program.Statements {
-		fn, ok := stmt.(*ast.FunctionDecl)
+		fn, ok := functionLikeFromStmt(stmt)
 		if !ok {
 			continue
 		}
@@ -526,22 +556,57 @@ func pushScope(scopeStack []map[string]string) []map[string]string {
 }
 
 // checkBlock checks each statement of a block body inside a new lexical scope.
-func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int) error {
+func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	inner := pushScope(scopeStack)
 	for _, s := range body {
-		if err := checkStmt(s, inner, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkStmt(s, inner, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int) error {
+// checkArrowBinding registers an arrow function bound to a variable and checks
+// its body in a fresh scope. It reports whether the value was an arrow
+// function, so the caller can skip scalar binding classification.
+func checkArrowBinding(name string, value ast.Expr, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) (bool, error) {
+	arrow, ok := value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		return false, nil
+	}
+	info := functionTypes[name]
+	scopeStack[len(scopeStack)-1][name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+	functionReturns[name] = info.ReturnType
+	arrow.ParamTypes = append([]string(nil), info.ParamTypes...)
+	arrow.ReturnType = info.ReturnType
+	funcScope := map[string]string{}
+	for i, param := range arrow.Params {
+		paramType := "int32"
+		if i < len(info.ParamTypes) {
+			paramType = info.ParamTypes[i]
+		}
+		funcScope[param] = bindingForType(paramType)
+	}
+	stack := make([]map[string]string, 0, len(scopeStack)+1)
+	stack = append(stack, scopeStack...)
+	stack = append(stack, funcScope)
+	for _, s := range arrow.Body {
+		if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
+			return true, err
+		}
+	}
+	return true, nil
+}
+
+func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	current := scopeStack[len(scopeStack)-1]
 	switch node := stmt.(type) {
 	case *ast.VarDecl:
 		if _, ok := current[node.Name]; ok {
 			return fmt.Errorf("line %d:%d: variable '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
+			return err
 		}
 		bindingKind, err := classifyBinding("var", node.Type, node.ArrayCapacity, node.Value, scopeStack, functionReturns)
 		if err != nil {
@@ -562,6 +627,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 	case *ast.ConstDecl:
 		if _, ok := current[node.Name]; ok {
 			return fmt.Errorf("line %d:%d: constant '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
+			return err
 		}
 		bindingKind, err := classifyBinding("const", node.Type, node.ArrayCapacity, node.Value, scopeStack, functionReturns)
 		if err != nil {
@@ -599,7 +667,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		stack = append(stack, scopeStack...)
 		stack = append(stack, funcScope)
 		for _, s := range node.Body {
-			if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -610,10 +678,10 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Then, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Then, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Else, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Else, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	case *ast.WhileStmt:
@@ -623,11 +691,11 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	case *ast.DoWhileStmt:
-		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
@@ -639,7 +707,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 	case *ast.ForStmt:
 		inner := pushScope(scopeStack)
 		if node.Init != nil {
-			if err := checkStmt(node.Init, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(node.Init, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -652,7 +720,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			}
 		}
 		for _, s := range node.Body {
-			if err := checkStmt(s, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(s, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -684,7 +752,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			stack = append(stack, scopeStack...)
 			stack = append(stack, callbackScope)
 			for _, s := range node.Callback.Body {
-				if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+				if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 					return err
 				}
 			}
@@ -699,7 +767,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 					return err
 				}
 			}
-			if err := checkBlock(c.Body, scopeStack, taskNames, loopDepth, switchDepth+1, functionReturns, functionArity); err != nil {
+			if err := checkBlock(c.Body, scopeStack, taskNames, loopDepth, switchDepth+1, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -712,7 +780,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			return fmt.Errorf("line %d:%d: continue is only valid inside loops", node.Pos.Line, node.Pos.Column)
 		}
 	case *ast.BlockStmt:
-		return checkBlock(node.Statements, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity)
+		return checkBlock(node.Statements, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes)
 	case *ast.ReturnStmt:
 		if node.Value != nil {
 			if err := checkValueExpression(node.Value, scopeStack, node.Pos); err != nil {
@@ -1019,7 +1087,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		stack = append(stack, scopeStack...)
 		stack = append(stack, callbackScope)
 		for _, s := range node.Body {
-			if err := checkStmt(s, stack, map[string]struct{}{}, 0, 0, map[string]string{}, map[string]int{}); err != nil {
+			if err := checkStmt(s, stack, map[string]struct{}{}, 0, 0, map[string]string{}, map[string]int{}, map[string]functionTypeInfo{}); err != nil {
 				return err
 			}
 		}
@@ -1248,7 +1316,7 @@ func inferFunctionObjectReturns(program *ast.Program) map[string]string {
 func inferFunctionArity(program *ast.Program) map[string]int {
 	arity := map[string]int{}
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
+		if fn, ok := functionLikeFromStmt(stmt); ok {
 			arity[fn.Name] = len(fn.Params)
 		}
 	}

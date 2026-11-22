@@ -199,8 +199,9 @@ func (a *symbolAnnotator) expr(expr ast.Expr) {
 		}
 	case *ast.ArrowFunctionExpr:
 		a.push()
-		for _, param := range node.Params {
-			a.declare(param)
+		node.ParamSymbols = make([]string, len(node.Params))
+		for i, param := range node.Params {
+			node.ParamSymbols[i] = a.declare(param)
 		}
 		for _, body := range node.Body {
 			a.stmt(body)
@@ -338,6 +339,10 @@ func Generate(program *ast.Program) (string, error) {
 			b.WriteString("}\n\n")
 			taskHandlers = append(taskHandlers, taskRegistration{name: taskName, interval: renderExpr(node.Interval)})
 		case *ast.VarDecl:
+			if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+				b.WriteString(emitArrowFunction(node.Name, node.Symbol, arrow))
+				break
+			}
 			if meta, ok := objectDeclMeta(node.Value); ok {
 				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
 				break
@@ -356,6 +361,10 @@ func Generate(program *ast.Program) (string, error) {
 				mainStmts = append(mainStmts, "    "+init+";\n")
 			}
 		case *ast.ConstDecl:
+			if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+				b.WriteString(emitArrowFunction(node.Name, node.Symbol, arrow))
+				break
+			}
 			if meta, ok := objectDeclMeta(node.Value); ok {
 				// `const` freezes the JikaScript binding, not the record contents.
 				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
@@ -430,6 +439,24 @@ func emitFunction(node *ast.FunctionDecl) string {
 	}
 	b.WriteString(fmt.Sprintf("static %s %s(%s) {\n", returnType, sanitizeBinding(node.Symbol, node.Name), renderTypedParams(node.Params, meta.ParamTypes, node.ParamSymbols)))
 	for _, stmt := range node.Body {
+		b.WriteString(renderStmt(stmt, "    "))
+	}
+	b.WriteString("}\n\n")
+	return b.String()
+}
+
+// emitArrowFunction renders an arrow function bound to a variable as an
+// ordinary static C function. The binding name becomes the C function name so
+// later calls resolve through the same symbol.
+func emitArrowFunction(name, symbol string, arrow *ast.ArrowFunctionExpr) string {
+	meta := generatedFunctions[name]
+	returnType := meta.ReturnType
+	if returnType == "" {
+		returnType = "int"
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("static %s %s(%s) {\n", returnType, sanitizeBinding(symbol, name), renderTypedParams(arrow.Params, meta.ParamTypes, arrow.ParamSymbols)))
+	for _, stmt := range arrow.Body {
 		b.WriteString(renderStmt(stmt, "    "))
 	}
 	b.WriteString("}\n\n")
@@ -1522,19 +1549,39 @@ func renderObjectTopLevelDecl(meta objectMeta, name, symbol string, value ast.Ex
 
 func collectFunctionTypes(program *ast.Program) {
 	for _, stmt := range program.Statements {
-		fn, ok := stmt.(*ast.FunctionDecl)
-		if !ok {
+		var name, symbol, returnType string
+		var params, paramTypes []string
+		var body []ast.Stmt
+		switch node := stmt.(type) {
+		case *ast.FunctionDecl:
+			name, symbol, returnType = node.Name, node.Symbol, node.ReturnType
+			params, paramTypes, body = node.Params, node.ParamTypes, node.Body
+		case *ast.VarDecl:
+			arrow, ok := node.Value.(*ast.ArrowFunctionExpr)
+			if !ok {
+				continue
+			}
+			name, symbol, returnType = node.Name, node.Symbol, arrow.ReturnType
+			params, paramTypes, body = arrow.Params, arrow.ParamTypes, arrow.Body
+		case *ast.ConstDecl:
+			arrow, ok := node.Value.(*ast.ArrowFunctionExpr)
+			if !ok {
+				continue
+			}
+			name, symbol, returnType = node.Name, node.Symbol, arrow.ReturnType
+			params, paramTypes, body = arrow.Params, arrow.ParamTypes, arrow.Body
+		default:
 			continue
 		}
-		sanitizeBinding(fn.Symbol, fn.Name)
-		meta := functionMeta{ParamTypes: make([]string, len(fn.Params))}
-		for i, paramType := range fn.ParamTypes {
+		sanitizeBinding(symbol, name)
+		meta := functionMeta{ParamTypes: make([]string, len(params))}
+		for i, paramType := range paramTypes {
 			meta.ParamTypes[i] = resolvedCType(paramType)
 		}
-		if fn.ReturnType != "" {
-			meta.ReturnType = resolvedCType(fn.ReturnType)
+		if returnType != "" {
+			meta.ReturnType = resolvedCType(returnType)
 		}
-		for _, bodyStmt := range fn.Body {
+		for _, bodyStmt := range body {
 			if ret, ok := bodyStmt.(*ast.ReturnStmt); ok {
 				if meta.ReturnType == "" {
 					if object, ok := objectDeclMeta(ret.Value); ok {
@@ -1546,7 +1593,7 @@ func collectFunctionTypes(program *ast.Program) {
 				}
 			}
 		}
-		generatedFunctions[fn.Name] = meta
+		generatedFunctions[name] = meta
 	}
 	var visit func(ast.Expr)
 	visit = func(expr ast.Expr) {

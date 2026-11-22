@@ -619,3 +619,35 @@ func TestGenerateRejectsMethodCallOnNonPeripheral(t *testing.T) {
 		t.Fatalf("expected explicit codegen error for a method call on a scalar, got %v", genErr)
 	}
 }
+
+func TestGenerateArrowFunctionBindingAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`const square = x => x * x;
+let result = square(5);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "static int32_t js_square(int32_t js_x)") {
+		t.Fatalf("expected arrow function emitted as static C function:\n%s", out)
+	}
+	if !strings.Contains(out, "js_result = js_square(5);") {
+		t.Fatalf("expected call to arrow function binding:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "arrow.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

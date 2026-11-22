@@ -831,3 +831,15 @@ func TestCheckValidatesPeripheralConstructorReceivers(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAllowsArrowFunctionBinding(t *testing.T) {
+	program, err := parser.ParseProgram(`const square = x => x * x;
+let result = square(5);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
