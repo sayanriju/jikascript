@@ -781,3 +781,22 @@ let count: number = 3;
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateIndentsLocalDeclarations(t *testing.T) {
+	program, err := parser.ParseProgram(`function f() { let x = 1; }
+f();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "    int32_t js_x = 1;") {
+		t.Fatalf("expected indented local declaration:\n%s", out)
+	}
+}

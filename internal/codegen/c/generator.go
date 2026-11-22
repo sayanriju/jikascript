@@ -755,9 +755,9 @@ func renderStmt(stmt ast.Stmt, indent string) string {
 	case *ast.ContinueStmt:
 		return indent + "continue;\n"
 	case *ast.VarDecl:
-		return renderVarDecl(node, false)
+		return indent + renderVarDecl(node, false)
 	case *ast.ConstDecl:
-		return renderVarDecl(node, true)
+		return indent + renderVarDecl(node, true)
 	case *ast.AssignStmt:
 		return indent + sanitizeName(node.Target) + " = " + renderExpr(node.Value) + ";\n"
 	case *ast.TaskDecl:
