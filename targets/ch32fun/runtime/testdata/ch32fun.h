@@ -41,6 +41,7 @@ typedef struct {
 
 typedef struct {
     uint32_t APB2PCENR, APB1PCENR, APB2PRSTR, APB1PRSTR;
+    uint32_t CFGR0;
 } RCC_TypeDef;
 
 typedef struct {
@@ -82,6 +83,12 @@ extern AFIO_TypeDef jika_test_afio;
 #define RCC_APB2Periph_AFIO (1U << 1)
 #define RCC_APB1Periph_TIM2 (1U << 2)
 #define AFIO_PCFR1_TIM2_REMAP_PARTIALREMAP2 (1U << 3)
+
+#define RCC_ADCPRE      (0x1FU << 11)
+#define RCC_ADCPRE_DIV2 (0x00U << 11)
+#define RCC_ADCPRE_DIV4 (0x08U << 11)
+#define RCC_ADCPRE_DIV6 (0x10U << 11)
+#define RCC_ADCPRE_DIV8 (0x18U << 11)
 
 #define GPIO_CFGLR_OUT_10Mhz_AF_PP 1
 #define GPIO_CFGLR_IN_ANALOG 2

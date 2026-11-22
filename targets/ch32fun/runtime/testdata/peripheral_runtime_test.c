@@ -60,6 +60,9 @@ int main(void) {
     assert(adc_read(adc_first) == 70);
     assert(last_analog_channel == 7);
 
+    /* ADC: the prescaler keeps the ADC clock at or below 14 MHz. */
+    assert((jika_test_rcc.CFGR0 & RCC_ADCPRE) == RCC_ADCPRE_DIV2);
+
     /* ADC: all eight supported pins get distinct handles. */
     int adc_pins[8] = {PA2, PA1, PC4, PD2, PD3, PD5, PD6, PD4};
     int adc_handles[8];

@@ -33,6 +33,22 @@ static int adc_lookup(int pin) {
     }
 }
 
+/* Keep the ADC clock at or below 14 MHz, as CH32fun's funAnalogInit() warns.
+ * The reset value is DIV2, which is only safe up to a 28 MHz core clock. */
+static uint32_t adc_prescaler_bits(void) {
+    uint32_t core = FUNCONF_SYSTEM_CORE_CLOCK;
+    if (core <= 28000000U) {
+        return RCC_ADCPRE_DIV2;
+    }
+    if (core <= 56000000U) {
+        return RCC_ADCPRE_DIV4;
+    }
+    if (core <= 84000000U) {
+        return RCC_ADCPRE_DIV6;
+    }
+    return RCC_ADCPRE_DIV8;
+}
+
 int adc_open(int pin) {
     int channel = adc_lookup(pin);
     if (channel < 0) {
@@ -57,6 +73,7 @@ int adc_open(int pin) {
         return -1;
     }
     if (!adc_ready) {
+        RCC->CFGR0 = (RCC->CFGR0 & ~RCC_ADCPRE) | adc_prescaler_bits();
         funAnalogInit();
         adc_ready = 1;
     }
