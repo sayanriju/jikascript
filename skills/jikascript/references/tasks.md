@@ -18,7 +18,8 @@ task("blink", 1000, () => {
 
 Arguments:
 1. **name** — a unique identifier string for the task (duplicate task names are a compile-time error).
-2. **interval_ms** — execution interval in milliseconds.
+2. **interval_ms** — execution interval in milliseconds. It must be a positive
+   whole-number literal within the `uint32` range.
 3. **callback** — the function executed each interval.
 
 Arrow functions are the idiomatic callback form. A plain function reference
@@ -77,7 +78,9 @@ not implement scheduler internals manually.
 - Tasks are **cooperative**; a callback runs until it returns.
 - **No preemptive task switching**, no separate task stacks, no mandatory
   dynamic allocation.
-- Task registration is **statically resolvable** at compile time.
+- Task registration is **statically resolvable** at compile time; nested task
+  declarations are rejected.
+- Task removal and interval reconfiguration are not supported in v0.1.
 - **A long-running callback delays other due callbacks** (documented behavior).
 - When multiple intervals elapse between runs, at most one callback executes
   per `periodic_run()` and the deadline advances to the latest elapsed interval

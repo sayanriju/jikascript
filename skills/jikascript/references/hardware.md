@@ -141,10 +141,11 @@ task("button_check", 20, () => {
 scheduler.start();
 ```
 
-## Future peripherals (planned, not in v0.1)
+## Current and future peripheral scope
 
-ADC, PWM, SPI, I2C, and hardware timers are planned extensions, not required for
-the first compiler milestone.
+The first release supports GPIO, UART, PWM, and ADC on the WCH CH32V003 family
+only. SPI and I2C are future extensions and are not part of the current language
+or CH32V003 backend.
 
 ## Hardware abstraction layers
 

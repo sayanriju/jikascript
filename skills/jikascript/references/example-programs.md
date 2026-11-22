@@ -128,10 +128,10 @@ let a = scale(10);   // val inferred int32
 let i = 0;
 while (i < 5) {
     led.toggle();
-    i = i + 1;
+    i++;
 }
 
-for (let j = 0; j < 10; j = j + 1) {
+for (let j = 0; j < 10; j++) {
     // process items
 }
 

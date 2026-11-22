@@ -19,6 +19,11 @@ are compiled ahead of time by a Go toolchain into **readable pure C99**, which i
 then built into firmware with the target's native toolchain (CH32V003 + CH32fun
 via PlatformIO).
 
+> **Current target scope:** This release supports the WCH CH32V003 family only.
+> The compiler and language core are target-independent, but hardware APIs, build,
+> and flash support are currently CH32V003-specific. Other MCU families are not
+> yet supported.
+
 There is **no interpreter, VM, garbage collector, or language runtime** on the
 MCU. The cooperative scheduler is a standalone pure-C library reused by the
 compiler.
@@ -88,7 +93,9 @@ const toggle = () => { led.toggle(); };
 if (reading > 100) { ... }
 switch (state) { case 1: ...; break; default: ... }
 while (running) { ... }
-for (let i = 0; i < 10; i = i + 1) { ... }
+for (let i = 0; i < 10; i++) { ... }
+let countdown = 3;
+while (countdown > 0) { countdown--; }
 
 // Bounded arrays: fixed capacity, mutable logical length
 let readings: int32[8] = [21, 23, 25];

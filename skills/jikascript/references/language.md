@@ -260,7 +260,7 @@ if (temperature > 75) {
 let i = 0;
 while (i < 5) {
     led.toggle();
-    i = i + 1;
+    i++;
 }
 ```
 
@@ -276,7 +276,7 @@ do {
 ### 7.4 `for`
 
 ```javascript
-for (let j = 0; j < 10; j = j + 1) {
+for (let j = 0; j < 10; j++) {
     // process items
 }
 ```
