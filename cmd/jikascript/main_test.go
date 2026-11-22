@@ -595,3 +595,19 @@ func TestRunCheckAndTranspileResolveIncludes(t *testing.T) {
 		t.Fatalf("transpiled output must not retain source include statements:\n%s", mainC)
 	}
 }
+
+func TestRunCheckDiagnosticFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.jika")
+	if err := os.WriteFile(path, []byte("const HIGH = 5;\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	err := runCheck([]string{path})
+	if err == nil {
+		t.Fatal("expected checker error")
+	}
+	want := path + ":1:1: error:"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("diagnostic %q does not contain %q", err.Error(), want)
+	}
+}

@@ -76,7 +76,7 @@ func runCheck(args []string) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s:%w", path, err)
 	}
 	fmt.Printf("check: %s OK\n", path)
 	return nil
@@ -101,11 +101,11 @@ func runTranspile(args []string) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s:%w", opts.input, err)
 	}
 	output, err := cgen.Generate(program)
 	if err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s:%w", opts.input, err)
 	}
 	if opts.output == "" {
 		fmt.Print(output)
@@ -125,11 +125,11 @@ func generateProject(inputPath string, project platformio.Project) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", inputPath, err)
+		return fmt.Errorf("%s:%w", inputPath, err)
 	}
 	mainC, err := cgen.Generate(program)
 	if err != nil {
-		return fmt.Errorf("%s: %w", inputPath, err)
+		return fmt.Errorf("%s:%w", inputPath, err)
 	}
 
 	srcDir := filepath.Join(project.Dir, "src")
