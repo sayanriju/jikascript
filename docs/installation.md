@@ -67,6 +67,8 @@ If `just` is not installed yet, install it before continuing.
 
 ## 4. Install PlatformIO
 
+> **Current target scope:** This release supports the WCH CH32V003 family only. The compiler and language core are target-independent, but firmware build, flash, pin mappings, and peripheral backends currently exist only for CH32V003 through CH32fun and PlatformIO.
+
 JikaScript targets CH32V003 firmware through [PlatformIO](https://platformio.org/).
 PlatformIO downloads the CH32V platform, the `ch32v003fun` framework, and the
 RISC-V toolchain on first build, so you do not need a separate CH32fun checkout

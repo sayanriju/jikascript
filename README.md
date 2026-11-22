@@ -1,6 +1,12 @@
 # JikaScript
 
 JikaScript is a lightweight ECMAScript-inspired language for embedded development.
+
+> **Current target scope:** This release supports the WCH CH32V003 family only
+> through CH32fun and PlatformIO. The compiler and language core are
+> target-independent, but hardware, build, and flash support are currently
+> CH32V003-specific. Other MCU families are not yet supported.
+
 Source files (`.jika`) are compiled by a Go-based compiler into readable C99, then
 built with target-native tooling.
 

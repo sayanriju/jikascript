@@ -1,7 +1,9 @@
 # Peripherals
 
-GPIO, UART, PWM, and ADC are first-class builtins. Each constructor returns a
-handle, and the handle's methods do the work — no register bit-poking.
+GPIO, UART, PWM, and ADC are first-class builtins for the currently supported
+WCH CH32V003 family. These peripheral mappings and their supported pins are not
+a general cross-MCU API yet. Each constructor returns a handle, and the handle's
+methods do the work — no register bit-poking.
 
 | Peripheral | Constructor | Reference |
 | --- | --- | --- |
