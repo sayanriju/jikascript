@@ -47,7 +47,11 @@ frequencies are scaled by the same error.
 
 - PWM duty is a percentage (0–100) with a fixed 1000-step period.
 - The PWM frequency range is bounded by the 16-bit prescaler; requests outside
-  that range are clamped.
+  that range are clamped. Because the prescaler is an integer, a requested
+  frequency is rounded to the nearest achievable value.
+- `setFrequency` programs the timer prescaler, which is shared by every channel
+  on that timer. Changing the frequency of one PWM output also changes the
+  frequency of the other outputs on the same timer (TIM1 or TIM2).
 - `PD7` is PWM-capable but is also the NRST pin; disable NRST to use it.
 - `PD4` is not a PWM pin because TIM2 is remapped to expose `PC1`.
 

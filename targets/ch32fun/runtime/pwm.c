@@ -188,6 +188,8 @@ void pwm_set_frequency(int handle, int freq_hz) {
     if (freq_hz <= 0) {
         return;
     }
+    /* The prescaler belongs to the timer, not the channel, so every PWM output
+     * on this timer follows the new frequency. */
     uint32_t psc = pwm_prescaler_for((uint32_t)freq_hz);
     if (pwm_handles[handle].timer == 1) {
         TIM1->PSC = psc;
