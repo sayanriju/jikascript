@@ -21,7 +21,7 @@ func (e *notFoundError) Error() string { return "open " + e.path + ": no such fi
 
 func TestResolveSingleInclude(t *testing.T) {
 	loader := memLoader(map[string]string{
-		"/proj/app.jika":     `include "helpers.jika";
+		"/proj/app.jika": `include "helpers.jika";
 task("blink", 100, () => { led.toggle(); });
 scheduler.start();`,
 		"/proj/helpers.jika": `const led = pin("PC1");
@@ -53,9 +53,9 @@ func TestResolveTransitiveInclude(t *testing.T) {
 
 func TestResolveRelativeSubdirectory(t *testing.T) {
 	loader := memLoader(map[string]string{
-		"/proj/app.jika":        `include "lib/helpers.jika";`,
+		"/proj/app.jika":         `include "lib/helpers.jika";`,
 		"/proj/lib/helpers.jika": `include "utils.jika";`,
-		"/proj/lib/utils.jika":   `const x = 1;
+		"/proj/lib/utils.jika": `const x = 1;
 const y = 2;`,
 	})
 	program, err := ParseFileWithLoader("/proj/app.jika", loader)
@@ -109,7 +109,7 @@ func TestResolveCycleDetected(t *testing.T) {
 
 func TestResolveNestedIncludeRejectedByParser(t *testing.T) {
 	loader := memLoader(map[string]string{
-		"/proj/app.jika":    `function f() { include "helpers.jika"; }`,
+		"/proj/app.jika":     `function f() { include "helpers.jika"; }`,
 		"/proj/helpers.jika": `const x = 1;`,
 	})
 	_, err := ParseFileWithLoader("/proj/app.jika", loader)
