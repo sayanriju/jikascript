@@ -942,6 +942,10 @@ func typeName(t string, constDecl bool) string {
 		return "int32_t"
 	case "float32":
 		return "float"
+	case "number":
+		// `number` must represent both integer and floating-point values, so
+		// lower it to float32 rather than silently narrowing to int.
+		return "float"
 	case "boolean":
 		return "bool"
 	case "string":

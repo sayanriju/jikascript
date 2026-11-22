@@ -744,3 +744,40 @@ task("t", 100, () => {
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateNumberAnnotationAsFloat32(t *testing.T) {
+	program, err := parser.ParseProgram(`let ratio: number = 1.5;
+let count: number = 3;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, expected := range []string{
+		"static float js_ratio = 1.5;",
+		"static float js_count = 3;",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected %q in generated C:\n%s", expected, out)
+		}
+	}
+	if strings.Contains(out, "static int js_ratio") {
+		t.Fatalf("number annotation must not narrow to int:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "number.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
