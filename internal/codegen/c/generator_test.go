@@ -651,3 +651,32 @@ let result = square(5);
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateVoidFunctionWithoutReturnAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`function noop() { let x = 1; }
+noop();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "static void js_noop(void)") {
+		t.Fatalf("expected void function emitted without return type:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "void.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

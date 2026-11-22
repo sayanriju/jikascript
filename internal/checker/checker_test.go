@@ -843,3 +843,27 @@ let result = square(5);
 		t.Fatalf("unexpected checker error: %v", err)
 	}
 }
+
+func TestCheckAllowsFunctionWithoutReturn(t *testing.T) {
+	program, err := parser.ParseProgram(`function noop() { let x = 1; }
+noop();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckAllowsBlockArrowWithoutReturn(t *testing.T) {
+	program, err := parser.ParseProgram(`const toggle = () => { let x = 1; };
+toggle();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}

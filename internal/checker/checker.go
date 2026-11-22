@@ -141,7 +141,12 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 				}
 			}
 			stack := []map[string]string{scope, functionScope}
-			for _, ret := range collectReturns(fn.Body) {
+			returns := collectReturns(fn.Body)
+			if len(returns) == 0 && info.ReturnType == "" {
+				info.ReturnType = "void"
+				changed = true
+			}
+			for _, ret := range returns {
 				if ret.Value == nil {
 					if info.ReturnType == "" {
 						info.ReturnType = "void"
