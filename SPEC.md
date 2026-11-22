@@ -722,6 +722,15 @@ periodic/
 
 The core scheduler must not include JikaScript-specific code.
 
+**Current layout note:** The repository intentionally keeps the standalone scheduler at
+`runtime/periodic/` (with the portable C implementation and host tests) rather than
+splitting it into a `periodic/include/`, `periodic/src/`, and `platforms/`
+directory hierarchy. This layout is a packaging choice only. The scheduler is
+independently usable from its pure-C API, has no mandatory JikaScript dependency,
+and is kept alongside CH32fun-specific integration rather than moving files solely
+for directory conformance. §6.4's nested layout is therefore a recommended future
+packaging option, not a requirement for the current implementation.
+
 ---
 
 # 7. Hardware API

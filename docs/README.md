@@ -50,4 +50,25 @@ Then get [Blink running in 5 minutes](quickstart.md).
 
 Already comfortable with PlatformIO? The [installation guide](installation.md#build-firmware) shows how to build and upload firmware directly.
 
+## Explore the examples
+
+The [`examples/`](../examples/) directory contains small, runnable programs:
+
+- [`blink.jika`](../examples/blink.jika) — your first LED blink
+- [`multiple_tasks.jika`](../examples/multiple_tasks.jika) — several cooperative periodic tasks
+- [`conditional_task.jika`](../examples/conditional_task.jika) — reacting to a GPIO input
+- [`pwm.jika`](../examples/pwm.jika) — PWM output and a fading task
+- [`adc.jika`](../examples/adc.jika) — ADC threshold detection
+- [`uart.jika`](../examples/uart.jika) — serial output and input polling
+- [`objects.jika`](../examples/objects.jika) — fixed-shape record objects
+- [`postfix.jika`](../examples/postfix.jika) — `++` and `--` in loops and expressions
+- [`multi-file/`](../examples/multi-file/) — compile-time includes
+
+Try one with:
+
+```bash
+jikascript check examples/blink.jika
+jikascript transpile examples/blink.jika --output=out/blink.c
+```
+
 Check your compiler release at any time with `jikascript version`.

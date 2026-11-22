@@ -55,13 +55,24 @@ Return types are also validated across all branches:
 
 ## Arrow Functions
 
-Arrow functions are supported and are especially handy as task callbacks:
+Arrow functions can stand alone as task callbacks or be bound to variables for
+reuse:
 
 ```javascript
-task("heartbeat", 500, () => {
+const toggleLED = () => {
     led.toggle();
-});
+};
+
+task("heartbeat", 500, toggleLED);
+
+const square = x => x * x;
+let answer = square(5); // 25
 ```
+
+Named function declarations and arrow functions are statically resolvable. You
+cannot dynamically construct either kind of function. In task callbacks, keep
+the callback concise: it runs to completion in the main loop and one long
+callback can delay the others.
 
 Clean, readable, and zero boilerplate.
 

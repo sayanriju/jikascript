@@ -1,3 +1,4 @@
+// Classic first firmware: blink PC1 once per second.
 const led = pin("PC1");
 
 led.output();

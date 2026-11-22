@@ -28,11 +28,16 @@ Run loops using standard syntax:
 let i = 0;
 while (i < 5) {
     led.toggle();
-    i = i + 1;
+    i++;
 }
 
-for (let j = 0; j < 10; j = j + 1) {
+for (let j = 0; j < 10; j++) {
     // Process items
+}
+
+let countdown = 3;
+while (countdown > 0) {
+    countdown--;
 }
 ```
 

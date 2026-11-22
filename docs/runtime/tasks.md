@@ -2,7 +2,7 @@
 
 In traditional Arduino or C code, multitasking usually means writing messy `millis()` math or complex interrupt service routines (ISRs).
 
-JikaScript includes a **pure-C periodic cooperative scheduler** that lets you write clean, concurrent tasks effortlessly!
+JikaScript includes a **pure-C periodic cooperative scheduler** that lets you write clean, periodic tasks without hand-written timer interrupts!
 
 ---
 
@@ -19,8 +19,8 @@ task("heartbeat", 500, () => {
 
 - **`name`:** A unique string literal identifying the task. Duplicate names are a
   compile error.
-- **`interval_ms`:** How often (in milliseconds) the callback runs. Must be
-  greater than zero.
+- **`interval_ms`:** How often (in milliseconds) the callback runs. It must be a
+  positive whole-number literal within the `uint32` range.
 - **`callback`:** A function taking no parameters.
 
 The callback runs in main context, not in an interrupt, so it may call any

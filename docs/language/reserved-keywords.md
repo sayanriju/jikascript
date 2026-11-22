@@ -33,6 +33,7 @@ The initial language subset reserves the following names:
 - `include`
 - `task`, `pin`, `uart`, `pwm`, `adc`, `scheduler`, `start`
 - `HIGH`, `LOW` (predefined GPIO state constants)
+- `++`, `--` are operators rather than identifiers
 
 `uart`, `pwm`, and `adc` are the peripheral constructors, and `pin` is the GPIO
 constructor. See [Peripherals](../runtime/hardware.md) for the methods each one
