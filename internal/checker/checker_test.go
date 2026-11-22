@@ -508,6 +508,34 @@ let temp: int8 = -128;`)
 	}
 }
 
+func TestCheckRejectsIntegerLiteralOutsideInt32Range(t *testing.T) {
+	sources := []string{
+		`let x = 2147483648;`,
+		`let x: int32 = 2147483648;`,
+		`let x = 4294967295;`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "out of range") {
+			t.Fatalf("expected out-of-range error for %q, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckAllowsMaxInt32Literal(t *testing.T) {
+	program, err := parser.ParseProgram(`let x = 2147483647;
+let y: int32 = -2147483648;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
 func TestCheckAllowsNumericWideningDeclaration(t *testing.T) {
 	program, err := parser.ParseProgram(`let count: int32 = 42;
 let reading: float32 = count;`)

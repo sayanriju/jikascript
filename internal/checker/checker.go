@@ -1325,8 +1325,17 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 		resolvedType = "int32"
 	}
 	if inferred, ok := inferLiteralType(value, scopeStack); ok && !strings.Contains(inferred, ":") {
-		if !typeCompatible(resolvedType, inferred) && !literalFitsType(value, resolvedType) {
+		compatible := typeCompatible(resolvedType, inferred)
+		if !compatible && !literalFitsType(value, resolvedType) {
 			return "", fmt.Errorf("type mismatch for declaration: expected %s, got %s", resolvedType, inferred)
+		}
+		// A literal may be compatible with the declared type while still being
+		// out of range (for example 2147483648 inferred as int32). Reject it
+		// instead of emitting an overflowing C initializer.
+		if compatible {
+			if _, isInt := intLiteralValue(value); isInt && !literalFitsType(value, resolvedType) {
+				return "", fmt.Errorf("integer literal out of range for %s", resolvedType)
+			}
 		}
 	}
 	return encodeScalarBinding(baseKind, resolvedType), nil
