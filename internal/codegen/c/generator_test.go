@@ -839,3 +839,33 @@ let pre = ++sum;
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateIsDeterministic(t *testing.T) {
+	program, err := parser.ParseProgram(`const led = pin("PC1");
+const device = { name: "sensor", reading: 1 };
+const readings: int32[4] = [1, 2, 3];
+function add(a, b) { return a + b; }
+const square = x => x * x;
+task("blink", 1000, () => { led.toggle(); });
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+
+	first, err := Generate(program)
+	if err != nil {
+		t.Fatalf("first generate: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		next, err := Generate(program)
+		if err != nil {
+			t.Fatalf("generate %d: %v", i+2, err)
+		}
+		if next != first {
+			t.Fatalf("generated output differs between runs:\n--- first ---\n%s\n--- run %d ---\n%s", first, i+2, next)
+		}
+	}
+}
