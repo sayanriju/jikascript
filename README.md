@@ -396,7 +396,8 @@ for the pin tables and the timer/clock contract.
   documented above are host-tested.
 - **Target-compiled**: verified by compiling firmware through PlatformIO
   against the `ch32v003fun` framework. `jikascript build` produces a linked
-  `.elf` and `.bin` for CH32V003. Not yet claimed for any feature.
+  `.elf` and `.bin` for CH32V003. GPIO, UART, PWM, ADC, and the scheduler are
+  target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 
