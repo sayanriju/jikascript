@@ -145,8 +145,9 @@ jikascript build blink.jika --optimize=speed
 | `size` | `-Os` | Explicitly pinning size optimization |
 | `speed` | `-O2` | Tight timing loops where flash allows |
 
-On the reference blink example, `size` produces an 844-byte binary and `speed`
-produces a 916-byte one.
+Exact binary sizes depend on the PlatformIO platform and RISC-V toolchain
+version. Build the reference blink example and inspect `build/blink.bin` to see
+the size for your installed toolchain.
 
 ---
 

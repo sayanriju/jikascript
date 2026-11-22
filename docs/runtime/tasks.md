@@ -95,6 +95,18 @@ after regenerating the project.
 
 ---
 
+## Task Removal and Reconfiguration
+
+Task removal and interval reconfiguration are **not supported** in v0.1. Tasks
+are registered once at startup and keep their interval for the lifetime of the
+firmware. The scheduler has no `periodic_task_remove` or
+`periodic_task_set_interval` API.
+
+If you need a task to stop doing work temporarily, guard its body with your own
+flag or condition instead of unregistering it.
+
+---
+
 ## How It Works Under the Hood
 
 - **Non-Preemptive & Cooperative:** Tasks run to completion when triggered. There is no complicated thread context-switching or stack overflow worries.

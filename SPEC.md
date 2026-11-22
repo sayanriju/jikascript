@@ -446,6 +446,31 @@ Strings should be stored in read-only memory where supported by the target toolc
 
 Dynamic string allocation and garbage collection are excluded.
 
+### Static object records (extension)
+
+Object literals are supported as a JikaScript extension for fixed-shape records:
+
+```javascript
+const device = {
+    name: "sensor-1",
+    reading: 100
+};
+
+device.reading = 105;
+```
+
+Rules:
+
+- Each distinct object shape is lowered to a statically allocated C `struct`.
+- Property types are inferred from the literal values. Property access is
+  checked at compile time; unknown properties and duplicate properties are
+  errors.
+- `const` freezes the binding, not the fields. Assigning a whole new object to
+  a `const` binding is an error, while assigning individual fields is allowed.
+- No heap allocation, hash maps, garbage collection, prototypes, getters or
+  setters, property addition or deletion, or reflection.
+- The full dynamic JavaScript object model remains excluded (see §15).
+
 ### File includes
 
 Programs may be split across multiple `.jika` files by including one file from another:
@@ -1147,7 +1172,20 @@ Purpose:
 
 Validate syntax and semantics without generating firmware.
 
-## 9.5 Additional options
+## 9.5 version
+
+Command:
+
+```bash
+jikascript version
+```
+
+Purpose:
+
+Print the compiler release version and the language specification version it
+targets. This command does not read an input file.
+
+## 9.6 Additional options
 
 Potential options:
 
