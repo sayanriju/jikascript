@@ -48,6 +48,10 @@ void uart_write(int handle, const char *text) {
         }
         USART1->DATAR = (uint8_t)*text++;
     }
+    /* Wait for the last byte to leave the shift register so a caller can
+     * reconfigure the USART or sleep immediately after writing. */
+    while ((USART1->STATR & USART_STATR_TC) == 0) {
+    }
 }
 
 void uart_println(int handle, const char *text) {
