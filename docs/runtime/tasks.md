@@ -44,9 +44,11 @@ scheduler.start(); // optional, but conventional
 
 ---
 
-## Multiple Concurrent Tasks
+## Multiple Periodic Tasks
 
-You can register multiple periodic tasks that run concurrently without blocking each other:
+You can register multiple periodic tasks. They are cooperative: each callback
+runs to completion before the next due callback runs, so a long-running
+callback delays the others.
 
 ```javascript
 const led1 = pin("PC1");
