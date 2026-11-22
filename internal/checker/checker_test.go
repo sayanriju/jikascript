@@ -884,3 +884,27 @@ func TestCheckRejectsShadowingPredefinedNames(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckRejectsTaskNameCollisionAfterNormalization(t *testing.T) {
+	program, err := parser.ParseProgram(`task("my-task", 100, () => {});
+task("my_task", 200, () => {});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "collides") {
+		t.Fatalf("expected task name collision error, got %v", err)
+	}
+}
+
+func TestCheckAllowsDistinctTaskNames(t *testing.T) {
+	program, err := parser.ParseProgram(`task("blink", 100, () => {});
+task("button", 200, () => {});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}

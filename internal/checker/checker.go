@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"jikascript/internal/ast"
+	"jikascript/internal/naming"
 	"jikascript/targets/ch32fun"
 )
 
@@ -25,7 +26,7 @@ func Check(program *ast.Program) error {
 		return err
 	}
 	scopeStack := []map[string]string{{}}
-	taskNames := map[string]struct{}{}
+	taskNames := map[string]string{}
 	functionReturns := map[string]string{}
 	functionArity := inferFunctionArity(program)
 	for _, stmt := range program.Statements {
@@ -564,7 +565,7 @@ func pushScope(scopeStack []map[string]string) []map[string]string {
 }
 
 // checkBlock checks each statement of a block body inside a new lexical scope.
-func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
+func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	inner := pushScope(scopeStack)
 	for _, s := range body {
 		if err := checkStmt(s, inner, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
@@ -577,7 +578,7 @@ func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[s
 // checkArrowBinding registers an arrow function bound to a variable and checks
 // its body in a fresh scope. It reports whether the value was an arrow
 // function, so the caller can skip scalar binding classification.
-func checkArrowBinding(name string, value ast.Expr, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) (bool, error) {
+func checkArrowBinding(name string, value ast.Expr, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) (bool, error) {
 	arrow, ok := value.(*ast.ArrowFunctionExpr)
 	if !ok {
 		return false, nil
@@ -606,7 +607,7 @@ func checkArrowBinding(name string, value ast.Expr, scopeStack []map[string]stri
 	return true, nil
 }
 
-func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
+func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	current := scopeStack[len(scopeStack)-1]
 	switch node := stmt.(type) {
 	case *ast.VarDecl:
@@ -744,10 +745,11 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			}
 		}
 	case *ast.TaskDecl:
-		if _, ok := taskNames[node.Name]; ok {
-			return fmt.Errorf("line %d:%d: duplicate task name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		key := naming.NormalizeIdentifier(node.Name)
+		if existing, ok := taskNames[key]; ok {
+			return fmt.Errorf("line %d:%d: duplicate task name '%s' (collides with task '%s' after C identifier normalization)", node.Pos.Line, node.Pos.Column, node.Name, existing)
 		}
-		taskNames[node.Name] = struct{}{}
+		taskNames[key] = node.Name
 		if err := checkExpr(node.Interval, scopeStack, functionArity); err != nil {
 			return err
 		}
@@ -1101,7 +1103,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		stack = append(stack, scopeStack...)
 		stack = append(stack, callbackScope)
 		for _, s := range node.Body {
-			if err := checkStmt(s, stack, map[string]struct{}{}, 0, 0, map[string]string{}, map[string]int{}, map[string]functionTypeInfo{}); err != nil {
+			if err := checkStmt(s, stack, map[string]string{}, 0, 0, map[string]string{}, map[string]int{}, map[string]functionTypeInfo{}); err != nil {
 				return err
 			}
 		}

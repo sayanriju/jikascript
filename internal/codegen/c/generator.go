@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"jikascript/internal/ast"
+	"jikascript/internal/naming"
 	"jikascript/internal/version"
 )
 
@@ -1005,20 +1006,7 @@ func sanitizeFieldName(name string) string {
 }
 
 func normalizeIdentifier(name string) string {
-	var b strings.Builder
-	for i, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_' || (i > 0 && r >= '0' && r <= '9') {
-			b.WriteRune(r)
-			continue
-		}
-		if i == 0 && r >= '0' && r <= '9' {
-			b.WriteString("_")
-			b.WriteRune(r)
-			continue
-		}
-		b.WriteRune('_')
-	}
-	return b.String()
+	return naming.NormalizeIdentifier(name)
 }
 
 func isReservedCIdentifier(name string) bool {
