@@ -54,17 +54,17 @@ Already comfortable with PlatformIO? The [installation guide](installation.md#bu
 
 ## Explore the examples
 
-The [`examples/`](../examples/) directory contains small, runnable programs:
+The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) directory contains small, runnable programs:
 
-- [`blink.jika`](../examples/blink.jika) — your first LED blink
-- [`multiple_tasks.jika`](../examples/multiple_tasks.jika) — several cooperative periodic tasks
-- [`conditional_task.jika`](../examples/conditional_task.jika) — reacting to a GPIO input
-- [`pwm.jika`](../examples/pwm.jika) — PWM output and a fading task
-- [`adc.jika`](../examples/adc.jika) — ADC threshold detection
-- [`uart.jika`](../examples/uart.jika) — serial output and input polling
-- [`objects.jika`](../examples/objects.jika) — fixed-shape record objects
-- [`postfix.jika`](../examples/postfix.jika) — `++` and `--` in loops and expressions
-- [`multi-file/`](../examples/multi-file/) — compile-time includes
+- [`blink.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/blink.jika) — your first LED blink
+- [`multiple_tasks.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/multiple_tasks.jika) — several cooperative periodic tasks
+- [`conditional_task.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/conditional_task.jika) — reacting to a GPIO input
+- [`pwm.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/pwm.jika) — PWM output and a fading task
+- [`adc.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/adc.jika) — ADC threshold detection
+- [`uart.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/uart.jika) — serial output and input polling
+- [`objects.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/objects.jika) — fixed-shape record objects
+- [`postfix.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/postfix.jika) — `++` and `--` in loops and expressions
+- [`multi-file/`](https://github.com/sayanriju/jikascript/tree/master/examples/multi-file) — compile-time includes
 
 Try one with:
 

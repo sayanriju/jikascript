@@ -53,7 +53,7 @@ If the command prints a version, you're ready to build the CLI.
 
 ## 3. Install `just` (recommended)
 
-The project includes a friendly [`justfile`](../justfile) with common setup and build commands.
+The project includes a friendly [`justfile`](https://github.com/sayanriju/jikascript/blob/master/justfile) with common setup and build commands.
 
 Install `just` with your platform's package manager, or follow the official install instructions:
 
@@ -126,7 +126,7 @@ just unbrick
 
 The compiler and firmware workflow remains CLI-first: use `jikascript check`,
 `jikascript transpile`, `jikascript build`, and `jikascript flash` directly.
-The [`justfile`](../justfile) intentionally does not duplicate those commands so
+The [`justfile`](https://github.com/sayanriju/jikascript/blob/master/justfile) intentionally does not duplicate those commands so
 there is no ambiguity about which file is being built or flashed.
 
 `erase` and `unbrick` call `minichlink` directly rather than going through
@@ -174,7 +174,7 @@ jikascript flash examples/blink.jika
 ```
 
 Add `--optimize=speed` to trade flash size for execution speed; see
-[Optimization](../README.md#optimization) for the full table. Omitting the flag
+[Optimization](https://github.com/sayanriju/jikascript#optimization) for the full table. Omitting the flag
 keeps PlatformIO's default `-Os`.
 
 ---
@@ -200,7 +200,7 @@ missing or not executable, so a typo is easy to spot.
 
 The `--board` value is not one of the supported CH32V003 selectors. Run
 `jikascript build` with no `--board` to use the default, or pick one of the
-values listed in the [README](../README.md#board-and-environment-selection).
+values listed in the [README](https://github.com/sayanriju/jikascript#board-and-environment-selection).
 
 ### `just` is not found
 
