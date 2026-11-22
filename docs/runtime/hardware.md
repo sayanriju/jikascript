@@ -41,4 +41,4 @@ Everything compiles down to direct register writes through the CH32fun backend â
 fast, efficient, and direct.
 
 Curious how it all turns into C? Check out
-[How Compilation Works](under-the-hood.md)!
+[How Compilation Works](https://sayanriju.github.io/jikascript/#/under-the-hood)!
