@@ -867,3 +867,20 @@ toggle();
 		t.Fatalf("unexpected checker error: %v", err)
 	}
 }
+
+func TestCheckRejectsShadowingPredefinedNames(t *testing.T) {
+	sources := []string{
+		`const HIGH = 5;`,
+		`let LOW = 0;`,
+		`function HIGH() { return 1; }`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "predefined name") {
+			t.Fatalf("expected predefined-name error for %q, got %v", source, err)
+		}
+	}
+}

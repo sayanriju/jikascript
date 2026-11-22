@@ -33,6 +33,9 @@ func Check(program *ast.Program) error {
 		if !ok {
 			continue
 		}
+		if builtin(decl.Name) {
+			return fmt.Errorf("line %d:%d: cannot redeclare predefined name '%s'", decl.Pos.Line, decl.Pos.Column, decl.Name)
+		}
 		info := functionTypes[decl.Name]
 		functionReturns[decl.Name] = info.ReturnType
 		scopeStack[0][decl.Name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
@@ -610,6 +613,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if _, ok := current[node.Name]; ok {
 			return fmt.Errorf("line %d:%d: variable '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
 		}
+		if builtin(node.Name) {
+			return fmt.Errorf("line %d:%d: cannot redeclare predefined name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		}
 		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
 			return err
 		}
@@ -632,6 +638,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 	case *ast.ConstDecl:
 		if _, ok := current[node.Name]; ok {
 			return fmt.Errorf("line %d:%d: constant '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if builtin(node.Name) {
+			return fmt.Errorf("line %d:%d: cannot redeclare predefined name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
 		}
 		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
 			return err
