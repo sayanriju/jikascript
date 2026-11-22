@@ -7,6 +7,8 @@
 static uint32_t g_fast_count = 0U;
 static uint32_t g_slow_count = 0U;
 static uint32_t g_long_count = 0U;
+static uint32_t g_enter_count = 0U;
+static uint32_t g_exit_count = 0U;
 static periodic_task_t g_fast_task;
 static periodic_task_t g_slow_task;
 static periodic_task_t g_long_task;
@@ -15,6 +17,14 @@ static void reset_counts(void) {
     g_fast_count = 0U;
     g_slow_count = 0U;
     g_long_count = 0U;
+}
+
+static void enter_cb(void) {
+    g_enter_count += 1U;
+}
+
+static void exit_cb(void) {
+    g_exit_count += 1U;
 }
 
 static void fast_cb(void) {
@@ -106,6 +116,34 @@ int main(void) {
     periodic_tick_ms(20U);
     periodic_run();
     assert(g_fast_count == 3U);
+
+    /* A legitimate last_run_ms of UINT32_MAX must not be mistaken for the
+     * "never run" sentinel after the millisecond counter rolls over. */
+    periodic_init();
+    reset_counts();
+    assert(periodic_task_add(&g_fast_task, fast_cb, 1U));
+    periodic_tick_ms(UINT32_MAX);
+    periodic_run();
+    assert(g_fast_count == 1U);
+    assert(g_fast_task.started);
+    assert(g_fast_task.last_run_ms == UINT32_MAX);
+    periodic_run();
+    assert(g_fast_count == 1U);
+
+    /* Critical-section hooks are invoked around timebase access. */
+    periodic_set_critical_section(enter_cb, exit_cb);
+    g_enter_count = 0U;
+    g_exit_count = 0U;
+    periodic_init();
+    assert(g_enter_count == 1U);
+    assert(g_exit_count == 1U);
+    (void)periodic_millis();
+    assert(g_enter_count == 2U);
+    assert(g_exit_count == 2U);
+    periodic_tick_ms(1U);
+    assert(g_enter_count == 3U);
+    assert(g_exit_count == 3U);
+    periodic_set_critical_section(NULL, NULL);
 
     return 0;
 }

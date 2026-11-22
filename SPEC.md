@@ -605,6 +605,7 @@ typedef struct {
     uint32_t interval_ms;
     uint32_t last_run_ms;
     bool enabled;
+    bool started;
 } periodic_task_t;
 
 void periodic_init(void);

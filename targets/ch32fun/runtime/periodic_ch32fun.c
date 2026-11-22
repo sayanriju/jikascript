@@ -6,6 +6,11 @@
 /*
  * CH32fun's SysTick is a free-running counter with a compare interrupt.
  * DELAY_MS_TIME follows the clock configuration selected in funconfig.h.
+ *
+ * No critical-section hooks are installed: CH32V003 is RV32, so aligned
+ * 32-bit loads and stores of the scheduler timebase are atomic. Installing
+ * __disable_irq/__enable_irq hooks would also re-enable interrupts from
+ * inside SysTick_Handler, which is undesirable.
  */
 void periodic_ch32fun_init(void) {
     SysTick->CTLR = 0U;

@@ -25,7 +25,7 @@ static bool task_due(const periodic_task_t *task, uint32_t now) {
         return false;
     }
 
-    if (task->last_run_ms == UINT32_MAX) {
+    if (!task->started) {
         return true;
     }
 
@@ -37,7 +37,8 @@ static void task_advance_deadline(periodic_task_t *task, uint32_t now) {
         return;
     }
 
-    if (task->last_run_ms == UINT32_MAX) {
+    if (!task->started) {
+        task->started = true;
         task->last_run_ms = now;
         return;
     }
@@ -76,8 +77,9 @@ bool periodic_task_add(periodic_task_t *task, periodic_callback_t callback, uint
 
     task->callback = callback;
     task->interval_ms = interval_ms;
-    task->last_run_ms = UINT32_MAX;
+    task->last_run_ms = 0U;
     task->enabled = true;
+    task->started = false;
 
     g_tasks[g_task_count++] = task;
     return true;
