@@ -8,6 +8,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [0.4.0] - 2026-11-22
+
+Language specification: `0.3.0`
+
+This release completes the v0.3.0 language audit pass, hardens the standalone
+scheduler and build/diagnostic behavior, adds postfix operators, and expands
+public documentation and CH32V003 peripheral coverage.
+
+### Added
+
+- General arrow functions bound to variables and arrow functions used directly
+  as scheduler callbacks.
+- Postfix `++` and `--` support in expressions and `for` loops, with compile-time
+  rejection of invalid assignment targets and constants.
+- CH32V003 host-side and target runtime coverage for GPIO, UART, PWM, and ADC
+  peripherals.
+- AST node interface tests and deterministic C-generation coverage.
+- A public postfix example and an examples index in the public documentation.
+
+### Changed
+
+- Functions without a value return now infer `void` consistently.
+- `number` and `float32` annotations lower to C `float` (`float32`) instead of
+  narrowing silently to `int`.
+- Task intervals must be positive whole-number literals within the `uint32`
+  range.
+- Diagnostics now use `file:line:col: error: message` formatting.
+- `--optimize` is normalized consistently in the CLI and PlatformIO helpers.
+- Generated C declaration indentation and deterministic output are covered and
+  corrected where needed.
+- Public tutorials now describe cooperative scheduling, numeric ranges and
+  overflow, task removal/reconfiguration limits, static object records, and
+  the intentional `runtime/periodic/` scheduler layout.
+- SPEC §6.4 layout guidance now distinguishes a recommended future directory
+  split from the working standalone scheduler layout.
+
+### Fixed
+
+- Single-expression task callbacks no longer emit invalid `return` expressions
+  in C callbacks.
+- Shadowed predefined names, normalized task-name collisions, nested task
+  declarations, duplicate functions, and out-of-range integer literals are
+  rejected at compile time.
+- The portable scheduler now distinguishes a legitimate `UINT32_MAX`
+  millisecond deadline from the former never-run sentinel using an explicit
+  `started` flag.
+- Builds now fail when PlatformIO reports success but produces no firmware
+  artifacts.
+- The public docs remove stale binary-size claims and contradictory descriptions
+  of task concurrency.
+
+### Notes
+
+- The compiler release is `0.4.0`; the language specification is `0.3.0`.
+- Host tests and C99 scheduler/peripheral compilation pass.
+- CH32V003 firmware is target-compiled through PlatformIO, but no feature is
+  claimed as physical-hardware-verified until flashing and observation have
+  been performed on a real board.
+
 ## [0.3.4] - 2026-11-13
 
 Language specification: `0.2.0`
@@ -143,6 +202,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.4.0]: https://github.com/sayanriju/jikascript/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/sayanriju/jikascript/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/sayanriju/jikascript/compare/v0.3.1...v0.3.3
 [0.3.1]: https://github.com/sayanriju/jikascript/compare/v0.3.0...v0.3.1

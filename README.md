@@ -103,7 +103,7 @@ Print the compiler and language specification versions:
 jikascript version
 ```
 
-The current release is `0.3.4`, targeting language specification `0.3.0`.
+The current release is `0.4.0`, targeting language specification `0.3.0`.
 
 The `v0.1` labels throughout this README refer to the implementation milestone
 and feature set described in [SPEC.md](SPEC.md); they do not indicate the

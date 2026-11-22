@@ -29,8 +29,30 @@ func TestParseOptionsDefaults(t *testing.T) {
 }
 
 func TestVersionMetadata(t *testing.T) {
-	if version.Compiler != "0.3.4" || version.Spec != "0.3.0" {
+	if version.Compiler != "0.4.0" || version.Spec != "0.3.0" {
 		t.Fatalf("unexpected version metadata: compiler=%q spec=%q", version.Compiler, version.Spec)
+	}
+}
+
+func TestVersionMetadataInPublicDocs(t *testing.T) {
+	root := filepath.Clean("../..")
+	checks := []struct {
+		path string
+		text string
+	}{
+		{"SPEC.md", "Specification version:** 0.3.0"},
+		{"README.md", "current release is `0.4.0`, targeting language specification `0.3.0`"},
+		{"docs/installation.md", "JikaScript `0.4.0` and language spec `0.3.0`"},
+		{"skills/jikascript/references/cli.md", "Current release 0.4.0, language spec 0.3.0"},
+	}
+	for _, check := range checks {
+		content, err := os.ReadFile(filepath.Join(root, check.path))
+		if err != nil {
+			t.Fatalf("read %s: %v", check.path, err)
+		}
+		if !strings.Contains(string(content), check.text) {
+			t.Errorf("%s missing version text %q", check.path, check.text)
+		}
 	}
 }
 
