@@ -1,8 +1,11 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
 
-import "jikascript/internal/ast"
+	"jikascript/internal/ast"
+)
 
 func TestParseBlinkProgram(t *testing.T) {
 	program, err := ParseProgram(`const led = pin("PC1");
@@ -179,5 +182,15 @@ const toggle = () => { led.toggle(); };
 	}
 	if len(blockArrow.Params) != 0 {
 		t.Fatalf("block arrow params = %v, want none", blockArrow.Params)
+	}
+}
+
+func TestParseNestedTaskRejected(t *testing.T) {
+	_, err := ParseProgram(`if (true) {
+    task("nested", 100, () => {});
+}
+`)
+	if err == nil || !strings.Contains(err.Error(), "top level") {
+		t.Fatalf("expected nested task rejection, got %v", err)
 	}
 }

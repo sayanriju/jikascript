@@ -439,6 +439,9 @@ func (p *Parser) parseIfStmt() (ast.Stmt, error) {
 
 func (p *Parser) parseTaskDecl() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+	if !p.topLevel {
+		return nil, fmt.Errorf("line %d:%d: task declarations are only supported at the top level", pos.Line, pos.Column)
+	}
 	p.next() // task
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
 		return nil, fmt.Errorf("line %d:%d: expected '(' after task", p.cur.Line, p.cur.Column)
