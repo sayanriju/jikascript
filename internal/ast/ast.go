@@ -265,11 +265,12 @@ type BinaryExpr struct {
 
 func (*BinaryExpr) exprNode() {}
 
-// UnaryExpr represents prefix expression.
+// UnaryExpr represents a prefix or postfix unary expression.
 type UnaryExpr struct {
-	Op   string
-	Expr Expr
-	Pos  Position
+	Op      string
+	Expr    Expr
+	Postfix bool
+	Pos     Position
 }
 
 func (*UnaryExpr) exprNode() {}

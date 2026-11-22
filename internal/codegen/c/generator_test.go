@@ -800,3 +800,42 @@ f();
 		t.Fatalf("expected indented local declaration:\n%s", out)
 	}
 }
+
+func TestGeneratePostfixIncrementAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`let sum = 0;
+for (let i = 0; i < 3; i++) {
+    sum = sum + i;
+}
+let old = sum++;
+let pre = ++sum;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, expected := range []string{
+		"js_i++)",
+		"js_old = js_sum++;",
+		"js_pre = ++js_sum;",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected %q in generated C:\n%s", expected, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "postfix.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

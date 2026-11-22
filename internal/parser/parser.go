@@ -873,6 +873,11 @@ func (p *Parser) parsePostfix(expr ast.Expr) (ast.Expr, error) {
 			}
 			p.next()
 			expr = &ast.IndexExpr{Object: expr, Index: idxExpr, Pos: indexPos}
+		case p.cur.Type == lexer.OPERATOR && (p.cur.Literal == "++" || p.cur.Literal == "--"):
+			op := p.cur.Literal
+			pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+			p.next()
+			expr = &ast.UnaryExpr{Op: op, Expr: expr, Postfix: true, Pos: pos}
 		default:
 			return expr, nil
 		}

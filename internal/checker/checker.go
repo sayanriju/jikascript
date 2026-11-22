@@ -1057,8 +1057,13 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			return err
 		}
 	case *ast.UnaryExpr:
-		if (node.Op == "++" || node.Op == "--") && isConstBinding(scopeStack, renderUnaryTarget(node.Expr)) {
-			return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, renderUnaryTarget(node.Expr))
+		if node.Op == "++" || node.Op == "--" {
+			if !isIncrementTarget(node.Expr) {
+				return fmt.Errorf("%d:%d: error: operator '%s' requires a variable or property target", node.Pos.Line, node.Pos.Column, node.Op)
+			}
+			if isConstBinding(scopeStack, renderUnaryTarget(node.Expr)) {
+				return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, renderUnaryTarget(node.Expr))
+			}
 		}
 		if err := checkValueExpression(node.Expr, scopeStack, node.Pos); err != nil {
 			return err
@@ -1151,6 +1156,18 @@ func renderUnaryTarget(expr ast.Expr) string {
 		return ident.Name
 	}
 	return ""
+}
+
+// isIncrementTarget reports whether expr can be the operand of ++ or --.
+// Array elements are excluded because they lower to getter calls in C and are
+// not assignable lvalues.
+func isIncrementTarget(expr ast.Expr) bool {
+	switch expr.(type) {
+	case *ast.Identifier, *ast.SelectorExpr:
+		return true
+	default:
+		return false
+	}
 }
 
 func classifyBinding(baseKind string, declaredType string, declaredCapacity int, value ast.Expr, scopeStack []map[string]string, functionReturns map[string]string) (string, error) {

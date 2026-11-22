@@ -940,3 +940,36 @@ func TestCheckRejectsTaskIntervalBeyondUint32(t *testing.T) {
 		t.Fatalf("expected interval range error, got %v", err)
 	}
 }
+
+func TestCheckAllowsPostfixIncrementOnVariable(t *testing.T) {
+	program, err := parser.ParseProgram(`let i = 0;
+i++;
+i--;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckRejectsPostfixOnNonTarget(t *testing.T) {
+	sources := []struct {
+		source string
+		want   string
+	}{
+		{`let x = 1++;`, "requires a variable or property target"},
+		{`const c = 1; c++;`, "cannot assign to constant variable"},
+		{`let a = [1, 2]; a[0]++;`, "requires a variable or property target"},
+	}
+	for _, tc := range sources {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}

@@ -194,3 +194,28 @@ func TestParseNestedTaskRejected(t *testing.T) {
 		t.Fatalf("expected nested task rejection, got %v", err)
 	}
 }
+
+func TestParsePostfixIncrementAndDecrement(t *testing.T) {
+	program, err := ParseProgram(`i++;
+i--;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+	for index, op := range []string{"++", "--"} {
+		stmt, ok := program.Statements[index].(*ast.ExprStmt)
+		if !ok {
+			t.Fatalf("statement %d is %T, want ExprStmt", index, program.Statements[index])
+		}
+		unary, ok := stmt.Expr.(*ast.UnaryExpr)
+		if !ok {
+			t.Fatalf("expression %d is %T, want UnaryExpr", index, stmt.Expr)
+		}
+		if !unary.Postfix || unary.Op != op {
+			t.Fatalf("expression %d = {Op:%q Postfix:%v}, want {%q true}", index, unary.Op, unary.Postfix, op)
+		}
+	}
+}

@@ -893,6 +893,9 @@ func renderExpr(expr ast.Expr) string {
 		}
 		return renderExpr(node.Left) + " " + op + " " + renderExpr(node.Right)
 	case *ast.UnaryExpr:
+		if node.Postfix {
+			return renderExpr(node.Expr) + node.Op
+		}
 		return node.Op + renderExpr(node.Expr)
 	case *ast.ArrayLiteralExpr:
 		setGenerationErrorf("array literal expression is not supported in this context")
@@ -1105,6 +1108,9 @@ func isStaticInitSafe(expr ast.Expr) bool {
 	case *ast.NumberLiteral, *ast.StringLiteral, *ast.BoolLiteral:
 		return true
 	case *ast.UnaryExpr:
+		if node.Op == "++" || node.Op == "--" {
+			return false
+		}
 		return isStaticInitSafe(node.Expr)
 	case *ast.BinaryExpr:
 		return isStaticInitSafe(node.Left) && isStaticInitSafe(node.Right)
