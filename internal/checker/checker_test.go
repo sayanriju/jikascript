@@ -699,6 +699,76 @@ func TestCheckRejectsPeripheralHandleAsValue(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsPeripheralReturnValues(t *testing.T) {
+	for _, source := range []string{
+		`const serial = uart("PD5", "PD6"); let ch = serial.read();`,
+		`const sensor = adc("PD4"); let level = sensor.read();`,
+		`const button = pin("PD2"); let state = button.read();`,
+		`const serial = uart("PD5", "PD6"); if (serial.read() >= 0) { serial.write("ok"); }`,
+		`const sensor = adc("PD4"); if (sensor.read() > 512) { }`,
+		`const serial = uart("PD5", "PD6"); let ch: int32 = serial.read();`,
+		`const sensor = adc("PD4"); let level: int32 = sensor.read();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsVoidPeripheralResult(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pwm("PC1"); let x = led.set(50);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = led.setFrequency(1000);`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); let x = serial.write("hi");`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); let x = serial.println("hi");`, "expression does not produce a value"},
+		{`const led = pin("PC1"); let x = led.write(HIGH);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = 0; x = led.set(50);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); if (led.set(50)) { }`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); while (led.set(50)) { }`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = led.set(50) + 1;`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = !led.set(50);`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); serial.write(serial.write("x"));`, "write() argument 1 expects string, got void expression"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsPeripheralReturnTypeMismatch(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const sensor = adc("PD4"); let value: string = sensor.read();`, "type mismatch for declaration: expected string, got int32"},
+		{`const serial = uart("PD5", "PD6"); let value: string = serial.read();`, "type mismatch for declaration: expected string, got int32"},
+		{`const serial = uart("PD5", "PD6"); serial.write(serial.read());`, "write() argument 1 expects string, got int32"},
+		{`const button = pin("PD2"); const serial = uart("PD5", "PD6"); serial.write(button.read());`, "write() argument 1 expects string, got int32"},
+		{`let values: int32[2] = [1, 2]; const serial = uart("PD5", "PD6"); serial.write(values[0]);`, "write() argument 1 expects string, got int32"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
 func TestCheckRejectsMembersOnScalars(t *testing.T) {
 	cases := []struct {
 		source string

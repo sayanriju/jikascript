@@ -607,6 +607,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
+			return err
+		}
 		if err := checkBlock(node.Then, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
 			return err
 		}
@@ -615,6 +618,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		}
 	case *ast.WhileStmt:
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
 			return err
 		}
 		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
@@ -627,6 +633,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
+			return err
+		}
 	case *ast.ForStmt:
 		inner := pushScope(scopeStack)
 		if node.Init != nil {
@@ -636,6 +645,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		}
 		if node.Cond != nil {
 			if err := checkExpr(node.Cond, inner, functionArity); err != nil {
+				return err
+			}
+			if err := checkValueExpression(node.Cond, inner, node.Pos); err != nil {
 				return err
 			}
 		}
@@ -703,6 +715,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		return checkBlock(node.Statements, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity)
 	case *ast.ReturnStmt:
 		if node.Value != nil {
+			if err := checkValueExpression(node.Value, scopeStack, node.Pos); err != nil {
+				return err
+			}
 			return checkExpr(node.Value, scopeStack, functionArity)
 		}
 	case *ast.ExprStmt:
@@ -716,6 +731,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			return fmt.Errorf("line %d:%d: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, node.Target)
 		}
 		if err := checkExpr(node.Value, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Value, scopeStack, node.Pos); err != nil {
 			return err
 		}
 		expectedType, typed := scalarBindingType(binding)
@@ -871,6 +889,12 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		}
 		return nil
 	case *ast.BinaryExpr:
+		if err := checkValueExpression(node.Left, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Right, scopeStack, node.Pos); err != nil {
+			return err
+		}
 		if err := checkExpr(node.Left, scopeStack, functionArity); err != nil {
 			return err
 		}
@@ -946,6 +970,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 	case *ast.UnaryExpr:
 		if (node.Op == "++" || node.Op == "--") && isConstBinding(scopeStack, renderUnaryTarget(node.Expr)) {
 			return fmt.Errorf("line %d:%d: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, renderUnaryTarget(node.Expr))
+		}
+		if err := checkValueExpression(node.Expr, scopeStack, node.Pos); err != nil {
+			return err
 		}
 		return checkExpr(node.Expr, scopeStack, functionArity)
 	case *ast.NumberLiteral, *ast.StringLiteral, *ast.BoolLiteral:
@@ -1041,6 +1068,10 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 	declaredType = strings.TrimSpace(declaredType)
 	if declaredType != "" && !isSupportedType(declaredType) {
 		return "", fmt.Errorf("unsupported declared type '%s'", declaredType)
+	}
+
+	if returnType, ok := peripheralCallReturnType(value, scopeStack); ok && returnType == "" {
+		return "", fmt.Errorf("expression does not produce a value")
 	}
 
 	// A peripheral handle is an opaque runtime value, not a scalar. Letting it
@@ -1259,6 +1290,76 @@ func peripheralTempFamily(expr ast.Expr) (string, bool) {
 	return "", false
 }
 
+// peripheralMethodReturnType reports the JikaScript type produced by a
+// peripheral method. The second result is false when the method is not part of
+// the family's API. A void method returns ("", true).
+func peripheralMethodReturnType(family, method string) (string, bool) {
+	switch family {
+	case "pin":
+		switch method {
+		case "read":
+			return "int32", true
+		case "output", "input", "toggle", "write":
+			return "", true
+		}
+	case "uart":
+		switch method {
+		case "read":
+			return "int32", true
+		case "write", "println":
+			return "", true
+		}
+	case "pwm":
+		switch method {
+		case "set", "setFrequency":
+			return "", true
+		}
+	case "adc":
+		if method == "read" {
+			return "int32", true
+		}
+	}
+	return "", false
+}
+
+// peripheralCallReturnType reports the return type of a peripheral method call
+// expression. The second result is false when expr is not a peripheral method
+// call. A void method returns ("", true).
+func peripheralCallReturnType(expr ast.Expr, scopeStack []map[string]string) (string, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return "", false
+	}
+	selector, ok := call.Function.(*ast.SelectorExpr)
+	if !ok {
+		return "", false
+	}
+	family := ""
+	if ident, ok := selector.Object.(*ast.Identifier); ok && scopeStack != nil {
+		if binding, exists := lookup(scopeStack, ident.Name); exists {
+			family = peripheralKindOf(binding)
+		}
+	}
+	if family == "" {
+		if temp, ok := peripheralTempFamily(selector.Object); ok {
+			family = temp
+		}
+	}
+	if family == "" {
+		return "", false
+	}
+	return peripheralMethodReturnType(family, selector.Field)
+}
+
+// checkValueExpression rejects an expression that produces no value, such as a
+// void peripheral method call used where a value is required.
+func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if returnType, ok := peripheralCallReturnType(expr, scopeStack); ok && returnType == "" {
+		return fmt.Errorf("line %d:%d: expression does not produce a value", pos.Line, pos.Column)
+	}
+	return nil
+}
+
 // isValidPeripheralMethod reports whether method belongs to the family's API.
 func isValidPeripheralMethod(family, method string) bool {
 	switch family {
@@ -1343,6 +1444,9 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 		return nil
 	}
 	for i, arg := range args {
+		if returnType, ok := peripheralCallReturnType(arg, scopeStack); ok && returnType == "" {
+			return fmt.Errorf("line %d:%d: %s() argument %d expects %s, got void expression", pos.Line, pos.Column, method, i+1, expected)
+		}
 		if ident, ok := arg.(*ast.Identifier); ok && scopeStack != nil {
 			if binding, exists := lookup(scopeStack, ident.Name); exists {
 				if handle := peripheralKindOf(binding); handle != "" {
@@ -1514,6 +1618,12 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		}
 		return "", false
 	case *ast.CallExpr:
+		if returnType, ok := peripheralCallReturnType(node, scopeStack); ok {
+			if returnType == "" {
+				return "", false
+			}
+			return returnType, true
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
 			return "int32", true
 		}
@@ -1522,6 +1632,13 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 				if returnType, ok := functionReturnType(binding); ok && returnType != "void" {
 					return returnType, true
 				}
+			}
+		}
+		return "", false
+	case *ast.IndexExpr:
+		if ident, ok := node.Object.(*ast.Identifier); ok && scopeStack != nil {
+			if binding, exists := lookup(scopeStack, ident.Name); exists && isArrayBinding(binding) {
+				return arrayElemType(binding), true
 			}
 		}
 		return "", false
