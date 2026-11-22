@@ -1566,6 +1566,12 @@ func checkTaskInterval(interval ast.Expr, pos ast.Position) error {
 	if value <= 0 {
 		return fmt.Errorf("%d:%d: error: task interval must be greater than zero", pos.Line, pos.Column)
 	}
+	if value != math.Trunc(value) {
+		return fmt.Errorf("%d:%d: error: task interval must be a whole number of milliseconds", pos.Line, pos.Column)
+	}
+	if value > math.MaxUint32 {
+		return fmt.Errorf("%d:%d: error: task interval exceeds the uint32 range", pos.Line, pos.Column)
+	}
 	return nil
 }
 

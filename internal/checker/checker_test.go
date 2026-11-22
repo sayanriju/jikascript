@@ -920,3 +920,23 @@ function foo() { return 2; }
 		t.Fatalf("expected duplicate function error, got %v", err)
 	}
 }
+
+func TestCheckRejectsFractionalTaskInterval(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 1.5, () => {});`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "whole number") {
+		t.Fatalf("expected fractional interval error, got %v", err)
+	}
+}
+
+func TestCheckRejectsTaskIntervalBeyondUint32(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 4294967296, () => {});`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "uint32 range") {
+		t.Fatalf("expected interval range error, got %v", err)
+	}
+}
