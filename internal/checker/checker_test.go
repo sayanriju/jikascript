@@ -908,3 +908,15 @@ task("button", 200, () => {});
 		t.Fatalf("unexpected checker error: %v", err)
 	}
 }
+
+func TestCheckRejectsDuplicateFunctionDeclarations(t *testing.T) {
+	program, err := parser.ParseProgram(`function foo() { return 1; }
+function foo() { return 2; }
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "already declared") {
+		t.Fatalf("expected duplicate function error, got %v", err)
+	}
+}

@@ -29,11 +29,16 @@ func Check(program *ast.Program) error {
 	taskNames := map[string]string{}
 	functionReturns := map[string]string{}
 	functionArity := inferFunctionArity(program)
+	seenFunctions := map[string]struct{}{}
 	for _, stmt := range program.Statements {
 		decl, ok := stmt.(*ast.FunctionDecl)
 		if !ok {
 			continue
 		}
+		if _, exists := seenFunctions[decl.Name]; exists {
+			return fmt.Errorf("%d:%d: error: function '%s' already declared", decl.Pos.Line, decl.Pos.Column, decl.Name)
+		}
+		seenFunctions[decl.Name] = struct{}{}
 		if builtin(decl.Name) {
 			return fmt.Errorf("%d:%d: error: cannot redeclare predefined name '%s'", decl.Pos.Line, decl.Pos.Column, decl.Name)
 		}
