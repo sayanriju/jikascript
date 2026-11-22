@@ -680,3 +680,67 @@ noop();
 		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateSingleExpressionTaskCallbackAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 100, () => 1);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "return 1;") {
+		t.Fatalf("task handler must not return a value from a void function:\n%s", out)
+	}
+	if !strings.Contains(out, "static void jikascript_task_t(void)") {
+		t.Fatalf("expected void task handler:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "task_expr.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateNestedValueReturnInTaskCallbackAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`const flag = true;
+task("t", 100, () => {
+    if (flag) {
+        return 1;
+    }
+});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "return 1;") {
+		t.Fatalf("nested task return must not return a value from a void function:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "task_nested.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

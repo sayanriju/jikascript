@@ -333,8 +333,11 @@ func Generate(program *ast.Program) (string, error) {
 			taskName := taskHandlerName(node.Name)
 			b.WriteString(fmt.Sprintf("static periodic_task_t %s_task;\n", taskName))
 			b.WriteString(fmt.Sprintf("static void %s(void) {\n", taskName))
-			for _, inner := range node.Callback.Body {
-				b.WriteString(renderStmt(inner, "    "))
+			if node.Callback != nil {
+				discardTaskValueReturns(node.Callback.Body)
+				for _, inner := range node.Callback.Body {
+					b.WriteString(renderStmt(inner, "    "))
+				}
 			}
 			b.WriteString("}\n\n")
 			taskHandlers = append(taskHandlers, taskRegistration{name: taskName, interval: renderExpr(node.Interval)})
@@ -428,6 +431,35 @@ func sortedObjectMetas() []objectMeta {
 type taskRegistration struct {
 	name     string
 	interval string
+}
+
+// discardTaskValueReturns rewrites value-returning statements inside a task
+// callback into expression statements. Task handlers are void C functions, so
+// a returned value has no meaning and would produce invalid C.
+func discardTaskValueReturns(stmts []ast.Stmt) {
+	for i, stmt := range stmts {
+		switch node := stmt.(type) {
+		case *ast.ReturnStmt:
+			if node.Value != nil {
+				stmts[i] = &ast.ExprStmt{Expr: node.Value, Pos: node.Pos}
+			}
+		case *ast.IfStmt:
+			discardTaskValueReturns(node.Then)
+			discardTaskValueReturns(node.Else)
+		case *ast.WhileStmt:
+			discardTaskValueReturns(node.Body)
+		case *ast.DoWhileStmt:
+			discardTaskValueReturns(node.Body)
+		case *ast.ForStmt:
+			discardTaskValueReturns(node.Body)
+		case *ast.BlockStmt:
+			discardTaskValueReturns(node.Statements)
+		case *ast.SwitchStmt:
+			for c := range node.Cases {
+				discardTaskValueReturns(node.Cases[c].Body)
+			}
+		}
+	}
 }
 
 func emitFunction(node *ast.FunctionDecl) string {
