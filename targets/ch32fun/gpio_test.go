@@ -13,9 +13,9 @@ func TestIsValidPin(t *testing.T) {
 
 func TestNormalizePin(t *testing.T) {
 	cases := map[string]string{
-		"PC1":    "PC1",
-		"pc1":    "PC1",
-		" pc1 ":  "PC1",
+		"PC1":     "PC1",
+		"pc1":     "PC1",
+		" pc1 ":   "PC1",
 		"\tpd0\n": "PD0",
 	}
 	for input, want := range cases {

@@ -1,0 +1,16 @@
+// Demonstrates postfix increment/decrement in expressions and loops.
+let count = 0;
+
+for (let i = 0; i < 5; i++) {
+    count++;
+}
+
+while (count > 0) {
+    count--;
+}
+
+// The generated C can also use the value in an expression:
+let previous = count++;
+let after = ++count;
+
+scheduler.start();

@@ -17,6 +17,9 @@ typedef struct {
     uint32_t interval_ms;
     uint32_t last_run_ms;
     bool enabled;
+    // started distinguishes "never run" from a legitimate last_run_ms of
+    // UINT32_MAX, which the millisecond counter can reach after rollover.
+    bool started;
 } periodic_task_t;
 
 typedef void (*periodic_critical_section_fn)(void);

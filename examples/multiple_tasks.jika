@@ -1,3 +1,4 @@
+// Cooperative tasks: each callback runs in turn in the main loop.
 const led1 = pin("PC1");
 const led2 = pin("PC2");
 

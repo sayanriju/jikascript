@@ -145,8 +145,9 @@ jikascript build blink.jika --optimize=speed
 | `size` | `-Os` | Explicitly pinning size optimization |
 | `speed` | `-O2` | Tight timing loops where flash allows |
 
-On the reference blink example, `size` produces an 844-byte binary and `speed`
-produces a 916-byte one.
+Exact binary sizes depend on the PlatformIO platform and RISC-V toolchain
+version. Build the reference blink example and inspect `build/blink.bin` to see
+the size for your installed toolchain.
 
 ---
 
@@ -155,4 +156,8 @@ produces a 916-byte one.
 Now that you've seen the basics, let's explore the language features in detail:
 - Learn about [Variables & Types](language/variables-and-types.md)
 - Write [Functions](language/functions.md) with smart type inference
+- Try [postfix increment and decrement](language/control-flow.md) in loops
 - Work with [Objects & Records](language/objects.md) and [Arrays](language/arrays.md)
+- Drive [GPIO, UART, PWM, and ADC](runtime/hardware.md) peripherals — see the
+  [GPIO](runtime/gpio.md), [UART](runtime/uart.md), [PWM](runtime/pwm.md), and
+  [ADC](runtime/adc.md) references

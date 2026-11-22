@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"jikascript/internal/ast"
+	"jikascript/internal/naming"
 	"jikascript/targets/ch32fun"
 )
 
@@ -25,30 +26,68 @@ func Check(program *ast.Program) error {
 		return err
 	}
 	scopeStack := []map[string]string{{}}
-	taskNames := map[string]struct{}{}
+	taskNames := map[string]string{}
 	functionReturns := map[string]string{}
 	functionArity := inferFunctionArity(program)
+	seenFunctions := map[string]struct{}{}
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
-			info := functionTypes[fn.Name]
-			fn.ParamTypes = append([]string(nil), info.ParamTypes...)
-			fn.ReturnType = info.ReturnType
-			functionReturns[fn.Name] = info.ReturnType
-			scopeStack[0][fn.Name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+		decl, ok := stmt.(*ast.FunctionDecl)
+		if !ok {
+			continue
 		}
+		if _, exists := seenFunctions[decl.Name]; exists {
+			return fmt.Errorf("%d:%d: error: function '%s' already declared", decl.Pos.Line, decl.Pos.Column, decl.Name)
+		}
+		seenFunctions[decl.Name] = struct{}{}
+		if builtin(decl.Name) {
+			return fmt.Errorf("%d:%d: error: cannot redeclare predefined name '%s'", decl.Pos.Line, decl.Pos.Column, decl.Name)
+		}
+		info := functionTypes[decl.Name]
+		functionReturns[decl.Name] = info.ReturnType
+		scopeStack[0][decl.Name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+		decl.ParamTypes = append([]string(nil), info.ParamTypes...)
+		decl.ReturnType = info.ReturnType
 	}
 	for _, stmt := range program.Statements {
-		if err := checkStmt(stmt, scopeStack, taskNames, 0, 0, functionReturns, functionArity); err != nil {
+		if err := checkStmt(stmt, scopeStack, taskNames, 0, 0, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// functionLike describes a named function declaration or an arrow function
+// bound to a variable, so the type resolver can treat both uniformly.
+type functionLike struct {
+	Name   string
+	Params []string
+	Body   []ast.Stmt
+	Pos    ast.Position
+}
+
+// functionLikeFromStmt returns the function-like shape of a statement. Arrow
+// functions bound with let/const are treated as named functions for type
+// resolution and code generation.
+func functionLikeFromStmt(stmt ast.Stmt) (functionLike, bool) {
+	switch node := stmt.(type) {
+	case *ast.FunctionDecl:
+		return functionLike{Name: node.Name, Params: node.Params, Body: node.Body, Pos: node.Pos}, true
+	case *ast.VarDecl:
+		if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+			return functionLike{Name: node.Name, Params: arrow.Params, Body: arrow.Body, Pos: node.Pos}, true
+		}
+	case *ast.ConstDecl:
+		if arrow, ok := node.Value.(*ast.ArrowFunctionExpr); ok {
+			return functionLike{Name: node.Name, Params: arrow.Params, Body: arrow.Body, Pos: node.Pos}, true
+		}
+	}
+	return functionLike{}, false
+}
+
 func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, error) {
 	infos := map[string]functionTypeInfo{}
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
+		if fn, ok := functionLikeFromStmt(stmt); ok {
 			infos[fn.Name] = functionTypeInfo{ParamTypes: make([]string, len(fn.Params))}
 		}
 	}
@@ -79,7 +118,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 							info.ParamTypes[i] = typ
 							changed = true
 						} else if !typeCompatible(info.ParamTypes[i], typ) {
-							resolveErr = fmt.Errorf("line %d:%d: incompatible argument types for function '%s': parameter %d receives both %s and %s", call.Pos.Line, call.Pos.Column, ident.Name, i+1, info.ParamTypes[i], typ)
+							resolveErr = fmt.Errorf("%d:%d: error: incompatible argument types for function '%s': parameter %d receives both %s and %s", call.Pos.Line, call.Pos.Column, ident.Name, i+1, info.ParamTypes[i], typ)
 						}
 					}
 				}
@@ -90,7 +129,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 			return nil, resolveErr
 		}
 		for _, stmt := range program.Statements {
-			fn, ok := stmt.(*ast.FunctionDecl)
+			fn, ok := functionLikeFromStmt(stmt)
 			if !ok {
 				continue
 			}
@@ -111,7 +150,12 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 				}
 			}
 			stack := []map[string]string{scope, functionScope}
-			for _, ret := range collectReturns(fn.Body) {
+			returns := collectReturns(fn.Body)
+			if len(returns) == 0 && info.ReturnType == "" {
+				info.ReturnType = "void"
+				changed = true
+			}
+			for _, ret := range returns {
 				if ret.Value == nil {
 					if info.ReturnType == "" {
 						info.ReturnType = "void"
@@ -125,7 +169,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 						left, leftOK := inferLiteralType(binary.Left, stack)
 						right, rightOK := inferLiteralType(binary.Right, stack)
 						if leftOK && rightOK && (!isNumericType(left) || !isNumericType(right)) {
-							return nil, fmt.Errorf("line %d:%d: operator '%s' requires numeric operands", binary.Pos.Line, binary.Pos.Column, binary.Op)
+							return nil, fmt.Errorf("%d:%d: error: operator '%s' requires numeric operands", binary.Pos.Line, binary.Pos.Column, binary.Op)
 						}
 					}
 					continue
@@ -134,7 +178,7 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 					info.ReturnType = typ
 					changed = true
 				} else if !returnTypeCompatible(info.ReturnType, typ) {
-					return nil, fmt.Errorf("line %d:%d: inconsistent return type in function '%s': expected %s, got %s", ret.Pos.Line, ret.Pos.Column, fn.Name, info.ReturnType, typ)
+					return nil, fmt.Errorf("%d:%d: error: inconsistent return type in function '%s': expected %s, got %s", ret.Pos.Line, ret.Pos.Column, fn.Name, info.ReturnType, typ)
 				} else if isNumericType(info.ReturnType) && isNumericType(typ) {
 					merged := mergeNumericType(info.ReturnType, typ)
 					if merged != info.ReturnType {
@@ -150,18 +194,18 @@ func resolveFunctionTypes(program *ast.Program) (map[string]functionTypeInfo, er
 		}
 	}
 	for _, stmt := range program.Statements {
-		fn, ok := stmt.(*ast.FunctionDecl)
+		fn, ok := functionLikeFromStmt(stmt)
 		if !ok {
 			continue
 		}
 		info := infos[fn.Name]
 		for i, typ := range info.ParamTypes {
 			if typ == "" {
-				return nil, fmt.Errorf("line %d:%d: cannot resolve type of parameter '%s' in function '%s'", fn.Pos.Line, fn.Pos.Column, fn.Params[i], fn.Name)
+				return nil, fmt.Errorf("%d:%d: error: cannot resolve type of parameter '%s' in function '%s'", fn.Pos.Line, fn.Pos.Column, fn.Params[i], fn.Name)
 			}
 		}
 		if info.ReturnType == "" {
-			return nil, fmt.Errorf("line %d:%d: cannot resolve return type of function '%s'", fn.Pos.Line, fn.Pos.Column, fn.Name)
+			return nil, fmt.Errorf("%d:%d: error: cannot resolve return type of function '%s'", fn.Pos.Line, fn.Pos.Column, fn.Name)
 		}
 	}
 	return infos, nil
@@ -429,7 +473,7 @@ func walkStatementExpressions(stmt ast.Stmt, visit func(ast.Expr)) {
 
 func validateFunctionReturnConsistency(program *ast.Program) error {
 	for _, stmt := range program.Statements {
-		fn, ok := stmt.(*ast.FunctionDecl)
+		fn, ok := functionLikeFromStmt(stmt)
 		if !ok {
 			continue
 		}
@@ -442,7 +486,7 @@ func validateFunctionReturnConsistency(program *ast.Program) error {
 				continue
 			}
 			if seenBare {
-				return fmt.Errorf("line %d:%d: function '%s' mixes bare and value returns", ret.Pos.Line, ret.Pos.Column, fn.Name)
+				return fmt.Errorf("%d:%d: error: function '%s' mixes bare and value returns", ret.Pos.Line, ret.Pos.Column, fn.Name)
 			}
 			actualType, known := inferLiteralType(ret.Value, nil)
 			if !known {
@@ -453,7 +497,7 @@ func validateFunctionReturnConsistency(program *ast.Program) error {
 				continue
 			}
 			if !returnTypeCompatible(expectedType, actualType) {
-				return fmt.Errorf("line %d:%d: inconsistent return type in function '%s': expected %s, got %s", ret.Pos.Line, ret.Pos.Column, fn.Name, expectedType, actualType)
+				return fmt.Errorf("%d:%d: error: inconsistent return type in function '%s': expected %s, got %s", ret.Pos.Line, ret.Pos.Column, fn.Name, expectedType, actualType)
 			}
 			if isNumericType(expectedType) && isNumericType(actualType) {
 				expectedType = mergeNumericType(expectedType, actualType)
@@ -462,7 +506,7 @@ func validateFunctionReturnConsistency(program *ast.Program) error {
 		if seenBare {
 			for _, ret := range returns {
 				if ret.Value != nil {
-					return fmt.Errorf("line %d:%d: function '%s' mixes bare and value returns", ret.Pos.Line, ret.Pos.Column, fn.Name)
+					return fmt.Errorf("%d:%d: error: function '%s' mixes bare and value returns", ret.Pos.Line, ret.Pos.Column, fn.Name)
 				}
 			}
 		}
@@ -526,29 +570,67 @@ func pushScope(scopeStack []map[string]string) []map[string]string {
 }
 
 // checkBlock checks each statement of a block body inside a new lexical scope.
-func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int) error {
+func checkBlock(body []ast.Stmt, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	inner := pushScope(scopeStack)
 	for _, s := range body {
-		if err := checkStmt(s, inner, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkStmt(s, inner, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]struct{}, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int) error {
+// checkArrowBinding registers an arrow function bound to a variable and checks
+// its body in a fresh scope. It reports whether the value was an arrow
+// function, so the caller can skip scalar binding classification.
+func checkArrowBinding(name string, value ast.Expr, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) (bool, error) {
+	arrow, ok := value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		return false, nil
+	}
+	info := functionTypes[name]
+	scopeStack[len(scopeStack)-1][name] = encodeFunctionBinding(info.ReturnType, info.ParamTypes...)
+	functionReturns[name] = info.ReturnType
+	arrow.ParamTypes = append([]string(nil), info.ParamTypes...)
+	arrow.ReturnType = info.ReturnType
+	funcScope := map[string]string{}
+	for i, param := range arrow.Params {
+		paramType := "int32"
+		if i < len(info.ParamTypes) {
+			paramType = info.ParamTypes[i]
+		}
+		funcScope[param] = bindingForType(paramType)
+	}
+	stack := make([]map[string]string, 0, len(scopeStack)+1)
+	stack = append(stack, scopeStack...)
+	stack = append(stack, funcScope)
+	for _, s := range arrow.Body {
+		if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
+			return true, err
+		}
+	}
+	return true, nil
+}
+
+func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[string]string, loopDepth int, switchDepth int, functionReturns map[string]string, functionArity map[string]int, functionTypes map[string]functionTypeInfo) error {
 	current := scopeStack[len(scopeStack)-1]
 	switch node := stmt.(type) {
 	case *ast.VarDecl:
 		if _, ok := current[node.Name]; ok {
-			return fmt.Errorf("line %d:%d: variable '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+			return fmt.Errorf("%d:%d: error: variable '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if builtin(node.Name) {
+			return fmt.Errorf("%d:%d: error: cannot redeclare predefined name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
+			return err
 		}
 		bindingKind, err := classifyBinding("var", node.Type, node.ArrayCapacity, node.Value, scopeStack, functionReturns)
 		if err != nil {
-			return fmt.Errorf("line %d:%d: %w", node.Pos.Line, node.Pos.Column, err)
+			return fmt.Errorf("%d:%d: error: %w", node.Pos.Line, node.Pos.Column, err)
 		}
 		if isArrayBinding(bindingKind) && len(scopeStack) > 1 {
-			return fmt.Errorf("line %d:%d: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
 		}
 		if resolvedType, ok := scalarBindingType(bindingKind); ok {
 			node.ResolvedType = resolvedType
@@ -561,14 +643,20 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		}
 	case *ast.ConstDecl:
 		if _, ok := current[node.Name]; ok {
-			return fmt.Errorf("line %d:%d: constant '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+			return fmt.Errorf("%d:%d: error: constant '%s' already declared in this scope", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if builtin(node.Name) {
+			return fmt.Errorf("%d:%d: error: cannot redeclare predefined name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		}
+		if handled, err := checkArrowBinding(node.Name, node.Value, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); handled {
+			return err
 		}
 		bindingKind, err := classifyBinding("const", node.Type, node.ArrayCapacity, node.Value, scopeStack, functionReturns)
 		if err != nil {
-			return fmt.Errorf("line %d:%d: %w", node.Pos.Line, node.Pos.Column, err)
+			return fmt.Errorf("%d:%d: error: %w", node.Pos.Line, node.Pos.Column, err)
 		}
 		if isArrayBinding(bindingKind) && len(scopeStack) > 1 {
-			return fmt.Errorf("line %d:%d: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
 		}
 		if resolvedType, ok := scalarBindingType(bindingKind); ok {
 			node.ResolvedType = resolvedType
@@ -581,13 +669,13 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		}
 	case *ast.FunctionDecl:
 		if existing, ok := current[node.Name]; ok && !strings.HasPrefix(existing, "function-") {
-			return fmt.Errorf("line %d:%d: function '%s' already declared", node.Pos.Line, node.Pos.Column, node.Name)
+			return fmt.Errorf("%d:%d: error: function '%s' already declared", node.Pos.Line, node.Pos.Column, node.Name)
 		}
 		current[node.Name] = encodeFunctionBinding(node.ReturnType, node.ParamTypes...)
 		funcScope := map[string]string{}
 		for i, param := range node.Params {
 			if _, exists := funcScope[param]; exists {
-				return fmt.Errorf("line %d:%d: parameter '%s' already declared", node.Pos.Line, node.Pos.Column, param)
+				return fmt.Errorf("%d:%d: error: parameter '%s' already declared", node.Pos.Line, node.Pos.Column, param)
 			}
 			paramType := "int32"
 			if i < len(node.ParamTypes) {
@@ -599,7 +687,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		stack = append(stack, scopeStack...)
 		stack = append(stack, funcScope)
 		for _, s := range node.Body {
-			if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -607,30 +695,39 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Then, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Else, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Then, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
+			return err
+		}
+		if err := checkBlock(node.Else, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	case *ast.WhileStmt:
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
 			return err
 		}
-		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 	case *ast.DoWhileStmt:
-		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+		if err := checkBlock(node.Body, scopeStack, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 			return err
 		}
 		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
+			return err
+		}
 	case *ast.ForStmt:
 		inner := pushScope(scopeStack)
 		if node.Init != nil {
-			if err := checkStmt(node.Init, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(node.Init, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -638,9 +735,12 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			if err := checkExpr(node.Cond, inner, functionArity); err != nil {
 				return err
 			}
+			if err := checkValueExpression(node.Cond, inner, node.Pos); err != nil {
+				return err
+			}
 		}
 		for _, s := range node.Body {
-			if err := checkStmt(s, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity); err != nil {
+			if err := checkStmt(s, inner, taskNames, loopDepth+1, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
@@ -650,10 +750,11 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			}
 		}
 	case *ast.TaskDecl:
-		if _, ok := taskNames[node.Name]; ok {
-			return fmt.Errorf("line %d:%d: duplicate task name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		key := naming.NormalizeIdentifier(node.Name)
+		if existing, ok := taskNames[key]; ok {
+			return fmt.Errorf("%d:%d: error: duplicate task name '%s' (collides with task '%s' after C identifier normalization)", node.Pos.Line, node.Pos.Column, node.Name, existing)
 		}
-		taskNames[node.Name] = struct{}{}
+		taskNames[key] = node.Name
 		if err := checkExpr(node.Interval, scopeStack, functionArity); err != nil {
 			return err
 		}
@@ -662,7 +763,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		}
 		if node.Callback != nil {
 			if len(node.Callback.Params) != 0 {
-				return fmt.Errorf("line %d:%d: task callback must not declare parameters", node.Callback.Pos.Line, node.Callback.Pos.Column)
+				return fmt.Errorf("%d:%d: error: task callback must not declare parameters", node.Callback.Pos.Line, node.Callback.Pos.Column)
 			}
 			callbackScope := map[string]string{}
 			for _, param := range node.Callback.Params {
@@ -672,7 +773,7 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			stack = append(stack, scopeStack...)
 			stack = append(stack, callbackScope)
 			for _, s := range node.Callback.Body {
-				if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity); err != nil {
+				if err := checkStmt(s, stack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes); err != nil {
 					return err
 				}
 			}
@@ -687,22 +788,25 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 					return err
 				}
 			}
-			if err := checkBlock(c.Body, scopeStack, taskNames, loopDepth, switchDepth+1, functionReturns, functionArity); err != nil {
+			if err := checkBlock(c.Body, scopeStack, taskNames, loopDepth, switchDepth+1, functionReturns, functionArity, functionTypes); err != nil {
 				return err
 			}
 		}
 	case *ast.BreakStmt:
 		if loopDepth == 0 && switchDepth == 0 {
-			return fmt.Errorf("line %d:%d: break is only valid inside loops or switch", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: break is only valid inside loops or switch", node.Pos.Line, node.Pos.Column)
 		}
 	case *ast.ContinueStmt:
 		if loopDepth == 0 {
-			return fmt.Errorf("line %d:%d: continue is only valid inside loops", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: continue is only valid inside loops", node.Pos.Line, node.Pos.Column)
 		}
 	case *ast.BlockStmt:
-		return checkBlock(node.Statements, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity)
+		return checkBlock(node.Statements, scopeStack, taskNames, loopDepth, switchDepth, functionReturns, functionArity, functionTypes)
 	case *ast.ReturnStmt:
 		if node.Value != nil {
+			if err := checkValueExpression(node.Value, scopeStack, node.Pos); err != nil {
+				return err
+			}
 			return checkExpr(node.Value, scopeStack, functionArity)
 		}
 	case *ast.ExprStmt:
@@ -710,18 +814,21 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 	case *ast.AssignStmt:
 		binding, ok := lookup(scopeStack, node.Target)
 		if !ok {
-			return fmt.Errorf("line %d:%d: undefined variable '%s'", node.Pos.Line, node.Pos.Column, node.Target)
+			return fmt.Errorf("%d:%d: error: undefined variable '%s'", node.Pos.Line, node.Pos.Column, node.Target)
 		}
 		if isConstBinding(scopeStack, node.Target) {
-			return fmt.Errorf("line %d:%d: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, node.Target)
+			return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, node.Target)
 		}
 		if err := checkExpr(node.Value, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Value, scopeStack, node.Pos); err != nil {
 			return err
 		}
 		expectedType, typed := scalarBindingType(binding)
 		actualType, known := inferLiteralType(node.Value, scopeStack)
 		if typed && known && !typeCompatible(expectedType, actualType) {
-			return fmt.Errorf("line %d:%d: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, node.Target, expectedType, actualType)
+			return fmt.Errorf("%d:%d: error: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, node.Target, expectedType, actualType)
 		}
 		return nil
 	}
@@ -735,38 +842,53 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			return nil
 		}
 		if _, ok := lookup(scopeStack, node.Name); !ok {
-			return fmt.Errorf("line %d:%d: undefined identifier '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+			return fmt.Errorf("%d:%d: error: undefined identifier '%s'", node.Pos.Line, node.Pos.Column, node.Name)
 		}
 	case *ast.CallExpr:
 		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
 			if ident, ok := sel.Object.(*ast.Identifier); ok {
-				if binding, exists := lookup(scopeStack, ident.Name); exists && isPinBinding(binding) {
-					if err := checkPinMethodArity(sel.Field, len(node.Args), node.Pos); err != nil {
-						return err
+				if binding, exists := lookup(scopeStack, ident.Name); exists {
+					if family := peripheralKindOf(binding); family != "" {
+						if err := checkPeripheralMethodArity(family, sel.Field, len(node.Args), node.Pos); err != nil {
+							return err
+						}
+						if err := checkPeripheralMethodType(family, sel.Field, node.Args, scopeStack, node.Pos); err != nil {
+							return err
+						}
 					}
 				}
 				if binding, exists := lookup(scopeStack, ident.Name); exists && isArrayBinding(binding) {
 					switch sel.Field {
 					case "push":
 						if len(node.Args) != 1 {
-							return fmt.Errorf("line %d:%d: push() expects one argument", node.Pos.Line, node.Pos.Column)
+							return fmt.Errorf("%d:%d: error: push() expects one argument", node.Pos.Line, node.Pos.Column)
 						}
 						if err := checkExpr(node.Args[0], scopeStack, functionArity); err != nil {
 							return err
 						}
 						argType, ok := inferLiteralType(node.Args[0], scopeStack)
 						if ok && !typeCompatible(arrayElemType(binding), argType) && !literalFitsType(node.Args[0], arrayElemType(binding)) {
-							return fmt.Errorf("line %d:%d: push() type mismatch for array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+							return fmt.Errorf("%d:%d: error: push() type mismatch for array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
 						}
 						return nil
 					case "pop":
 						if len(node.Args) != 0 {
-							return fmt.Errorf("line %d:%d: pop() expects no arguments", node.Pos.Line, node.Pos.Column)
+							return fmt.Errorf("%d:%d: error: pop() expects no arguments", node.Pos.Line, node.Pos.Column)
 						}
 						return nil
 					default:
-						return fmt.Errorf("line %d:%d: unsupported array method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
+						return fmt.Errorf("%d:%d: error: unsupported array method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
 					}
+				}
+			} else if family, ok := peripheralTempFamily(sel.Object); ok {
+				if !isValidPeripheralMethod(family, sel.Field) {
+					return fmt.Errorf("%d:%d: error: unsupported %s method '%s'", node.Pos.Line, node.Pos.Column, family, sel.Field)
+				}
+				if err := checkPeripheralMethodArity(family, sel.Field, len(node.Args), node.Pos); err != nil {
+					return err
+				}
+				if err := checkPeripheralMethodType(family, sel.Field, node.Args, scopeStack, node.Pos); err != nil {
+					return err
 				}
 			}
 		}
@@ -775,7 +897,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		}
 		if fn, ok := node.Function.(*ast.Identifier); ok {
 			if expected, known := functionArity[fn.Name]; known && len(node.Args) != expected {
-				return fmt.Errorf("line %d:%d: function '%s' expects %d argument(s), got %d", node.Pos.Line, node.Pos.Column, fn.Name, expected, len(node.Args))
+				return fmt.Errorf("%d:%d: error: function '%s' expects %d argument(s), got %d", node.Pos.Line, node.Pos.Column, fn.Name, expected, len(node.Args))
 			}
 		}
 		for _, arg := range node.Args {
@@ -789,10 +911,10 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 					for i, expected := range params {
 						actual, known := inferLiteralType(node.Args[i], scopeStack)
 						if !known {
-							return fmt.Errorf("line %d:%d: cannot resolve type of argument %d to function '%s'", node.Pos.Line, node.Pos.Column, i+1, fn.Name)
+							return fmt.Errorf("%d:%d: error: cannot resolve type of argument %d to function '%s'", node.Pos.Line, node.Pos.Column, i+1, fn.Name)
 						}
 						if !typeCompatible(expected, actual) {
-							return fmt.Errorf("line %d:%d: argument %d to function '%s' expects %s, got %s", node.Pos.Line, node.Pos.Column, i+1, fn.Name, expected, actual)
+							return fmt.Errorf("%d:%d: error: argument %d to function '%s' expects %s, got %s", node.Pos.Line, node.Pos.Column, i+1, fn.Name, expected, actual)
 						}
 					}
 				}
@@ -803,18 +925,36 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			if kind, exists := lookup(scopeStack, ident.Name); exists {
 				if isObjectBinding(kind) {
 					if _, ok := objectPropertyType(kind, node.Field); !ok {
-						return fmt.Errorf("line %d:%d: unknown property '%s' on object '%s'", node.Pos.Line, node.Pos.Column, node.Field, ident.Name)
+						return fmt.Errorf("%d:%d: error: unknown property '%s' on object '%s'", node.Pos.Line, node.Pos.Column, node.Field, ident.Name)
 					}
 				}
 				if isPinBinding(kind) {
 					if !ch32fun.IsValidPinMethod(node.Field) {
-						return fmt.Errorf("line %d:%d: unsupported pin method '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+						return fmt.Errorf("%d:%d: error: unsupported pin method '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+					}
+				}
+				if peripheralKindOf(kind) == "uart" {
+					if !ch32fun.IsValidUARTMethod(node.Field) {
+						return fmt.Errorf("%d:%d: error: unsupported uart method '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+					}
+				}
+				if peripheralKindOf(kind) == "pwm" {
+					if !ch32fun.IsValidPWMMethod(node.Field) {
+						return fmt.Errorf("%d:%d: error: unsupported pwm method '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+					}
+				}
+				if peripheralKindOf(kind) == "adc" {
+					if !ch32fun.IsValidADCMethod(node.Field) {
+						return fmt.Errorf("%d:%d: error: unsupported adc method '%s'", node.Pos.Line, node.Pos.Column, node.Field)
 					}
 				}
 				if isArrayBinding(kind) {
 					if node.Field != "length" {
-						return fmt.Errorf("line %d:%d: unsupported array property '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+						return fmt.Errorf("%d:%d: error: unsupported array property '%s'", node.Pos.Line, node.Pos.Column, node.Field)
 					}
+				}
+				if scalarType, isScalar := scalarBindingType(kind); isScalar {
+					return fmt.Errorf("%d:%d: error: '%s' has type %s and no properties or methods", node.Pos.Line, node.Pos.Column, ident.Name, scalarType)
 				}
 			}
 		}
@@ -822,22 +962,28 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 	case *ast.IndexExpr:
 		ident, ok := node.Object.(*ast.Identifier)
 		if !ok {
-			return fmt.Errorf("line %d:%d: array indexing requires an identifier target", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: array indexing requires an identifier target", node.Pos.Line, node.Pos.Column)
 		}
 		kind, exists := lookup(scopeStack, ident.Name)
 		if !exists || !isArrayBinding(kind) {
-			return fmt.Errorf("line %d:%d: '%s' is not an array", node.Pos.Line, node.Pos.Column, ident.Name)
+			return fmt.Errorf("%d:%d: error: '%s' is not an array", node.Pos.Line, node.Pos.Column, ident.Name)
 		}
 		if err := checkExpr(node.Index, scopeStack, functionArity); err != nil {
 			return err
 		}
 		if idx, ok := indexLiteral(node.Index); ok {
 			if idx < 0 || idx >= arrayCapacity(kind) {
-				return fmt.Errorf("line %d:%d: array index %d out of bounds (capacity %d)", node.Pos.Line, node.Pos.Column, idx, arrayCapacity(kind))
+				return fmt.Errorf("%d:%d: error: array index %d out of bounds (capacity %d)", node.Pos.Line, node.Pos.Column, idx, arrayCapacity(kind))
 			}
 		}
 		return nil
 	case *ast.BinaryExpr:
+		if err := checkValueExpression(node.Left, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Right, scopeStack, node.Pos); err != nil {
+			return err
+		}
 		if err := checkExpr(node.Left, scopeStack, functionArity); err != nil {
 			return err
 		}
@@ -845,74 +991,82 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		rightType, rightKnown := inferLiteralType(node.Right, scopeStack)
 		if leftKnown && rightKnown && (isNumericOperator(node.Op) || isRelationalOperator(node.Op)) {
 			if !isNumericType(leftType) || !isNumericType(rightType) {
-				return fmt.Errorf("line %d:%d: operator '%s' requires numeric operands", node.Pos.Line, node.Pos.Column, node.Op)
+				return fmt.Errorf("%d:%d: error: operator '%s' requires numeric operands", node.Pos.Line, node.Pos.Column, node.Op)
 			}
 		}
 		if isEqualityOp(node.Op) {
 			if leftKnown && rightKnown && !equalityComparable(leftType, rightType) {
-				return fmt.Errorf("line %d:%d: cannot compare %s and %s with %s", node.Pos.Line, node.Pos.Column, leftType, rightType, node.Op)
+				return fmt.Errorf("%d:%d: error: cannot compare %s and %s with %s", node.Pos.Line, node.Pos.Column, leftType, rightType, node.Op)
 			}
 		}
 		if isAssignmentOp(node.Op) {
 			if sel, ok := node.Left.(*ast.SelectorExpr); ok {
 				ident, ok := sel.Object.(*ast.Identifier)
 				if !ok {
-					return fmt.Errorf("line %d:%d: property assignment requires an object identifier", node.Pos.Line, node.Pos.Column)
+					return fmt.Errorf("%d:%d: error: property assignment requires an object identifier", node.Pos.Line, node.Pos.Column)
 				}
 				binding, exists := lookup(scopeStack, ident.Name)
 				if !exists || !isObjectBinding(binding) {
-					return fmt.Errorf("line %d:%d: '%s' is not an object", node.Pos.Line, node.Pos.Column, ident.Name)
+					return fmt.Errorf("%d:%d: error: '%s' is not an object", node.Pos.Line, node.Pos.Column, ident.Name)
 				}
 				propertyType, exists := objectPropertyType(binding, sel.Field)
 				if !exists {
-					return fmt.Errorf("line %d:%d: unknown property '%s' on object '%s'", node.Pos.Line, node.Pos.Column, sel.Field, ident.Name)
+					return fmt.Errorf("%d:%d: error: unknown property '%s' on object '%s'", node.Pos.Line, node.Pos.Column, sel.Field, ident.Name)
 				}
 				valueType, known := inferLiteralType(node.Right, scopeStack)
 				if known && !typeCompatible(propertyType, valueType) {
-					return fmt.Errorf("line %d:%d: type mismatch assigning property '%s' of object '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, sel.Field, ident.Name, propertyType, valueType)
+					return fmt.Errorf("%d:%d: error: type mismatch assigning property '%s' of object '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, sel.Field, ident.Name, propertyType, valueType)
 				}
 			}
 			if idxExpr, ok := node.Left.(*ast.IndexExpr); ok {
 				ident, ok := idxExpr.Object.(*ast.Identifier)
 				if !ok {
-					return fmt.Errorf("line %d:%d: indexed assignment requires identifier target", node.Pos.Line, node.Pos.Column)
+					return fmt.Errorf("%d:%d: error: indexed assignment requires identifier target", node.Pos.Line, node.Pos.Column)
 				}
 				binding, exists := lookup(scopeStack, ident.Name)
 				if !exists || !isArrayBinding(binding) {
-					return fmt.Errorf("line %d:%d: '%s' is not an array", node.Pos.Line, node.Pos.Column, ident.Name)
+					return fmt.Errorf("%d:%d: error: '%s' is not an array", node.Pos.Line, node.Pos.Column, ident.Name)
 				}
 				if idx, ok := indexLiteral(idxExpr.Index); ok {
 					if idx < 0 || idx >= arrayCapacity(binding) {
-						return fmt.Errorf("line %d:%d: array index %d out of bounds (capacity %d)", node.Pos.Line, node.Pos.Column, idx, arrayCapacity(binding))
+						return fmt.Errorf("%d:%d: error: array index %d out of bounds (capacity %d)", node.Pos.Line, node.Pos.Column, idx, arrayCapacity(binding))
 					}
 				}
 				valueType, ok := inferLiteralType(node.Right, scopeStack)
 				if ok && !typeCompatible(arrayElemType(binding), valueType) && !literalFitsType(node.Right, arrayElemType(binding)) {
-					return fmt.Errorf("line %d:%d: type mismatch for array '%s' assignment", node.Pos.Line, node.Pos.Column, ident.Name)
+					return fmt.Errorf("%d:%d: error: type mismatch for array '%s' assignment", node.Pos.Line, node.Pos.Column, ident.Name)
 				}
 			}
 			if ident, ok := node.Left.(*ast.Identifier); ok {
 				if isConstBinding(scopeStack, ident.Name) {
-					return fmt.Errorf("line %d:%d: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+					return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
 				}
 				if binding, exists := lookup(scopeStack, ident.Name); exists {
 					expectedType, typed := scalarBindingType(binding)
 					actualType, known := inferLiteralType(node.Right, scopeStack)
 					if typed && known && !typeCompatible(expectedType, actualType) && !literalFitsType(node.Right, expectedType) {
-						return fmt.Errorf("line %d:%d: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, ident.Name, expectedType, actualType)
+						return fmt.Errorf("%d:%d: error: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, ident.Name, expectedType, actualType)
 					}
 				}
 			}
 			if _, isArrayLiteral := node.Right.(*ast.ArrayLiteralExpr); isArrayLiteral {
-				return fmt.Errorf("line %d:%d: array literals are only supported in top-level declarations", node.Pos.Line, node.Pos.Column)
+				return fmt.Errorf("%d:%d: error: array literals are only supported in top-level declarations", node.Pos.Line, node.Pos.Column)
 			}
 		}
 		if err := checkExpr(node.Right, scopeStack, functionArity); err != nil {
 			return err
 		}
 	case *ast.UnaryExpr:
-		if (node.Op == "++" || node.Op == "--") && isConstBinding(scopeStack, renderUnaryTarget(node.Expr)) {
-			return fmt.Errorf("line %d:%d: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, renderUnaryTarget(node.Expr))
+		if node.Op == "++" || node.Op == "--" {
+			if !isIncrementTarget(node.Expr) {
+				return fmt.Errorf("%d:%d: error: operator '%s' requires a variable or property target", node.Pos.Line, node.Pos.Column, node.Op)
+			}
+			if isConstBinding(scopeStack, renderUnaryTarget(node.Expr)) {
+				return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, renderUnaryTarget(node.Expr))
+			}
+		}
+		if err := checkValueExpression(node.Expr, scopeStack, node.Pos); err != nil {
+			return err
 		}
 		return checkExpr(node.Expr, scopeStack, functionArity)
 	case *ast.NumberLiteral, *ast.StringLiteral, *ast.BoolLiteral:
@@ -923,7 +1077,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		}
 		firstType, ok := inferLiteralType(node.Elements[0], scopeStack)
 		if !ok {
-			return fmt.Errorf("line %d:%d: unsupported array element type", node.Pos.Line, node.Pos.Column)
+			return fmt.Errorf("%d:%d: error: unsupported array element type", node.Pos.Line, node.Pos.Column)
 		}
 		for _, elem := range node.Elements[1:] {
 			if err := checkExpr(elem, scopeStack, functionArity); err != nil {
@@ -931,7 +1085,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			}
 			elemType, ok := inferLiteralType(elem, scopeStack)
 			if !ok || !typeCompatible(firstType, elemType) {
-				return fmt.Errorf("line %d:%d: array literal elements must be homogeneous", node.Pos.Line, node.Pos.Column)
+				return fmt.Errorf("%d:%d: error: array literal elements must be homogeneous", node.Pos.Line, node.Pos.Column)
 			}
 		}
 		return nil
@@ -939,14 +1093,14 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		seen := map[string]struct{}{}
 		for _, property := range node.Properties {
 			if _, exists := seen[property.Name]; exists {
-				return fmt.Errorf("line %d:%d: duplicate object property '%s'", property.Pos.Line, property.Pos.Column, property.Name)
+				return fmt.Errorf("%d:%d: error: duplicate object property '%s'", property.Pos.Line, property.Pos.Column, property.Name)
 			}
 			seen[property.Name] = struct{}{}
 			if err := checkExpr(property.Value, scopeStack, functionArity); err != nil {
 				return err
 			}
 			if _, ok := inferLiteralType(property.Value, scopeStack); !ok {
-				return fmt.Errorf("line %d:%d: unsupported value for object property '%s'", property.Pos.Line, property.Pos.Column, property.Name)
+				return fmt.Errorf("%d:%d: error: unsupported value for object property '%s'", property.Pos.Line, property.Pos.Column, property.Name)
 			}
 		}
 		return nil
@@ -959,7 +1113,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		stack = append(stack, scopeStack...)
 		stack = append(stack, callbackScope)
 		for _, s := range node.Body {
-			if err := checkStmt(s, stack, map[string]struct{}{}, 0, 0, map[string]string{}, map[string]int{}); err != nil {
+			if err := checkStmt(s, stack, map[string]string{}, 0, 0, map[string]string{}, map[string]int{}, map[string]functionTypeInfo{}); err != nil {
 				return err
 			}
 		}
@@ -1004,10 +1158,38 @@ func renderUnaryTarget(expr ast.Expr) string {
 	return ""
 }
 
+// isIncrementTarget reports whether expr can be the operand of ++ or --.
+// Array elements are excluded because they lower to getter calls in C and are
+// not assignable lvalues.
+func isIncrementTarget(expr ast.Expr) bool {
+	switch expr.(type) {
+	case *ast.Identifier, *ast.SelectorExpr:
+		return true
+	default:
+		return false
+	}
+}
+
 func classifyBinding(baseKind string, declaredType string, declaredCapacity int, value ast.Expr, scopeStack []map[string]string, functionReturns map[string]string) (string, error) {
 	declaredType = strings.TrimSpace(declaredType)
 	if declaredType != "" && !isSupportedType(declaredType) {
 		return "", fmt.Errorf("unsupported declared type '%s'", declaredType)
+	}
+
+	if returnType, ok := peripheralCallReturnType(value, scopeStack); ok && returnType == "" {
+		return "", fmt.Errorf("expression does not produce a value")
+	}
+
+	// A peripheral handle is an opaque runtime value, not a scalar. Letting it
+	// fall through to the default int32 binding would silently copy the handle
+	// into a plain integer and turn later method calls into GPIO calls on the
+	// wrong object, so reject the assignment outright.
+	if ident, ok := value.(*ast.Identifier); ok && scopeStack != nil {
+		if binding, exists := lookup(scopeStack, ident.Name); exists {
+			if family := peripheralKindOf(binding); family != "" {
+				return "", fmt.Errorf("cannot assign %s peripheral '%s' to a scalar binding", family, ident.Name)
+			}
+		}
 	}
 
 	if declaredCapacity > 0 {
@@ -1084,6 +1266,53 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 			pinName.CanonicalValue = ch32fun.NormalizePin(pinName.Value)
 			return "pin-" + baseKind, nil
 		}
+		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "uart" {
+			if len(call.Args) != 2 {
+				return "", fmt.Errorf("uart() expects exactly two arguments (tx, rx)")
+			}
+			txName, ok := call.Args[0].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("uart() tx argument must be a string literal")
+			}
+			rxName, ok := call.Args[1].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("uart() rx argument must be a string literal")
+			}
+			if !ch32fun.IsValidUARTTuple(txName.Value, rxName.Value) {
+				return "", fmt.Errorf("unsupported uart pin pair %q, %q", txName.Value, rxName.Value)
+			}
+			txName.CanonicalValue = ch32fun.NormalizePin(txName.Value)
+			rxName.CanonicalValue = ch32fun.NormalizePin(rxName.Value)
+			return "uart-" + baseKind, nil
+		}
+		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "pwm" {
+			if len(call.Args) != 1 {
+				return "", fmt.Errorf("pwm() expects exactly one argument")
+			}
+			pinName, ok := call.Args[0].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("pwm() argument must be a string literal")
+			}
+			if !ch32fun.IsValidPWMPin(pinName.Value) {
+				return "", fmt.Errorf("unknown pwm pin %q", pinName.Value)
+			}
+			pinName.CanonicalValue = ch32fun.NormalizePin(pinName.Value)
+			return "pwm-" + baseKind, nil
+		}
+		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "adc" {
+			if len(call.Args) != 1 {
+				return "", fmt.Errorf("adc() expects exactly one argument")
+			}
+			pinName, ok := call.Args[0].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("adc() argument must be a string literal")
+			}
+			if !ch32fun.IsValidADCPin(pinName.Value) {
+				return "", fmt.Errorf("unknown adc pin %q", pinName.Value)
+			}
+			pinName.CanonicalValue = ch32fun.NormalizePin(pinName.Value)
+			return "adc-" + baseKind, nil
+		}
 	}
 	resolvedType := declaredType
 	if resolvedType == "" {
@@ -1096,8 +1325,17 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 		resolvedType = "int32"
 	}
 	if inferred, ok := inferLiteralType(value, scopeStack); ok && !strings.Contains(inferred, ":") {
-		if !typeCompatible(resolvedType, inferred) && !literalFitsType(value, resolvedType) {
+		compatible := typeCompatible(resolvedType, inferred)
+		if !compatible && !literalFitsType(value, resolvedType) {
 			return "", fmt.Errorf("type mismatch for declaration: expected %s, got %s", resolvedType, inferred)
+		}
+		// A literal may be compatible with the declared type while still being
+		// out of range (for example 2147483648 inferred as int32). Reject it
+		// instead of emitting an overflowing C initializer.
+		if compatible {
+			if _, isInt := intLiteralValue(value); isInt && !literalFitsType(value, resolvedType) {
+				return "", fmt.Errorf("integer literal out of range for %s", resolvedType)
+			}
 		}
 	}
 	return encodeScalarBinding(baseKind, resolvedType), nil
@@ -1125,7 +1363,7 @@ func inferFunctionObjectReturns(program *ast.Program) map[string]string {
 func inferFunctionArity(program *ast.Program) map[string]int {
 	arity := map[string]int{}
 	for _, stmt := range program.Statements {
-		if fn, ok := stmt.(*ast.FunctionDecl); ok {
+		if fn, ok := functionLikeFromStmt(stmt); ok {
 			arity[fn.Name] = len(fn.Params)
 		}
 	}
@@ -1136,18 +1374,207 @@ func isPinBinding(kind string) bool {
 	return strings.HasPrefix(kind, "pin-")
 }
 
-// checkPinMethodArity validates the argument count for a pin method call.
-// The code generator emits a fixed C call per method, so an unexpected number
-// of arguments would either be silently dropped or produce invalid C.
-func checkPinMethodArity(method string, argc int, pos ast.Position) error {
-	switch method {
-	case "output", "input", "toggle", "read":
-		if argc != 0 {
-			return fmt.Errorf("line %d:%d: %s() expects no arguments, got %d", pos.Line, pos.Column, method, argc)
+// peripheralKindOf extracts the peripheral family from a binding kind, so
+// "pin-const" -> "pin" and "uart-var" -> "uart". It returns "" for bindings
+// that are not peripheral objects (scalars, arrays, and records).
+func peripheralKindOf(kind string) string {
+	for _, family := range []string{"pin", "uart", "pwm", "adc"} {
+		if strings.HasPrefix(kind, family+"-") {
+			return family
 		}
-	case "write":
-		if argc > 1 {
-			return fmt.Errorf("line %d:%d: write() expects at most one argument, got %d", pos.Line, pos.Column, argc)
+	}
+	return ""
+}
+
+// peripheralTempFamily reports the peripheral family of a constructor call used
+// directly as a method receiver, e.g. pwm("PC1").set(50). It returns false for
+// any other expression.
+func peripheralTempFamily(expr ast.Expr) (string, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return "", false
+	}
+	ident, ok := call.Function.(*ast.Identifier)
+	if !ok {
+		return "", false
+	}
+	switch ident.Name {
+	case "pin", "uart", "pwm", "adc":
+		return ident.Name, true
+	}
+	return "", false
+}
+
+// peripheralMethodReturnType reports the JikaScript type produced by a
+// peripheral method. The second result is false when the method is not part of
+// the family's API. A void method returns ("", true).
+func peripheralMethodReturnType(family, method string) (string, bool) {
+	switch family {
+	case "pin":
+		switch method {
+		case "read":
+			return "int32", true
+		case "output", "input", "toggle", "write":
+			return "", true
+		}
+	case "uart":
+		switch method {
+		case "read":
+			return "int32", true
+		case "write", "println":
+			return "", true
+		}
+	case "pwm":
+		switch method {
+		case "set", "setFrequency":
+			return "", true
+		}
+	case "adc":
+		if method == "read" {
+			return "int32", true
+		}
+	}
+	return "", false
+}
+
+// peripheralCallReturnType reports the return type of a peripheral method call
+// expression. The second result is false when expr is not a peripheral method
+// call. A void method returns ("", true).
+func peripheralCallReturnType(expr ast.Expr, scopeStack []map[string]string) (string, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return "", false
+	}
+	selector, ok := call.Function.(*ast.SelectorExpr)
+	if !ok {
+		return "", false
+	}
+	family := ""
+	if ident, ok := selector.Object.(*ast.Identifier); ok && scopeStack != nil {
+		if binding, exists := lookup(scopeStack, ident.Name); exists {
+			family = peripheralKindOf(binding)
+		}
+	}
+	if family == "" {
+		if temp, ok := peripheralTempFamily(selector.Object); ok {
+			family = temp
+		}
+	}
+	if family == "" {
+		return "", false
+	}
+	return peripheralMethodReturnType(family, selector.Field)
+}
+
+// checkValueExpression rejects an expression that produces no value, such as a
+// void peripheral method call used where a value is required.
+func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if returnType, ok := peripheralCallReturnType(expr, scopeStack); ok && returnType == "" {
+		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
+	}
+	return nil
+}
+
+// isValidPeripheralMethod reports whether method belongs to the family's API.
+func isValidPeripheralMethod(family, method string) bool {
+	switch family {
+	case "pin":
+		return ch32fun.IsValidPinMethod(method)
+	case "uart":
+		return ch32fun.IsValidUARTMethod(method)
+	case "pwm":
+		return ch32fun.IsValidPWMMethod(method)
+	case "adc":
+		return ch32fun.IsValidADCMethod(method)
+	}
+	return false
+}
+
+// checkPeripheralMethodArity validates the argument count for a peripheral
+// method call. The code generator emits a fixed C call per method, so an
+// unexpected number of arguments would either be silently dropped or produce
+// invalid C.
+func checkPeripheralMethodArity(family, method string, argc int, pos ast.Position) error {
+	switch family {
+	case "pin":
+		switch method {
+		case "output", "input", "toggle", "read":
+			if argc != 0 {
+				return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", pos.Line, pos.Column, method, argc)
+			}
+		case "write":
+			if argc > 1 {
+				return fmt.Errorf("%d:%d: error: write() expects at most one argument, got %d", pos.Line, pos.Column, argc)
+			}
+		}
+	case "uart":
+		switch method {
+		case "write", "println":
+			if argc != 1 {
+				return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", pos.Line, pos.Column, method, argc)
+			}
+		case "read":
+			if argc != 0 {
+				return fmt.Errorf("%d:%d: error: read() expects no arguments, got %d", pos.Line, pos.Column, argc)
+			}
+		}
+	case "pwm":
+		switch method {
+		case "set", "setFrequency":
+			if argc != 1 {
+				return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", pos.Line, pos.Column, method, argc)
+			}
+		}
+	case "adc":
+		if method == "read" && argc != 0 {
+			return fmt.Errorf("%d:%d: error: read() expects no arguments, got %d", pos.Line, pos.Column, argc)
+		}
+	}
+	return nil
+}
+
+// checkPeripheralMethodType validates the argument types for a peripheral
+// method call. The backends take fixed C types (const char* for uart text,
+// int for pin and pwm values), so a mismatched argument would otherwise reach
+// the C compiler and fail the firmware build instead of failing the transpile.
+// Peripheral handles are rejected explicitly: inferLiteralType does not
+// describe them, but no backend method accepts one as a value argument.
+func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	var expected string
+	switch family {
+	case "pin":
+		if method == "write" {
+			expected = "number"
+		}
+	case "uart":
+		if method == "write" || method == "println" {
+			expected = "string"
+		}
+	case "pwm":
+		if method == "set" || method == "setFrequency" {
+			expected = "number"
+		}
+	}
+	if expected == "" {
+		return nil
+	}
+	for i, arg := range args {
+		if returnType, ok := peripheralCallReturnType(arg, scopeStack); ok && returnType == "" {
+			return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got void expression", pos.Line, pos.Column, method, i+1, expected)
+		}
+		if ident, ok := arg.(*ast.Identifier); ok && scopeStack != nil {
+			if binding, exists := lookup(scopeStack, ident.Name); exists {
+				if handle := peripheralKindOf(binding); handle != "" {
+					return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s handle", pos.Line, pos.Column, method, i+1, expected, handle)
+				}
+			}
+		}
+		actual, known := inferLiteralType(arg, scopeStack)
+		if !known {
+			continue
+		}
+		if !typeCompatible(expected, actual) {
+			return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s", pos.Line, pos.Column, method, i+1, expected, actual)
 		}
 	}
 	return nil
@@ -1163,7 +1590,13 @@ func checkTaskInterval(interval ast.Expr, pos ast.Position) error {
 		return nil
 	}
 	if value <= 0 {
-		return fmt.Errorf("line %d:%d: task interval must be greater than zero", pos.Line, pos.Column)
+		return fmt.Errorf("%d:%d: error: task interval must be greater than zero", pos.Line, pos.Column)
+	}
+	if value != math.Trunc(value) {
+		return fmt.Errorf("%d:%d: error: task interval must be a whole number of milliseconds", pos.Line, pos.Column)
+	}
+	if value > math.MaxUint32 {
+		return fmt.Errorf("%d:%d: error: task interval exceeds the uint32 range", pos.Line, pos.Column)
 	}
 	return nil
 }
@@ -1306,6 +1739,12 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		}
 		return "", false
 	case *ast.CallExpr:
+		if returnType, ok := peripheralCallReturnType(node, scopeStack); ok {
+			if returnType == "" {
+				return "", false
+			}
+			return returnType, true
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
 			return "int32", true
 		}
@@ -1314,6 +1753,13 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 				if returnType, ok := functionReturnType(binding); ok && returnType != "void" {
 					return returnType, true
 				}
+			}
+		}
+		return "", false
+	case *ast.IndexExpr:
+		if ident, ok := node.Object.(*ast.Identifier); ok && scopeStack != nil {
+			if binding, exists := lookup(scopeStack, ident.Name); exists && isArrayBinding(binding) {
+				return arrayElemType(binding), true
 			}
 		}
 		return "", false
@@ -1426,7 +1872,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "scheduler", "HIGH", "LOW":
+	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW":
 		return true
 	default:
 		return false

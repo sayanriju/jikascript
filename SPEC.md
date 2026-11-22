@@ -1,7 +1,7 @@
 # JikaScript
 ## Language, Compiler & Runtime Specification
 
-**Specification version:** 0.2.0  
+**Specification version:** 0.3.0
 **Status:** Initial implementation specification  
 **Language reference:** ECMAScript 2024  
 **Compiler implementation:** Go  
@@ -446,6 +446,31 @@ Strings should be stored in read-only memory where supported by the target toolc
 
 Dynamic string allocation and garbage collection are excluded.
 
+### Static object records (extension)
+
+Object literals are supported as a JikaScript extension for fixed-shape records:
+
+```javascript
+const device = {
+    name: "sensor-1",
+    reading: 100
+};
+
+device.reading = 105;
+```
+
+Rules:
+
+- Each distinct object shape is lowered to a statically allocated C `struct`.
+- Property types are inferred from the literal values. Property access is
+  checked at compile time; unknown properties and duplicate properties are
+  errors.
+- `const` freezes the binding, not the fields. Assigning a whole new object to
+  a `const` binding is an error, while assigning individual fields is allowed.
+- No heap allocation, hash maps, garbage collection, prototypes, getters or
+  setters, property addition or deletion, or reflection.
+- The full dynamic JavaScript object model remains excluded (see §15).
+
 ### File includes
 
 Programs may be split across multiple `.jika` files by including one file from another:
@@ -605,6 +630,7 @@ typedef struct {
     uint32_t interval_ms;
     uint32_t last_run_ms;
     bool enabled;
+    bool started;
 } periodic_task_t;
 
 void periodic_init(void);
@@ -696,6 +722,15 @@ periodic/
 
 The core scheduler must not include JikaScript-specific code.
 
+**Current layout note:** The repository intentionally keeps the standalone scheduler at
+`runtime/periodic/` (with the portable C implementation and host tests) rather than
+splitting it into a `periodic/include/`, `periodic/src/`, and `platforms/`
+directory hierarchy. This layout is a packaging choice only. The scheduler is
+independently usable from its pure-C API, has no mandatory JikaScript dependency,
+and is kept alongside CH32fun-specific integration rather than moving files solely
+for directory conformance. §6.4's nested layout is therefore a recommended future
+packaging option, not a requirement for the current implementation.
+
 ---
 
 # 7. Hardware API
@@ -733,17 +768,96 @@ if (button.read() == LOW) {
 }
 ```
 
-The backend must validate pin names and supported operations.
+The backend must validate pin names and supported operations. `write` takes a
+number, or no argument (meaning `LOW`).
 
 Do not assume all MCUs have identical pin names or peripheral capabilities.
 
-## 7.2 Future peripherals
+## 7.2 UART
+
+Example:
+
+```javascript
+const serial = uart("PD5", "PD6");
+
+serial.write("hello");
+serial.println("ok");
+let ch = serial.read();
+```
+
+`uart()` takes two string-literal pin arguments: TX then RX. The CH32V003
+backend supports the default USART1 pair `uart("PD5", "PD6")`; the compiler
+rejects any other pair. The configuration is fixed at 8N1, 115200 baud.
+
+A uart object supports exactly three methods:
+
+- `write(text)` transmits a string.
+- `println(text)` transmits a string followed by `\r\n`.
+- `read()` returns the next received byte as an `int`, or `-1` when no byte is
+  available. Reads are non-blocking.
+
+The backend must validate the pin pair and supported methods. `write` and
+`println` take a string.
+
+## 7.3 PWM
+
+Example:
+
+```javascript
+const led = pwm("PC1");
+
+led.set(50);
+led.setFrequency(1000);
+```
+
+`pwm()` takes one string-literal pin argument. The CH32V003 backend supports the
+TIM1 default channels (PD2, PA1, PC3, PC4) and the TIM2 partial remap 2 channels
+(PC1, PD3, PC0, PD7); the compiler rejects any other pin.
+
+A pwm object supports exactly two methods:
+
+- `set(duty)` sets the duty cycle as a percentage from 0 to 100.
+- `setFrequency(hz)` optionally sets the PWM frequency in hertz. The default is
+  1000 Hz.
+
+The backend must validate the timer-capable pin and supported methods. `set`
+and `setFrequency` take a number. PD7 is the NRST pin, so using it requires
+disabling NRST on the target.
+
+## 7.4 ADC
+
+Example:
+
+```javascript
+const sensor = adc("PD4");
+
+let value = sensor.read();
+```
+
+`adc()` takes one string-literal pin argument. The CH32V003 backend supports the
+eight external channels A0..A7 on PA2, PA1, PC4, PD2, PD3, PD5, PD6, and PD4; the
+compiler rejects any other pin.
+
+An adc object supports exactly one method:
+
+- `read()` starts a single-ended conversion and returns the raw 10-bit sample
+  (0..1023) as an `int`.
+
+The backend must validate the analog-capable pin and supported methods. `read`
+takes no arguments.
+
+For every peripheral above, argument counts and types are validated at compile
+time: an erroneous call fails the transpile with a clean error instead of
+reaching the C compiler and failing the firmware build. A peripheral handle is
+an opaque value — it cannot be assigned to a scalar binding or passed as a
+value argument to another peripheral method. Method calls require a peripheral
+receiver, either a `pin()`, `uart()`, `pwm()`, or `adc()` binding or a
+constructor used directly; a scalar has no properties or methods.
+
+## 7.5 Future peripherals
 
 The following are planned extensions:
 
-- ADC
-- PWM
-- UART
 - SPI
 - I2C
 - Hardware timers
@@ -1067,7 +1181,20 @@ Purpose:
 
 Validate syntax and semantics without generating firmware.
 
-## 9.5 Additional options
+## 9.5 version
+
+Command:
+
+```bash
+jikascript version
+```
+
+Purpose:
+
+Print the compiler release version and the language specification version it
+targets. This command does not read an input file.
+
+## 9.6 Additional options
 
 Potential options:
 

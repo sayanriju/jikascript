@@ -15,6 +15,7 @@ JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers (st
 - **Familiar Syntax:** Variables, arrow functions, object literals, and arrays feel just like modern JavaScript.
 - **Multi-file Programs:** Split code across `.jika` files with `include`, resolved at compile time.
 - **Built-in Cooperative Multitasking:** Forget juggling raw timer interrupts. Schedule periodic tasks cleanly with simple `task(...)` calls.
+- **Built-in Peripherals:** GPIO, UART, PWM, and ADC are first-class builtins — no register bit-poking.
 - **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood, then review or tweak it before you build firmware.
 - **One-Command Build & Flash:** `jikascript build` and `jikascript flash` drive PlatformIO for you, fetching the toolchain on first run.
 
@@ -48,5 +49,26 @@ cd jikascript
 Then get [Blink running in 5 minutes](quickstart.md).
 
 Already comfortable with PlatformIO? The [installation guide](installation.md#build-firmware) shows how to build and upload firmware directly.
+
+## Explore the examples
+
+The [`examples/`](../examples/) directory contains small, runnable programs:
+
+- [`blink.jika`](../examples/blink.jika) — your first LED blink
+- [`multiple_tasks.jika`](../examples/multiple_tasks.jika) — several cooperative periodic tasks
+- [`conditional_task.jika`](../examples/conditional_task.jika) — reacting to a GPIO input
+- [`pwm.jika`](../examples/pwm.jika) — PWM output and a fading task
+- [`adc.jika`](../examples/adc.jika) — ADC threshold detection
+- [`uart.jika`](../examples/uart.jika) — serial output and input polling
+- [`objects.jika`](../examples/objects.jika) — fixed-shape record objects
+- [`postfix.jika`](../examples/postfix.jika) — `++` and `--` in loops and expressions
+- [`multi-file/`](../examples/multi-file/) — compile-time includes
+
+Try one with:
+
+```bash
+jikascript check examples/blink.jika
+jikascript transpile examples/blink.jika --output=out/blink.c
+```
 
 Check your compiler release at any time with `jikascript version`.

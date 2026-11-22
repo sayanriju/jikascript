@@ -48,10 +48,80 @@ Treat them as built-in logic constants, not ordinary mutable user variables.
 Compare reads with the strict equality operators (`==` / `===`), which are
 non-coercing.
 
+## UART
+
+`uart()` binds the CH32V003 USART1 peripheral. It takes two string-literal
+arguments, TX then RX, and the compiler rejects any pair other than the default
+`uart("PD5", "PD6")`.
+
+```javascript
+const serial = uart("PD5", "PD6");
+
+serial.write("hello");
+serial.println("ok");
+let ch = serial.read();
+```
+
+The configuration is fixed at 8N1, 115200 baud. A uart object supports exactly
+three methods: `write(text)`, `println(text)` (adds a CRLF line ending), and
+`read()`. `read()` is non-blocking and returns `-1` when no byte is available.
+
+## PWM
+
+`pwm()` binds a timer channel as a single PWM output. It takes one string-literal
+pin argument.
+
+```javascript
+const led = pwm("PC1");
+led.set(50);
+led.setFrequency(1000);
+```
+
+Supported pins on CH32V003: TIM1 default channels `PD2`, `PA1`, `PC3`, `PC4`,
+and TIM2 partial remap 2 channels `PC1`, `PD3`, `PC0`, `PD7`. TIM2 is remapped so
+`PC1` is available; `PD4` (default TIM2 channel 1) is therefore not a PWM pin in
+v1. A pwm object supports exactly two methods: `set(duty)` (0-100 percent) and
+`setFrequency(hz)` (default 1000 Hz).
+
+## ADC
+
+`adc()` binds an analog input. It takes one string-literal pin argument.
+
+```javascript
+const sensor = adc("PD4");
+let value = sensor.read();
+```
+
+Supported pins on CH32V003 (channels A0-A7): `PA2`, `PA1`, `PC4`, `PD2`, `PD3`,
+`PD5`, `PD6`, `PD4`. An adc object supports exactly one method: `read()`, which
+returns the raw 10-bit sample (0-1023).
+
+## Timer and clock assumptions
+
+The scheduler (SysTick, 1 ms tick) and PWM (TIM1/TIM2) both derive their timing
+from the core clock selected in `funconfig.h`. PWM frequency is
+`core_clock / ((PSC + 1) * 1000)`; the scheduler tick comes from `DELAY_MS_TIME`.
+If `FUNCONF_SYSTEM_CORE_CLOCK` does not match the actual core clock, both are
+scaled by the same error.
+
+Limits: PWM duty is 0-100 percent over a fixed 1000-step period; the frequency
+range is bounded by the 16-bit prescaler; `PD7` needs NRST disabled; `PD4` is
+not a PWM pin because TIM2 is remapped for `PC1`.
+
+## Compile-time validation
+
+Argument counts and types are checked at transpile time, so erroneous API use
+fails cleanly instead of breaking the C build. `uart.write`/`println` take a
+string; `pwm.set`/`setFrequency` and `pin.write` take a number; `read` takes
+none. A peripheral handle is opaque and cannot be assigned to a scalar or passed
+as a value argument. Method calls require a peripheral receiver (a `pin()`,
+`uart()`, `pwm()`, or `adc()` binding or a constructor used directly); scalars
+have no properties or methods.
+
 ## Reserved names
 
-`pin`, `HIGH`, and `LOW` are reserved or special built-ins; do not use them as
-variable names.
+`pin`, `uart`, `pwm`, `adc`, `HIGH`, and `LOW` are reserved or special built-ins;
+do not use them as variable names.
 
 ## Complete interactive example: button toggle
 
@@ -73,8 +143,8 @@ scheduler.start();
 
 ## Future peripherals (planned, not in v0.1)
 
-ADC, PWM, UART, SPI, I2C, and hardware timers are planned extensions, not
-required for the first compiler milestone.
+ADC, PWM, SPI, I2C, and hardware timers are planned extensions, not required for
+the first compiler milestone.
 
 ## Hardware abstraction layers
 

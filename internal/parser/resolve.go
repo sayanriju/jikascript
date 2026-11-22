@@ -48,7 +48,7 @@ func resolveFile(path string, loader Loader, stack []string) (*ast.Program, erro
 	}
 	program, err := ParseProgram(source)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return nil, fmt.Errorf("%s:%w", path, err)
 	}
 	next := append(stack, path)
 	resolved := &ast.Program{Statements: []ast.Stmt{}}
@@ -59,7 +59,7 @@ func resolveFile(path string, loader Loader, stack []string) (*ast.Program, erro
 			continue
 		}
 		if !strings.HasSuffix(include.Path, ".jika") {
-			return nil, fmt.Errorf("%s: line %d:%d: included file must have a .jika extension: %q", path, include.Pos.Line, include.Pos.Column, include.Path)
+			return nil, fmt.Errorf("%s:%d:%d: error: included file must have a .jika extension: %q", path, include.Pos.Line, include.Pos.Column, include.Path)
 		}
 		includePath := filepath.Join(filepath.Dir(path), include.Path)
 		sub, err := resolveFile(includePath, loader, next)
@@ -67,7 +67,7 @@ func resolveFile(path string, loader Loader, stack []string) (*ast.Program, erro
 			if strings.HasPrefix(err.Error(), "circular include") {
 				return nil, err
 			}
-			return nil, fmt.Errorf("%s: line %d:%d: %w", path, include.Pos.Line, include.Pos.Column, err)
+			return nil, fmt.Errorf("%s:%d:%d: error: %w", path, include.Pos.Line, include.Pos.Column, err)
 		}
 		resolved.Statements = append(resolved.Statements, sub.Statements...)
 	}

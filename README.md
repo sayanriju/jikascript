@@ -25,7 +25,8 @@ Authoritative requirements live in [SPEC.md](SPEC.md).
 - [internal/](internal): lexer, parser, AST, semantic checker, C code generator
 - [internal/backend/platformio/](internal/backend/platformio): PlatformIO build and upload runner
 - [runtime/periodic/](runtime/periodic): standalone pure-C scheduler
-- [targets/ch32fun/](targets/ch32fun): CH32V003 target config and GPIO backend
+- [targets/ch32fun/](targets/ch32fun): CH32V003 target config with GPIO, UART,
+  PWM, and ADC backends
 - [examples/](examples): `.jika` sample programs
 - [skills/jikascript/](skills/jikascript): An agent/skills.sh skill for the
   JikaScript language, CLI, and scheduler. Install it with the standard skills
@@ -79,8 +80,8 @@ The CLI itself is the canonical workflow for checking, transpiling, building, an
 jikascript check <input.jika>
 jikascript version
 jikascript transpile <input.jika> [--output=<file.c>] [--target=ch32v003]
-jikascript build <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--optimize=size|speed]
-jikascript flash <input.jika|input.c> [--output=<prefix>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
+jikascript build <input.jika|input.c> [--output=<prefix>] [--target=ch32v003] [--board=<board>] [--env=<env>] [--optimize=size|speed]
+jikascript flash <input.jika|input.c> [--output=<prefix>] [--target=ch32v003] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=size|speed]
 ```
 
 `--optimize` is optional. When omitted, the PlatformIO platform default is used
@@ -102,7 +103,7 @@ Print the compiler and language specification versions:
 jikascript version
 ```
 
-The current release is `0.3.4`, targeting language specification `0.2.0`.
+The current release is `0.3.4`, targeting language specification `0.3.0`.
 
 The `v0.1` labels throughout this README refer to the implementation milestone
 and feature set described in [SPEC.md](SPEC.md); they do not indicate the
@@ -139,8 +140,9 @@ The command generates a PlatformIO project under `out/<name>-pio/`, runs
 `pio run` for the selected environment, and copies the resulting firmware to
 `build/<name>.elf` and `build/<name>.bin`.
 
-PlatformIO must be installed and on `PATH`. If it is missing, the build fails
-immediately with an actionable message:
+PlatformIO must be installed and on `PATH`. If it is missing, the build stops
+with an actionable message (the generated project under `out/<name>-pio/` may
+already exist):
 
 ```text
 PlatformIO (pio) not found on PATH; install it with `pip install platformio` ...
@@ -194,6 +196,12 @@ Pass `--port` to select a specific programmer or serial device:
 jikascript flash examples/blink.jika --port=/dev/ttyUSB0
 ```
 
+Pass `--output=<prefix>` to copy the post-upload artifacts to a custom location:
+
+```bash
+jikascript flash examples/blink.jika --output=dist/blink
+```
+
 `flash` accepts the same `--board`, `--env`, and `--optimize` flags as `build`.
 
 `pio run -t upload` is the source of truth for flash success. After a successful
@@ -239,6 +247,10 @@ Artifacts:
 - [multiple_tasks.jika](examples/multiple_tasks.jika)
 - [conditional_task.jika](examples/conditional_task.jika)
 - [multi-file/app.jika](examples/multi-file/app.jika)
+- [objects.jika](examples/objects.jika)
+- [uart.jika](examples/uart.jika)
+- [pwm.jika](examples/pwm.jika)
+- [adc.jika](examples/adc.jika)
 
 ## Multi-file programs (v0.1)
 
@@ -354,6 +366,36 @@ periodic_init();
 periodic_ch32fun_init();
 ```
 
+## Peripherals (CH32V003)
+
+GPIO, UART, PWM, and ADC are first-class builtins. Each constructor returns a
+handle, and the handle's methods do the work:
+
+```javascript
+const led = pin("PC1");
+const serial = uart("PD5", "PD6");
+const dimmer = pwm("PC1");
+const sensor = adc("PD4");
+
+led.output();
+led.write(HIGH);
+
+serial.println("boot");
+serial.write("ping");
+
+dimmer.set(50);              // duty cycle 0-100
+dimmer.setFrequency(1000);  // Hz
+
+const level = sensor.read();  // 0..1023
+```
+
+Argument counts and types are validated at compile time: `uart.write`/`println`
+take a string, `pwm.set`/`setFrequency` and `pin.write` take a number, and
+`read()` takes none. A wrong argument fails `jikascript check` instead of
+reaching the C compiler and breaking the firmware build. See
+[docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
+for the pin tables and the timer/clock contract.
+
 ## Validation status labels
 
 - **Host-tested**: verified with the Go test suite and host C99 compilation
@@ -361,7 +403,8 @@ periodic_ch32fun_init();
   documented above are host-tested.
 - **Target-compiled**: verified by compiling firmware through PlatformIO
   against the `ch32v003fun` framework. `jikascript build` produces a linked
-  `.elf` and `.bin` for CH32V003. Not yet claimed for any feature.
+  `.elf` and `.bin` for CH32V003. GPIO, UART, PWM, ADC, and the scheduler are
+  target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 

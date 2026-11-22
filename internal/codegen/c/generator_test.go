@@ -43,7 +43,8 @@ func hostIncludeFlags(t *testing.T) []string {
 }
 
 func TestGenerateContainsMainAndTask(t *testing.T) {
-	program, err := parser.ParseProgram(`task("blink", 1000, () => {
+	program, err := parser.ParseProgram(`const led = pin("PC1");
+task("blink", 1000, () => {
     led.toggle();
 });
 `)
@@ -447,6 +448,90 @@ led.output();`)
 	}
 }
 
+func TestGenerateEmitsUARTCalls(t *testing.T) {
+	program, err := parser.ParseProgram(`const serial = uart(" pd5 ", "PD6");
+serial.write("hi");
+serial.println("ok");
+let ch = serial.read();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`js_serial = uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6);`,
+		`uart_write(js_serial, "hi");`,
+		`uart_println(js_serial, "ok");`,
+		`js_ch = uart_read(js_serial);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, `" pd5 "`) {
+		t.Fatalf("expected raw uart pin literal to be replaced by canonical form, got:\n%s", out)
+	}
+}
+
+func TestGenerateEmitsPWMCalls(t *testing.T) {
+	program, err := parser.ParseProgram(`const led = pwm(" pc1 ");
+led.set(50);
+led.setFrequency(1000);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`js_led = pwm_open(JIKA_PIN_PC1);`,
+		`pwm_set(js_led, 50);`,
+		`pwm_set_frequency(js_led, 1000);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, `" pc1 "`) {
+		t.Fatalf("expected raw pwm pin literal to be replaced by canonical form, got:\n%s", out)
+	}
+}
+
+func TestGenerateEmitsADCCalls(t *testing.T) {
+	program, err := parser.ParseProgram(`const sensor = adc(" pd4 ");
+let value = sensor.read();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`js_sensor = adc_open(JIKA_PIN_PD4);`,
+		`js_value = adc_read(js_sensor);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, `" pd4 "`) {
+		t.Fatalf("expected raw adc pin literal to be replaced by canonical form, got:\n%s", out)
+	}
+}
+
 func TestGenerateGuardsTaskRegistration(t *testing.T) {
 	program, err := parser.ParseProgram(`task("blink", 1000, () => { });`)
 	if err != nil {
@@ -493,5 +578,294 @@ led.output();`, nil
 	}
 	if strings.Contains(out, "helpers.jika") {
 		t.Fatalf("generated C must not retain source include statements:\n%s", out)
+	}
+}
+
+func TestGenerateResolvesPeripheralConstructorReceivers(t *testing.T) {
+	program, err := parser.ParseProgram(`pwm("PC1").set(50);
+uart("PD5", "PD6").write("hi");
+adc("PD4").read();
+pin("PC1").toggle();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`pwm_set(pwm_open(JIKA_PIN_PC1), 50);`,
+		`uart_write(uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6), "hi");`,
+		`adc_read(adc_open(JIKA_PIN_PD4));`,
+		`gpio_toggle(JIKA_PIN_PC1);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestGenerateRejectsMethodCallOnNonPeripheral(t *testing.T) {
+	program, err := parser.ParseProgram(`let x = 5; x.write(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	_, genErr := Generate(program)
+	if genErr == nil || !strings.Contains(genErr.Error(), "cannot call method 'write' on this expression") {
+		t.Fatalf("expected explicit codegen error for a method call on a scalar, got %v", genErr)
+	}
+}
+
+func TestGenerateArrowFunctionBindingAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`const square = x => x * x;
+let result = square(5);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "static int32_t js_square(int32_t js_x)") {
+		t.Fatalf("expected arrow function emitted as static C function:\n%s", out)
+	}
+	if !strings.Contains(out, "js_result = js_square(5);") {
+		t.Fatalf("expected call to arrow function binding:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "arrow.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateVoidFunctionWithoutReturnAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`function noop() { let x = 1; }
+noop();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "static void js_noop(void)") {
+		t.Fatalf("expected void function emitted without return type:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "void.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateSingleExpressionTaskCallbackAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 100, () => 1);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "return 1;") {
+		t.Fatalf("task handler must not return a value from a void function:\n%s", out)
+	}
+	if !strings.Contains(out, "static void jikascript_task_t(void)") {
+		t.Fatalf("expected void task handler:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "task_expr.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateNestedValueReturnInTaskCallbackAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`const flag = true;
+task("t", 100, () => {
+    if (flag) {
+        return 1;
+    }
+});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "return 1;") {
+		t.Fatalf("nested task return must not return a value from a void function:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "task_nested.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateNumberAnnotationAsFloat32(t *testing.T) {
+	program, err := parser.ParseProgram(`let ratio: number = 1.5;
+let count: number = 3;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, expected := range []string{
+		"static float js_ratio = 1.5;",
+		"static float js_count = 3;",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected %q in generated C:\n%s", expected, out)
+		}
+	}
+	if strings.Contains(out, "static int js_ratio") {
+		t.Fatalf("number annotation must not narrow to int:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "number.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateIndentsLocalDeclarations(t *testing.T) {
+	program, err := parser.ParseProgram(`function f() { let x = 1; }
+f();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "    int32_t js_x = 1;") {
+		t.Fatalf("expected indented local declaration:\n%s", out)
+	}
+}
+
+func TestGeneratePostfixIncrementAsC99(t *testing.T) {
+	program, err := parser.ParseProgram(`let sum = 0;
+for (let i = 0; i < 3; i++) {
+    sum = sum + i;
+}
+let old = sum++;
+let pre = ++sum;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, expected := range []string{
+		"js_i++)",
+		"js_old = js_sum++;",
+		"js_pre = ++js_sum;",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected %q in generated C:\n%s", expected, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "postfix.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateIsDeterministic(t *testing.T) {
+	program, err := parser.ParseProgram(`const led = pin("PC1");
+const device = { name: "sensor", reading: 1 };
+const readings: int32[4] = [1, 2, 3];
+function add(a, b) { return a + b; }
+const square = x => x * x;
+task("blink", 1000, () => { led.toggle(); });
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+
+	first, err := Generate(program)
+	if err != nil {
+		t.Fatalf("first generate: %v", err)
+	}
+	for i := 0; i < 5; i++ {
+		next, err := Generate(program)
+		if err != nil {
+			t.Fatalf("generate %d: %v", i+2, err)
+		}
+		if next != first {
+			t.Fatalf("generated output differs between runs:\n--- first ---\n%s\n--- run %d ---\n%s", first, i+2, next)
+		}
 	}
 }

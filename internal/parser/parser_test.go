@@ -1,8 +1,11 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
 
-import "jikascript/internal/ast"
+	"jikascript/internal/ast"
+)
 
 func TestParseBlinkProgram(t *testing.T) {
 	program, err := ParseProgram(`const led = pin("PC1");
@@ -131,5 +134,88 @@ func TestParseIncludeMissingSemicolonRejected(t *testing.T) {
 `)
 	if err == nil {
 		t.Fatalf("expected error for missing semicolon, got nil")
+	}
+}
+
+func TestParsePeripheralConstructors(t *testing.T) {
+	program, err := ParseProgram(`const serial = uart("PD5", "PD6");
+const dimmer = pwm("PC1");
+const sensor = adc("PD4");
+const led = pin("PC1");
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 4 {
+		t.Fatalf("expected 4 statements, got %d", len(program.Statements))
+	}
+}
+
+func TestParseArrowFunctionBinding(t *testing.T) {
+	program, err := ParseProgram(`const square = x => x * x;
+const toggle = () => { led.toggle(); };
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+	first, ok := program.Statements[0].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("first statement is %T, want ConstDecl", program.Statements[0])
+	}
+	arrow, ok := first.Value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		t.Fatalf("first value is %T, want ArrowFunctionExpr", first.Value)
+	}
+	if len(arrow.Params) != 1 || arrow.Params[0] != "x" {
+		t.Fatalf("arrow params = %v, want [x]", arrow.Params)
+	}
+	second, ok := program.Statements[1].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("second statement is %T, want ConstDecl", program.Statements[1])
+	}
+	blockArrow, ok := second.Value.(*ast.ArrowFunctionExpr)
+	if !ok {
+		t.Fatalf("second value is %T, want ArrowFunctionExpr", second.Value)
+	}
+	if len(blockArrow.Params) != 0 {
+		t.Fatalf("block arrow params = %v, want none", blockArrow.Params)
+	}
+}
+
+func TestParseNestedTaskRejected(t *testing.T) {
+	_, err := ParseProgram(`if (true) {
+    task("nested", 100, () => {});
+}
+`)
+	if err == nil || !strings.Contains(err.Error(), "top level") {
+		t.Fatalf("expected nested task rejection, got %v", err)
+	}
+}
+
+func TestParsePostfixIncrementAndDecrement(t *testing.T) {
+	program, err := ParseProgram(`i++;
+i--;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(program.Statements) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(program.Statements))
+	}
+	for index, op := range []string{"++", "--"} {
+		stmt, ok := program.Statements[index].(*ast.ExprStmt)
+		if !ok {
+			t.Fatalf("statement %d is %T, want ExprStmt", index, program.Statements[index])
+		}
+		unary, ok := stmt.Expr.(*ast.UnaryExpr)
+		if !ok {
+			t.Fatalf("expression %d is %T, want UnaryExpr", index, stmt.Expr)
+		}
+		if !unary.Postfix || unary.Op != op {
+			t.Fatalf("expression %d = {Op:%q Postfix:%v}, want {%q true}", index, unary.Op, unary.Postfix, op)
+		}
 	}
 }

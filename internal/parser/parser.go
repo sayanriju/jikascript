@@ -45,7 +45,7 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	program := &ast.Program{Statements: []ast.Stmt{}}
 	for !p.isEOF() {
 		if p.cur.Type == lexer.ILLEGAL {
-			return nil, fmt.Errorf("line %d:%d: illegal token %q", p.cur.Line, p.cur.Column, p.cur.Literal)
+			return nil, fmt.Errorf("%d:%d: error: illegal token %q", p.cur.Line, p.cur.Column, p.cur.Literal)
 		}
 		stmt, err := p.parseStatement()
 		if err != nil {
@@ -102,16 +102,16 @@ func (p *Parser) parseStatement() (ast.Stmt, error) {
 func (p *Parser) parseIncludeStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	if !p.topLevel {
-		return nil, fmt.Errorf("line %d:%d: include is only supported at the top level", pos.Line, pos.Column)
+		return nil, fmt.Errorf("%d:%d: error: include is only supported at the top level", pos.Line, pos.Column)
 	}
 	p.next() // include
 	if p.cur.Type != lexer.STRING {
-		return nil, fmt.Errorf("line %d:%d: expecting string literal after include", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expecting string literal after include", p.cur.Line, p.cur.Column)
 	}
 	path := p.cur.Literal
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ";" {
-		return nil, fmt.Errorf("line %d:%d: expected ';' after include statement", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ';' after include statement", p.cur.Line, p.cur.Column)
 	}
 	return &ast.IncludeStmt{Path: path, Pos: pos}, nil
 }
@@ -120,7 +120,7 @@ func (p *Parser) parseWhileStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // while
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after while", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after while", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	cond, err := p.parseExpression()
@@ -128,7 +128,7 @@ func (p *Parser) parseWhileStmt() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after while condition", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after while condition", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	body, err := p.parseBlock()
@@ -146,11 +146,11 @@ func (p *Parser) parseDoWhileStmt() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.KEYWORD || p.cur.Literal != "while" {
-		return nil, fmt.Errorf("line %d:%d: expected 'while' after do block", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected 'while' after do block", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after while", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after while", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	cond, err := p.parseExpression()
@@ -158,7 +158,7 @@ func (p *Parser) parseDoWhileStmt() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after do-while condition", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after do-while condition", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	return &ast.DoWhileStmt{Body: body, Cond: cond, Pos: pos}, nil
@@ -168,7 +168,7 @@ func (p *Parser) parseForStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // for
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after for", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after for", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	var init ast.Stmt
@@ -183,7 +183,7 @@ func (p *Parser) parseForStmt() (ast.Stmt, error) {
 		}
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ";" {
-		return nil, fmt.Errorf("line %d:%d: expected ';' after for init", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ';' after for init", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	var cond ast.Expr
@@ -195,7 +195,7 @@ func (p *Parser) parseForStmt() (ast.Stmt, error) {
 		}
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ";" {
-		return nil, fmt.Errorf("line %d:%d: expected ';' after for condition", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ';' after for condition", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	var post ast.Expr
@@ -207,7 +207,7 @@ func (p *Parser) parseForStmt() (ast.Stmt, error) {
 		}
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after for clause", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after for clause", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	body, err := p.parseBlock()
@@ -221,7 +221,7 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // switch
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after switch", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after switch", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	expr, err := p.parseExpression()
@@ -229,11 +229,11 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after switch expression", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after switch expression", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "{" {
-		return nil, fmt.Errorf("line %d:%d: expected '{' after switch", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '{' after switch", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 
@@ -252,10 +252,10 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 		case p.cur.Type == lexer.KEYWORD && p.cur.Literal == "default":
 			p.next()
 		default:
-			return nil, fmt.Errorf("line %d:%d: expected 'case' or 'default' in switch", p.cur.Line, p.cur.Column)
+			return nil, fmt.Errorf("%d:%d: error: expected 'case' or 'default' in switch", p.cur.Line, p.cur.Column)
 		}
 		if p.cur.Type != lexer.PUNCT || p.cur.Literal != ":" {
-			return nil, fmt.Errorf("line %d:%d: expected ':' in switch case", p.cur.Line, p.cur.Column)
+			return nil, fmt.Errorf("%d:%d: error: expected ':' in switch case", p.cur.Line, p.cur.Column)
 		}
 		p.next()
 
@@ -279,7 +279,7 @@ func (p *Parser) parseSwitchStmt() (ast.Stmt, error) {
 		cases = append(cases, ast.SwitchCase{Value: caseExpr, Body: body, Pos: casePos})
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "}" {
-		return nil, fmt.Errorf("line %d:%d: expected '}' after switch", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '}' after switch", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	return &ast.SwitchStmt{Expr: expr, Cases: cases, Pos: pos}, nil
@@ -301,7 +301,7 @@ func (p *Parser) parseVarDecl(constDecl bool) (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // let/const
 	if p.cur.Type != lexer.IDENT {
-		return nil, fmt.Errorf("line %d:%d: expected variable name", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected variable name", p.cur.Line, p.cur.Column)
 	}
 	name := p.cur.Literal
 	p.next()
@@ -311,30 +311,30 @@ func (p *Parser) parseVarDecl(constDecl bool) (ast.Stmt, error) {
 	if p.cur.Type == lexer.PUNCT && p.cur.Literal == ":" {
 		p.next()
 		if p.cur.Type != lexer.IDENT && p.cur.Type != lexer.KEYWORD {
-			return nil, fmt.Errorf("line %d:%d: expected type annotation", p.cur.Line, p.cur.Column)
+			return nil, fmt.Errorf("%d:%d: error: expected type annotation", p.cur.Line, p.cur.Column)
 		}
 		vartype = p.cur.Literal
 		p.next()
 		if p.cur.Type == lexer.PUNCT && p.cur.Literal == "[" {
 			p.next()
 			if p.cur.Type != lexer.NUMBER {
-				return nil, fmt.Errorf("line %d:%d: expected numeric array capacity", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected numeric array capacity", p.cur.Line, p.cur.Column)
 			}
 			capValue, err := strconv.Atoi(p.cur.Literal)
 			if err != nil || capValue <= 0 {
-				return nil, fmt.Errorf("line %d:%d: invalid array capacity %q", p.cur.Line, p.cur.Column, p.cur.Literal)
+				return nil, fmt.Errorf("%d:%d: error: invalid array capacity %q", p.cur.Line, p.cur.Column, p.cur.Literal)
 			}
 			arrayCapacity = capValue
 			p.next()
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != "]" {
-				return nil, fmt.Errorf("line %d:%d: expected ']' after array capacity", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected ']' after array capacity", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 		}
 	}
 
 	if p.cur.Type != lexer.OPERATOR || p.cur.Literal != "=" {
-		return nil, fmt.Errorf("line %d:%d: expected '=' in declaration", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '=' in declaration", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	value, err := p.parseExpression()
@@ -351,19 +351,19 @@ func (p *Parser) parseFunctionDecl() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // function
 	if p.cur.Type != lexer.IDENT {
-		return nil, fmt.Errorf("line %d:%d: expected function name", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected function name", p.cur.Line, p.cur.Column)
 	}
 	name := p.cur.Literal
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after function name", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after function name", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	params := []string{}
 	if !(p.cur.Type == lexer.PUNCT && p.cur.Literal == ")") {
 		for {
 			if p.cur.Type != lexer.IDENT {
-				return nil, fmt.Errorf("line %d:%d: expected parameter name", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected parameter name", p.cur.Line, p.cur.Column)
 			}
 			params = append(params, p.cur.Literal)
 			p.next()
@@ -375,7 +375,7 @@ func (p *Parser) parseFunctionDecl() (ast.Stmt, error) {
 		}
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after parameter list", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after parameter list", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	body, err := p.parseBlock()
@@ -403,7 +403,7 @@ func (p *Parser) parseIfStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // if
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after if", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after if", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	cond, err := p.parseExpression()
@@ -411,7 +411,7 @@ func (p *Parser) parseIfStmt() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after if condition", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after if condition", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	thenBlock, err := p.parseBlock()
@@ -439,9 +439,12 @@ func (p *Parser) parseIfStmt() (ast.Stmt, error) {
 
 func (p *Parser) parseTaskDecl() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+	if !p.topLevel {
+		return nil, fmt.Errorf("%d:%d: error: task declarations are only supported at the top level", pos.Line, pos.Column)
+	}
 	p.next() // task
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after task", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after task", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	nameExpr, err := p.parseExpression()
@@ -449,7 +452,7 @@ func (p *Parser) parseTaskDecl() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "," {
-		return nil, fmt.Errorf("line %d:%d: expected ',' after task name", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ',' after task name", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	intervalExpr, err := p.parseExpression()
@@ -457,7 +460,7 @@ func (p *Parser) parseTaskDecl() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "," {
-		return nil, fmt.Errorf("line %d:%d: expected ',' after task interval", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ',' after task interval", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	callback, err := p.parseArrowFunction()
@@ -465,12 +468,12 @@ func (p *Parser) parseTaskDecl() (ast.Stmt, error) {
 		return nil, err
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after task callback", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after task callback", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	name, ok := extractStringName(nameExpr)
 	if !ok {
-		return nil, fmt.Errorf("line %d:%d: task name must be a string literal", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: task name must be a string literal", p.cur.Line, p.cur.Column)
 	}
 	return &ast.TaskDecl{Name: name, Interval: intervalExpr, Callback: callback, Pos: pos}, nil
 }
@@ -486,19 +489,19 @@ func (p *Parser) parseSchedulerStmt() (ast.Stmt, error) {
 	pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 	p.next() // scheduler
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "." {
-		return nil, fmt.Errorf("line %d:%d: expected '.' after scheduler", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '.' after scheduler", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if !(p.cur.Type == lexer.IDENT || p.cur.Type == lexer.KEYWORD) || p.cur.Literal != "start" {
-		return nil, fmt.Errorf("line %d:%d: expected start() call", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected start() call", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "(" {
-		return nil, fmt.Errorf("line %d:%d: expected '(' after scheduler.start", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '(' after scheduler.start", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-		return nil, fmt.Errorf("line %d:%d: expected ')' after scheduler.start", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected ')' after scheduler.start", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	return &ast.ExprStmt{Expr: &ast.CallExpr{Function: &ast.SelectorExpr{Object: &ast.Identifier{Name: "scheduler", Pos: pos}, Field: "start", Pos: pos}, Args: nil, Pos: pos}, Pos: pos}, nil
@@ -512,7 +515,7 @@ func (p *Parser) parseArrowFunction() (*ast.ArrowFunctionExpr, error) {
 		if !(p.cur.Type == lexer.PUNCT && p.cur.Literal == ")") {
 			for {
 				if p.cur.Type != lexer.IDENT {
-					return nil, fmt.Errorf("line %d:%d: expected parameter name", p.cur.Line, p.cur.Column)
+					return nil, fmt.Errorf("%d:%d: error: expected parameter name", p.cur.Line, p.cur.Column)
 				}
 				params = append(params, p.cur.Literal)
 				p.next()
@@ -524,7 +527,7 @@ func (p *Parser) parseArrowFunction() (*ast.ArrowFunctionExpr, error) {
 			}
 		}
 		if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-			return nil, fmt.Errorf("line %d:%d: expected ')' after arrow params", p.cur.Line, p.cur.Column)
+			return nil, fmt.Errorf("%d:%d: error: expected ')' after arrow params", p.cur.Line, p.cur.Column)
 		}
 		p.next()
 	} else if p.cur.Type == lexer.IDENT {
@@ -532,7 +535,7 @@ func (p *Parser) parseArrowFunction() (*ast.ArrowFunctionExpr, error) {
 		p.next()
 	}
 	if p.cur.Type != lexer.OPERATOR || p.cur.Literal != "=>" {
-		return nil, fmt.Errorf("line %d:%d: expected '=>' in arrow function", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '=>' in arrow function", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	if p.cur.Type == lexer.PUNCT && p.cur.Literal == "{" {
@@ -559,7 +562,7 @@ func (p *Parser) parseExpressionStmt() (ast.Stmt, error) {
 
 func (p *Parser) parseBlock() ([]ast.Stmt, error) {
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "{" {
-		return nil, fmt.Errorf("line %d:%d: expected '{'", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '{'", p.cur.Line, p.cur.Column)
 	}
 	prevTopLevel := p.topLevel
 	p.topLevel = false
@@ -577,7 +580,7 @@ func (p *Parser) parseBlock() ([]ast.Stmt, error) {
 		p.consumeSemicolonIfPresent()
 	}
 	if p.cur.Type != lexer.PUNCT || p.cur.Literal != "}" {
-		return nil, fmt.Errorf("line %d:%d: expected '}'", p.cur.Line, p.cur.Column)
+		return nil, fmt.Errorf("%d:%d: error: expected '}'", p.cur.Line, p.cur.Column)
 	}
 	p.next()
 	return stmts, nil
@@ -680,7 +683,47 @@ func (p *Parser) parseUnary() (ast.Expr, error) {
 	return p.parsePostfix(primary)
 }
 
+// looksLikeArrowFunction reports whether the tokens starting at the current
+// position form an arrow function parameter list followed by "=>". It scans
+// ahead without consuming tokens so parsePrimary can choose between an arrow
+// function and an ordinary expression.
+func (p *Parser) looksLikeArrowFunction() bool {
+	if p.cur.Type == lexer.IDENT {
+		if p.pos+1 < len(p.tokens) {
+			next := p.tokens[p.pos+1]
+			return next.Type == lexer.OPERATOR && next.Literal == "=>"
+		}
+		return false
+	}
+	if p.cur.Type == lexer.PUNCT && p.cur.Literal == "(" {
+		depth := 0
+		for i := p.pos; i < len(p.tokens); i++ {
+			tok := p.tokens[i]
+			if tok.Type != lexer.PUNCT {
+				continue
+			}
+			switch tok.Literal {
+			case "(":
+				depth++
+			case ")":
+				depth--
+				if depth == 0 {
+					if i+1 < len(p.tokens) {
+						next := p.tokens[i+1]
+						return next.Type == lexer.OPERATOR && next.Literal == "=>"
+					}
+					return false
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (p *Parser) parsePrimary() (ast.Expr, error) {
+	if p.looksLikeArrowFunction() {
+		return p.parseArrowFunction()
+	}
 	switch p.cur.Type {
 	case lexer.IDENT:
 		ident := &ast.Identifier{Name: p.cur.Literal, Pos: ast.Position{Line: p.cur.Line, Column: p.cur.Column}}
@@ -699,12 +742,12 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 		p.next()
 		return lit, nil
 	case lexer.KEYWORD:
-		if p.cur.Literal == "pin" || p.cur.Literal == "scheduler" || p.cur.Literal == "start" {
+		if p.cur.Literal == "pin" || p.cur.Literal == "uart" || p.cur.Literal == "pwm" || p.cur.Literal == "adc" || p.cur.Literal == "scheduler" || p.cur.Literal == "start" {
 			ident := &ast.Identifier{Name: p.cur.Literal, Pos: ast.Position{Line: p.cur.Line, Column: p.cur.Column}}
 			p.next()
 			return ident, nil
 		}
-		return nil, fmt.Errorf("line %d:%d: unexpected keyword '%s' in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
+		return nil, fmt.Errorf("%d:%d: error: unexpected keyword '%s' in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
 	case lexer.PUNCT:
 		if p.cur.Literal == "{" {
 			pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
@@ -713,13 +756,13 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 			if !(p.cur.Type == lexer.PUNCT && p.cur.Literal == "}") {
 				for {
 					if p.cur.Type != lexer.IDENT && p.cur.Type != lexer.KEYWORD {
-						return nil, fmt.Errorf("line %d:%d: object property names must be identifiers", p.cur.Line, p.cur.Column)
+						return nil, fmt.Errorf("%d:%d: error: object property names must be identifiers", p.cur.Line, p.cur.Column)
 					}
 					propertyPos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
 					name := p.cur.Literal
 					p.next()
 					if p.cur.Type != lexer.PUNCT || p.cur.Literal != ":" {
-						return nil, fmt.Errorf("line %d:%d: expected ':' after object property '%s'", p.cur.Line, p.cur.Column, name)
+						return nil, fmt.Errorf("%d:%d: error: expected ':' after object property '%s'", p.cur.Line, p.cur.Column, name)
 					}
 					p.next()
 					value, err := p.parseExpression()
@@ -738,7 +781,7 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 				}
 			}
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != "}" {
-				return nil, fmt.Errorf("line %d:%d: expected '}' after object literal", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected '}' after object literal", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 			return &ast.ObjectLiteralExpr{Properties: properties, Pos: pos}, nil
@@ -762,7 +805,7 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 				}
 			}
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != "]" {
-				return nil, fmt.Errorf("line %d:%d: expected ']' after array literal", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected ']' after array literal", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 			return &ast.ArrayLiteralExpr{Elements: elements, Pos: pos}, nil
@@ -774,14 +817,14 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 				return nil, err
 			}
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-				return nil, fmt.Errorf("line %d:%d: expected ')'", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected ')'", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 			return expr, nil
 		}
-		return nil, fmt.Errorf("line %d:%d: unexpected token %q in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
+		return nil, fmt.Errorf("%d:%d: error: unexpected token %q in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
 	default:
-		return nil, fmt.Errorf("line %d:%d: unexpected token %q in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
+		return nil, fmt.Errorf("%d:%d: error: unexpected token %q in expression", p.cur.Line, p.cur.Column, p.cur.Literal)
 	}
 }
 
@@ -791,7 +834,7 @@ func (p *Parser) parsePostfix(expr ast.Expr) (ast.Expr, error) {
 		case p.cur.Type == lexer.PUNCT && p.cur.Literal == ".":
 			p.next()
 			if p.cur.Type != lexer.IDENT && p.cur.Type != lexer.KEYWORD {
-				return nil, fmt.Errorf("line %d:%d: expected identifier after '.'", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected identifier after '.'", p.cur.Line, p.cur.Column)
 			}
 			field := p.cur.Literal
 			p.next()
@@ -814,7 +857,7 @@ func (p *Parser) parsePostfix(expr ast.Expr) (ast.Expr, error) {
 				}
 			}
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != ")" {
-				return nil, fmt.Errorf("line %d:%d: expected ')' after arguments", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected ')' after arguments", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 			expr = &ast.CallExpr{Function: expr, Args: args, Pos: ast.Position{Line: p.cur.Line, Column: p.cur.Column}}
@@ -826,10 +869,15 @@ func (p *Parser) parsePostfix(expr ast.Expr) (ast.Expr, error) {
 				return nil, err
 			}
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != "]" {
-				return nil, fmt.Errorf("line %d:%d: expected ']' after index expression", p.cur.Line, p.cur.Column)
+				return nil, fmt.Errorf("%d:%d: error: expected ']' after index expression", p.cur.Line, p.cur.Column)
 			}
 			p.next()
 			expr = &ast.IndexExpr{Object: expr, Index: idxExpr, Pos: indexPos}
+		case p.cur.Type == lexer.OPERATOR && (p.cur.Literal == "++" || p.cur.Literal == "--"):
+			op := p.cur.Literal
+			pos := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+			p.next()
+			expr = &ast.UnaryExpr{Op: op, Expr: expr, Postfix: true, Pos: pos}
 		default:
 			return expr, nil
 		}

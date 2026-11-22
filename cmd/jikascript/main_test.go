@@ -29,7 +29,7 @@ func TestParseOptionsDefaults(t *testing.T) {
 }
 
 func TestVersionMetadata(t *testing.T) {
-	if version.Compiler != "0.3.4" || version.Spec != "0.2.0" {
+	if version.Compiler != "0.3.4" || version.Spec != "0.3.0" {
 		t.Fatalf("unexpected version metadata: compiler=%q spec=%q", version.Compiler, version.Spec)
 	}
 }
@@ -103,6 +103,19 @@ func TestParseOptionsRejectsUnknownOptimizeMode(t *testing.T) {
 	_, err := parseOptions([]string{"examples/blink.jika", "--optimize", "balanced"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported optimize mode") {
 		t.Fatalf("expected optimize validation error, got %v", err)
+	}
+}
+
+func TestParseOptionsNormalizesOptimizeMode(t *testing.T) {
+	for _, input := range []string{"SIZE", " Speed ", "sPeEd"} {
+		opts, err := parseOptions([]string{"examples/blink.jika", "--optimize", input})
+		if err != nil {
+			t.Fatalf("parseOptions(%q): %v", input, err)
+		}
+		want := strings.ToLower(strings.TrimSpace(input))
+		if opts.optimize != want {
+			t.Fatalf("parseOptions(%q) optimize = %q, want %q", input, opts.optimize, want)
+		}
 	}
 }
 
@@ -593,5 +606,34 @@ func TestRunCheckAndTranspileResolveIncludes(t *testing.T) {
 	}
 	if strings.Contains(string(mainC), "helpers.jika") {
 		t.Fatalf("transpiled output must not retain source include statements:\n%s", mainC)
+	}
+}
+
+func TestRunCheckDiagnosticFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.jika")
+	if err := os.WriteFile(path, []byte("const HIGH = 5;\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	err := runCheck([]string{path})
+	if err == nil {
+		t.Fatal("expected checker error")
+	}
+	want := path + ":1:1: error:"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("diagnostic %q does not contain %q", err.Error(), want)
+	}
+}
+
+func TestRequireBuildArtifactsRejectsEmpty(t *testing.T) {
+	err := requireBuildArtifacts(nil, "out/blink-pio/.pio/build/ch32v003")
+	if err == nil || !strings.Contains(err.Error(), "no firmware artifacts") {
+		t.Fatalf("expected empty-artifact error, got %v", err)
+	}
+}
+
+func TestRequireBuildArtifactsAcceptsArtifact(t *testing.T) {
+	if err := requireBuildArtifacts([]string{"build/blink.elf"}, "out/blink-pio/.pio/build/ch32v003"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

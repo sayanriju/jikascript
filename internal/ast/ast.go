@@ -181,9 +181,12 @@ func (*BlockStmt) stmtNode() {}
 
 // ArrowFunctionExpr describes a callback or anonymous function.
 type ArrowFunctionExpr struct {
-	Params []string
-	Body   []Stmt
-	Pos    Position
+	Params       []string
+	ParamTypes   []string
+	ParamSymbols []string
+	ReturnType   string
+	Body         []Stmt
+	Pos          Position
 }
 
 func (*ArrowFunctionExpr) exprNode() {}
@@ -262,11 +265,12 @@ type BinaryExpr struct {
 
 func (*BinaryExpr) exprNode() {}
 
-// UnaryExpr represents prefix expression.
+// UnaryExpr represents a prefix or postfix unary expression.
 type UnaryExpr struct {
-	Op   string
-	Expr Expr
-	Pos  Position
+	Op      string
+	Expr    Expr
+	Postfix bool
+	Pos     Position
 }
 
 func (*UnaryExpr) exprNode() {}

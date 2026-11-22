@@ -111,6 +111,199 @@ func TestCheckAcceptsPinMethodArity(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsUART(t *testing.T) {
+	for _, source := range []string{
+		`const serial = uart("PD5", "PD6");`,
+		`const serial = uart(" pd5 ", "pd6");`,
+		`const serial = uart("PD5", "PD6"); serial.write("hi");`,
+		`const serial = uart("PD5", "PD6"); serial.println("ok");`,
+		`const serial = uart("PD5", "PD6"); let ch = serial.read();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidUART(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const serial = uart("PA2", "PA1");`, "unsupported uart pin pair"},
+		{`const serial = uart("PD6", "PD5");`, "unsupported uart pin pair"},
+		{`const serial = uart("PD5");`, "uart() expects exactly two arguments"},
+		{`const serial = uart("PD5", "PD6", "PC1");`, "uart() expects exactly two arguments"},
+		{`const serial = uart("PD5", 1);`, "rx argument must be a string literal"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsUnsupportedUARTMethod(t *testing.T) {
+	program, err := parser.ParseProgram(`const serial = uart("PD5", "PD6"); serial.print("x");`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "unsupported uart method") {
+		t.Fatalf("expected unsupported uart method error, got %v", err)
+	}
+}
+
+func TestCheckRejectsUARTMethodArity(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const serial = uart("PD5", "PD6"); serial.write();`, "write() expects exactly one argument"},
+		{`const serial = uart("PD5", "PD6"); serial.write("a", "b");`, "write() expects exactly one argument"},
+		{`const serial = uart("PD5", "PD6"); serial.println();`, "println() expects exactly one argument"},
+		{`const serial = uart("PD5", "PD6"); serial.read(1);`, "read() expects no arguments"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsPWM(t *testing.T) {
+	for _, source := range []string{
+		`const led = pwm("PC1");`,
+		`const led = pwm(" pc1 ");`,
+		`const led = pwm("PC1"); led.set(50);`,
+		`const led = pwm("PC1"); led.setFrequency(1000);`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidPWM(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pwm("PD4");`, "unknown pwm pin"},
+		{`const led = pwm("PC1", "PC2");`, "pwm() expects exactly one argument"},
+		{`const led = pwm(1);`, "pwm() argument must be a string literal"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsUnsupportedPWMMethod(t *testing.T) {
+	program, err := parser.ParseProgram(`const led = pwm("PC1"); led.pulse();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "unsupported pwm method") {
+		t.Fatalf("expected unsupported pwm method error, got %v", err)
+	}
+}
+
+func TestCheckRejectsPWMMethodArity(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pwm("PC1"); led.set();`, "set() expects exactly one argument"},
+		{`const led = pwm("PC1"); led.setFrequency();`, "setFrequency() expects exactly one argument"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsADC(t *testing.T) {
+	for _, source := range []string{
+		`const sensor = adc("PD4");`,
+		`const sensor = adc(" pd4 ");`,
+		`const sensor = adc("PD4"); let value = sensor.read();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidADC(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const sensor = adc("PC1");`, "unknown adc pin"},
+		{`const sensor = adc("PD4", "PD5");`, "adc() expects exactly one argument"},
+		{`const sensor = adc(1);`, "adc() argument must be a string literal"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsUnsupportedADCMethod(t *testing.T) {
+	program, err := parser.ParseProgram(`const sensor = adc("PD4"); sensor.write(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "unsupported adc method") {
+		t.Fatalf("expected unsupported adc method error, got %v", err)
+	}
+}
+
+func TestCheckRejectsADCMethodArity(t *testing.T) {
+	program, err := parser.ParseProgram(`const sensor = adc("PD4"); sensor.read(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "read() expects no arguments") {
+		t.Fatalf("expected adc read arity error, got %v", err)
+	}
+}
+
 func TestCheckRejectsDuplicateTaskNames(t *testing.T) {
 	program, err := parser.ParseProgram(`task("blink", 1000, () => { }); task("blink", 500, () => { });`)
 	if err != nil {
@@ -315,6 +508,34 @@ let temp: int8 = -128;`)
 	}
 }
 
+func TestCheckRejectsIntegerLiteralOutsideInt32Range(t *testing.T) {
+	sources := []string{
+		`let x = 2147483648;`,
+		`let x: int32 = 2147483648;`,
+		`let x = 4294967295;`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "out of range") {
+			t.Fatalf("expected out-of-range error for %q, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckAllowsMaxInt32Literal(t *testing.T) {
+	program, err := parser.ParseProgram(`let x = 2147483647;
+let y: int32 = -2147483648;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
 func TestCheckAllowsNumericWideningDeclaration(t *testing.T) {
 	program, err := parser.ParseProgram(`let count: int32 = 42;
 let reading: float32 = count;`)
@@ -435,5 +656,348 @@ const result = add(1, "wrong");`)
 	}
 	if err := Check(program); err == nil || !strings.Contains(err.Error(), "numeric operands") {
 		t.Fatalf("expected incompatible function argument error, got %v", err)
+	}
+}
+
+func TestCheckAcceptsPeripheralArgumentTypes(t *testing.T) {
+	for _, source := range []string{
+		`const led = pwm("PC1"); led.set(50);`,
+		`const led = pwm("PC1"); led.setFrequency(1000);`,
+		`const led = pwm("PC1"); led.set(1.5);`,
+		`const led = pwm("PC1"); let duty = 50; led.set(duty);`,
+		`const serial = uart("PD5", "PD6"); serial.write("hi");`,
+		`const serial = uart("PD5", "PD6"); serial.println("ok");`,
+		`const serial = uart("PD5", "PD6"); let msg = "hi"; serial.write(msg);`,
+		`const led = pin("PC1"); led.write(HIGH);`,
+		`const led = pin("PC1"); led.write();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsPeripheralArgumentTypeMismatch(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pwm("PC1"); led.set("50");`, "set() argument 1 expects number, got string"},
+		{`const led = pwm("PC1"); led.set(true);`, "set() argument 1 expects number, got boolean"},
+		{`const led = pwm("PC1"); let duty = "50"; led.set(duty);`, "set() argument 1 expects number, got string"},
+		{`const led = pwm("PC1"); led.setFrequency("fast");`, "setFrequency() argument 1 expects number, got string"},
+		{`const serial = uart("PD5", "PD6"); serial.write(1);`, "write() argument 1 expects string, got int32"},
+		{`const serial = uart("PD5", "PD6"); serial.println(42);`, "println() argument 1 expects string, got int32"},
+		{`const led = pin("PC1"); led.write("HIGH");`, "write() argument 1 expects number, got string"},
+		{`const led = pin("PC1"); led.write(true);`, "write() argument 1 expects number, got boolean"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsPeripheralHandleAsValue(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const serial = uart("PD5", "PD6"); serial.write(serial);`, "write() argument 1 expects string, got uart handle"},
+		{`const led = pwm("PC1"); const serial = uart("PD5", "PD6"); led.set(serial);`, "set() argument 1 expects number, got uart handle"},
+		{`const serial = uart("PD5", "PD6"); let copy = serial;`, "cannot assign uart peripheral 'serial' to a scalar binding"},
+		{`const led = pin("PC1"); let copy = led;`, "cannot assign pin peripheral 'led' to a scalar binding"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsPeripheralReturnValues(t *testing.T) {
+	for _, source := range []string{
+		`const serial = uart("PD5", "PD6"); let ch = serial.read();`,
+		`const sensor = adc("PD4"); let level = sensor.read();`,
+		`const button = pin("PD2"); let state = button.read();`,
+		`const serial = uart("PD5", "PD6"); if (serial.read() >= 0) { serial.write("ok"); }`,
+		`const sensor = adc("PD4"); if (sensor.read() > 512) { }`,
+		`const serial = uart("PD5", "PD6"); let ch: int32 = serial.read();`,
+		`const sensor = adc("PD4"); let level: int32 = sensor.read();`,
+	} {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsVoidPeripheralResult(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const led = pwm("PC1"); let x = led.set(50);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = led.setFrequency(1000);`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); let x = serial.write("hi");`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); let x = serial.println("hi");`, "expression does not produce a value"},
+		{`const led = pin("PC1"); let x = led.write(HIGH);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = 0; x = led.set(50);`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); if (led.set(50)) { }`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); while (led.set(50)) { }`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = led.set(50) + 1;`, "expression does not produce a value"},
+		{`const led = pwm("PC1"); let x = !led.set(50);`, "expression does not produce a value"},
+		{`const serial = uart("PD5", "PD6"); serial.write(serial.write("x"));`, "write() argument 1 expects string, got void expression"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsPeripheralReturnTypeMismatch(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const sensor = adc("PD4"); let value: string = sensor.read();`, "type mismatch for declaration: expected string, got int32"},
+		{`const serial = uart("PD5", "PD6"); let value: string = serial.read();`, "type mismatch for declaration: expected string, got int32"},
+		{`const serial = uart("PD5", "PD6"); serial.write(serial.read());`, "write() argument 1 expects string, got int32"},
+		{`const button = pin("PD2"); const serial = uart("PD5", "PD6"); serial.write(button.read());`, "write() argument 1 expects string, got int32"},
+		{`let values: int32[2] = [1, 2]; const serial = uart("PD5", "PD6"); serial.write(values[0]);`, "write() argument 1 expects string, got int32"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsMembersOnScalars(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let x = 5; x.write(1);`, "'x' has type int32 and no properties or methods"},
+		{`let x = 5; let y = x.length;`, "'x' has type int32 and no properties or methods"},
+		{`let s = "hi"; s.println("x");`, "'s' has type string and no properties or methods"},
+		{`let b = true; b.toggle();`, "'b' has type boolean and no properties or methods"},
+		{`const c = 10; c.read();`, "'c' has type int32 and no properties or methods"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckValidatesPeripheralConstructorReceivers(t *testing.T) {
+	valid := []string{
+		`pin("PC1").write(1);`,
+		`pin("PC1").toggle();`,
+		`pwm("PC1").set(50);`,
+		`pwm("PC1").setFrequency(1000);`,
+		`uart("PD5", "PD6").write("hi");`,
+		`adc("PD4").read();`,
+	}
+	for _, source := range valid {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+
+	invalid := []struct {
+		source string
+		want   string
+	}{
+		{`pin("PC1").foo();`, "unsupported pin method 'foo'"},
+		{`pwm("PC1").foo();`, "unsupported pwm method 'foo'"},
+		{`adc("PD4").foo();`, "unsupported adc method 'foo'"},
+		{`pwm("PC1").set("50");`, "set() argument 1 expects number, got string"},
+		{`uart("PD5", "PD6").write(1);`, "write() argument 1 expects string, got int32"},
+		{`uart("PD5", "PD6").println(1);`, "println() argument 1 expects string, got int32"},
+	}
+	for _, tc := range invalid {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAllowsArrowFunctionBinding(t *testing.T) {
+	program, err := parser.ParseProgram(`const square = x => x * x;
+let result = square(5);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckAllowsFunctionWithoutReturn(t *testing.T) {
+	program, err := parser.ParseProgram(`function noop() { let x = 1; }
+noop();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckAllowsBlockArrowWithoutReturn(t *testing.T) {
+	program, err := parser.ParseProgram(`const toggle = () => { let x = 1; };
+toggle();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckRejectsShadowingPredefinedNames(t *testing.T) {
+	sources := []string{
+		`const HIGH = 5;`,
+		`let LOW = 0;`,
+		`function HIGH() { return 1; }`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), "predefined name") {
+			t.Fatalf("expected predefined-name error for %q, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsTaskNameCollisionAfterNormalization(t *testing.T) {
+	program, err := parser.ParseProgram(`task("my-task", 100, () => {});
+task("my_task", 200, () => {});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "collides") {
+		t.Fatalf("expected task name collision error, got %v", err)
+	}
+}
+
+func TestCheckAllowsDistinctTaskNames(t *testing.T) {
+	program, err := parser.ParseProgram(`task("blink", 100, () => {});
+task("button", 200, () => {});
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckRejectsDuplicateFunctionDeclarations(t *testing.T) {
+	program, err := parser.ParseProgram(`function foo() { return 1; }
+function foo() { return 2; }
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "already declared") {
+		t.Fatalf("expected duplicate function error, got %v", err)
+	}
+}
+
+func TestCheckRejectsFractionalTaskInterval(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 1.5, () => {});`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "whole number") {
+		t.Fatalf("expected fractional interval error, got %v", err)
+	}
+}
+
+func TestCheckRejectsTaskIntervalBeyondUint32(t *testing.T) {
+	program, err := parser.ParseProgram(`task("t", 4294967296, () => {});`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "uint32 range") {
+		t.Fatalf("expected interval range error, got %v", err)
+	}
+}
+
+func TestCheckAllowsPostfixIncrementOnVariable(t *testing.T) {
+	program, err := parser.ParseProgram(`let i = 0;
+i++;
+i--;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("unexpected checker error: %v", err)
+	}
+}
+
+func TestCheckRejectsPostfixOnNonTarget(t *testing.T) {
+	sources := []struct {
+		source string
+		want   string
+	}{
+		{`let x = 1++;`, "requires a variable or property target"},
+		{`const c = 1; c++;`, "cannot assign to constant variable"},
+		{`let a = [1, 2]; a[0]++;`, "requires a variable or property target"},
+	}
+	for _, tc := range sources {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
 	}
 }

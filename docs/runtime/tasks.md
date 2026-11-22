@@ -2,7 +2,7 @@
 
 In traditional Arduino or C code, multitasking usually means writing messy `millis()` math or complex interrupt service routines (ISRs).
 
-JikaScript includes a **pure-C periodic cooperative scheduler** that lets you write clean, concurrent tasks effortlessly!
+JikaScript includes a **pure-C periodic cooperative scheduler** that lets you write clean, periodic tasks without hand-written timer interrupts!
 
 ---
 
@@ -19,8 +19,8 @@ task("heartbeat", 500, () => {
 
 - **`name`:** A unique string literal identifying the task. Duplicate names are a
   compile error.
-- **`interval_ms`:** How often (in milliseconds) the callback runs. Must be
-  greater than zero.
+- **`interval_ms`:** How often (in milliseconds) the callback runs. It must be a
+  positive whole-number literal within the `uint32` range.
 - **`callback`:** A function taking no parameters.
 
 The callback runs in main context, not in an interrupt, so it may call any
@@ -44,9 +44,11 @@ scheduler.start(); // optional, but conventional
 
 ---
 
-## Multiple Concurrent Tasks
+## Multiple Periodic Tasks
 
-You can register multiple periodic tasks that run concurrently without blocking each other:
+You can register multiple periodic tasks. They are cooperative: each callback
+runs to completion before the next due callback runs, so a long-running
+callback delays the others.
 
 ```javascript
 const led1 = pin("PC1");
@@ -93,10 +95,22 @@ after regenerating the project.
 
 ---
 
+## Task Removal and Reconfiguration
+
+Task removal and interval reconfiguration are **not supported** in v0.1. Tasks
+are registered once at startup and keep their interval for the lifetime of the
+firmware. The scheduler has no `periodic_task_remove` or
+`periodic_task_set_interval` API.
+
+If you need a task to stop doing work temporarily, guard its body with your own
+flag or condition instead of unregistering it.
+
+---
+
 ## How It Works Under the Hood
 
 - **Non-Preemptive & Cooperative:** Tasks run to completion when triggered. There is no complicated thread context-switching or stack overflow worries.
 - **Timer Driven:** A clean 1 ms hardware timer advances the scheduler clock. Your application callbacks run in main context, safely away from interrupt restrictions.
 - **Zero Memory Allocation:** Task slots are allocated statically at compile time (default 8 tasks, customizable).
 
-Next, let's look at [GPIO & Hardware](hardware.md).
+Next, let's look at [GPIO](gpio.md).

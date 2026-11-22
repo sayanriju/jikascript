@@ -67,6 +67,37 @@ Supported primitive types:
 
 ---
 
+## Numeric Ranges and Overflow
+
+Each explicit integer annotation maps to the corresponding fixed-width C type. The accepted range is:
+
+| Type | Range |
+| --- | --- |
+| `int8` | -128 to 127 |
+| `uint8` | 0 to 255 |
+| `int16` | -32768 to 32767 |
+| `uint16` | 0 to 65535 |
+| `int32` | -2147483648 to 2147483647 |
+| `uint32` | 0 to 4294967295 |
+| `float32` | IEEE-754 single precision |
+
+Rules:
+
+- An integer literal defaults to `int32`. When it is assigned to a different
+  integer annotation, its value must fit that annotation's range. A literal
+  that does not fit its resolved integer type is a compile-time error; the
+  compiler does not silently narrow or overflow it.
+- `number` lowers to `float32` so that both integer and fractional values are
+  representable without narrowing.
+- Runtime arithmetic uses the C integer promotion and overflow rules of the
+  target. The compiler does not insert runtime overflow checks, so signed
+  overflow is undefined and unsigned arithmetic wraps modulo the type width.
+- Numeric-to-numeric comparisons are allowed and follow C's usual arithmetic
+  conversions. Comparisons between numeric and non-numeric values (for
+  example `number` and `string`) are rejected at compile time.
+
+---
+
 ## Strict Equality: No JavaScript Coercion Surprises! 🚫
 
 One of the trickiest parts of standard JavaScript is implicit type coercion (like `"5" == 5`). 

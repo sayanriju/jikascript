@@ -58,7 +58,7 @@ func printUsage() {
 	fmt.Println("  jikascript check <input.jika>")
 	fmt.Println("  jikascript transpile <input.jika> [--output=<file.c>] [--target=<target>]")
 	fmt.Println("  jikascript build <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--optimize=<size|speed>]")
-	fmt.Println("  jikascript flash <input.jika|input.c> [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
+	fmt.Println("  jikascript flash <input.jika|input.c> [--output=<prefix>] [--target=<target>] [--board=<board>] [--env=<env>] [--port=<device>] [--optimize=<size|speed>]")
 	fmt.Println()
 	fmt.Println("options accept both --name=value and --name value; -o is a short form of --output.")
 }
@@ -76,7 +76,7 @@ func runCheck(args []string) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s:%w", path, err)
 	}
 	fmt.Printf("check: %s OK\n", path)
 	return nil
@@ -101,11 +101,11 @@ func runTranspile(args []string) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s:%w", opts.input, err)
 	}
 	output, err := cgen.Generate(program)
 	if err != nil {
-		return fmt.Errorf("%s: %w", opts.input, err)
+		return fmt.Errorf("%s:%w", opts.input, err)
 	}
 	if opts.output == "" {
 		fmt.Print(output)
@@ -125,11 +125,11 @@ func generateProject(inputPath string, project platformio.Project) error {
 		return err
 	}
 	if err := checker.Check(program); err != nil {
-		return fmt.Errorf("%s: %w", inputPath, err)
+		return fmt.Errorf("%s:%w", inputPath, err)
 	}
 	mainC, err := cgen.Generate(program)
 	if err != nil {
-		return fmt.Errorf("%s: %w", inputPath, err)
+		return fmt.Errorf("%s:%w", inputPath, err)
 	}
 
 	srcDir := filepath.Join(project.Dir, "src")
@@ -169,6 +169,12 @@ var runtimeFiles = []struct {
 	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
+	{source: "targets/ch32fun/runtime/uart.c", destination: "src/runtime/uart.c"},
+	{source: "targets/ch32fun/runtime/uart.h", destination: "include/uart.h"},
+	{source: "targets/ch32fun/runtime/pwm.c", destination: "src/runtime/pwm.c"},
+	{source: "targets/ch32fun/runtime/pwm.h", destination: "include/pwm.h"},
+	{source: "targets/ch32fun/runtime/adc.c", destination: "src/runtime/adc.c"},
+	{source: "targets/ch32fun/runtime/adc.h", destination: "include/adc.h"},
 }
 
 func copyFile(source, destination string) error {
@@ -231,7 +237,29 @@ func runBuild(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireBuildArtifacts(artifacts, project.ArtifactDir()); err != nil {
+		return err
+	}
+	copiedELF := false
+	for _, artifact := range artifacts {
+		if filepath.Ext(artifact) == ".elf" {
+			copiedELF = true
+			break
+		}
+	}
+	if !copiedELF {
+		fmt.Fprintf(os.Stderr, "build: warning: expected artifact %s was not found\n", project.ArtifactPath("firmware.elf"))
+	}
 	fmt.Printf("build: generated %s\n", strings.Join(artifacts, ", "))
+	return nil
+}
+
+// requireBuildArtifacts fails a build that produced no firmware artifacts so a
+// successful exit status always means something was written.
+func requireBuildArtifacts(artifacts []string, artifactDir string) error {
+	if len(artifacts) == 0 {
+		return fmt.Errorf("build: PlatformIO produced no firmware artifacts in %s", artifactDir)
+	}
 	return nil
 }
 
@@ -450,8 +478,9 @@ func parseOptions(args []string) (cliOptions, error) {
 			return opts, fmt.Errorf("unexpected argument: %s", arg)
 		}
 	}
-	if opts.optimize != "" && opts.optimize != "size" && opts.optimize != "speed" {
-		return opts, fmt.Errorf("unsupported optimize mode %q (use size or speed)", opts.optimize)
+	opts.optimize = strings.ToLower(strings.TrimSpace(opts.optimize))
+	if opts.optimize != "" && opts.optimize != platformio.OptimizeSize && opts.optimize != platformio.OptimizeSpeed {
+		return opts, fmt.Errorf("unsupported optimize mode %q (use %s or %s)", opts.optimize, platformio.OptimizeSize, platformio.OptimizeSpeed)
 	}
 	return opts, nil
 }
