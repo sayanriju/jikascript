@@ -25,5 +25,5 @@ three methods:
 `read()` is non-blocking, so it is safe to poll from a task. Any other method
 name, or the wrong number of arguments, is a compile error.
 
-See also: [GPIO](#/runtime/gpio) · [PWM](#/runtime/pwm) · [ADC](#/runtime/adc) ·
-[Peripherals overview](#/runtime/hardware)
+See also: [GPIO](runtime/gpio.md) · [PWM](runtime/pwm.md) · [ADC](runtime/adc.md) ·
+[Peripherals overview](runtime/hardware.md)

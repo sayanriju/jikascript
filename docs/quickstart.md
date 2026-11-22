@@ -16,7 +16,7 @@ git clone --depth 1 https://github.com/sayanriju/jikascript.git
 cd jikascript
 ```
 
-Then follow the [Installation](#/installation) guide for full setup (Go,
+Then follow the [Installation](installation.md) guide for full setup (Go,
 PlatformIO, and optional `just`).
 
 ---
@@ -154,10 +154,10 @@ the size for your installed toolchain.
 ## What's Next?
 
 Now that you've seen the basics, let's explore the language features in detail:
-- Learn about [Variables & Types](#/language/variables-and-types)
-- Write [Functions](#/language/functions) with smart type inference
-- Try [postfix increment and decrement](#/language/control-flow) in loops
-- Work with [Objects & Records](#/language/objects) and [Arrays](#/language/arrays)
-- Drive [GPIO, UART, PWM, and ADC](#/runtime/hardware) peripherals — see the
-  [GPIO](#/runtime/gpio), [UART](#/runtime/uart), [PWM](#/runtime/pwm), and
-  [ADC](#/runtime/adc) references
+- Learn about [Variables & Types](language/variables-and-types.md)
+- Write [Functions](language/functions.md) with smart type inference
+- Try [postfix increment and decrement](language/control-flow.md) in loops
+- Work with [Objects & Records](language/objects.md) and [Arrays](language/arrays.md)
+- Drive [GPIO, UART, PWM, and ADC](runtime/hardware.md) peripherals — see the
+  [GPIO](runtime/gpio.md), [UART](runtime/uart.md), [PWM](runtime/pwm.md), and
+  [ADC](runtime/adc.md) references

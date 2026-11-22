@@ -113,4 +113,4 @@ flag or condition instead of unregistering it.
 - **Timer Driven:** A clean 1 ms hardware timer advances the scheduler clock. Your application callbacks run in main context, safely away from interrupt restrictions.
 - **Zero Memory Allocation:** Task slots are allocated statically at compile time (default 8 tasks, customizable).
 
-Next, let's look at [GPIO](#/runtime/gpio).
+Next, let's look at [GPIO](runtime/gpio.md).

@@ -55,4 +55,4 @@ with corrupted state. Treat a hang as a bounds violation and fix the logic.
 Constant indices are validated at compile time, so `queue[99]` on a
 capacity-8 array is a compiler error rather than a runtime halt.
 
-Next: [Control Flow](#/language/control-flow) in JikaScript.
+Next: [Control Flow](language/control-flow.md) in JikaScript.

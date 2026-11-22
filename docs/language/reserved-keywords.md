@@ -36,7 +36,7 @@ The initial language subset reserves the following names:
 - `++`, `--` are operators rather than identifiers
 
 `uart`, `pwm`, and `adc` are the peripheral constructors, and `pin` is the GPIO
-constructor. See [Peripherals](#/runtime/hardware) for the methods each one
+constructor. See [Peripherals](runtime/hardware.md) for the methods each one
 provides.
 
 `HIGH` and `LOW` are built-in pin-state constants, not ordinary user variables.
@@ -66,4 +66,4 @@ let startTime = 0;
 
 This rule is part of the language design, not an accident of the compiler. It keeps the syntax simple and prevents ambiguous embedded constructs.
 
-Next up: [Functions](#/language/functions)
+Next up: [Functions](language/functions.md)

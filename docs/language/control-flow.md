@@ -61,4 +61,4 @@ switch (state) {
 }
 ```
 
-Now let's see how JikaScript handles the hardware world: [Tasks & Scheduling](#/runtime/tasks)!
+Now let's see how JikaScript handles the hardware world: [Tasks & Scheduling](runtime/tasks.md)!

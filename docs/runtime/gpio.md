@@ -88,5 +88,5 @@ task("button_check", 20, () => {
 scheduler.start();
 ```
 
-See also: [UART](#/runtime/uart) · [PWM](#/runtime/pwm) · [ADC](#/runtime/adc) ·
-[Peripherals overview](#/runtime/hardware)
+See also: [UART](runtime/uart.md) · [PWM](runtime/pwm.md) · [ADC](runtime/adc.md) ·
+[Peripherals overview](runtime/hardware.md)

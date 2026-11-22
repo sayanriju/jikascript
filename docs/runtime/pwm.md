@@ -55,5 +55,5 @@ frequencies are scaled by the same error.
 - `PD7` is PWM-capable but is also the NRST pin; disable NRST to use it.
 - `PD4` is not a PWM pin because TIM2 is remapped to expose `PC1`.
 
-See also: [GPIO](#/runtime/gpio) · [UART](#/runtime/uart) · [ADC](#/runtime/adc) ·
-[Peripherals overview](#/runtime/hardware)
+See also: [GPIO](runtime/gpio.md) · [UART](runtime/uart.md) · [ADC](runtime/adc.md) ·
+[Peripherals overview](runtime/hardware.md)
