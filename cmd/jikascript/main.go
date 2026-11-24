@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -146,7 +147,44 @@ func generateProject(inputPath string, project platformio.Project) error {
 	if err := ensureFunConfig(includeDir); err != nil {
 		return err
 	}
+	if err := stageRuntimeFiles(project, cgen.UsedPeripherals(program)); err != nil {
+		return err
+	}
+	return project.WriteConfig()
+}
+
+// runtimeFile describes one runtime source or header staged into a generated
+// PlatformIO project. An empty peripheral means the file is always staged.
+type runtimeFile struct {
+	source      string
+	destination string
+	peripheral  string
+}
+
+var runtimeFiles = []runtimeFile{
+	{source: "runtime/periodic/periodic.c", destination: "src/runtime/periodic.c"},
+	{source: "runtime/periodic/periodic.h", destination: "include/periodic.h"},
+	{source: "targets/ch32fun/runtime/gpio.c", destination: "src/runtime/gpio.c"},
+	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
+	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h", peripheral: "pins"},
+	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
+	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
+	{source: "targets/ch32fun/runtime/uart.c", destination: "src/runtime/uart.c", peripheral: "uart"},
+	{source: "targets/ch32fun/runtime/uart.h", destination: "include/uart.h", peripheral: "uart"},
+	{source: "targets/ch32fun/runtime/pwm.c", destination: "src/runtime/pwm.c", peripheral: "pwm"},
+	{source: "targets/ch32fun/runtime/pwm.h", destination: "include/pwm.h", peripheral: "pwm"},
+	{source: "targets/ch32fun/runtime/adc.c", destination: "src/runtime/adc.c", peripheral: "adc"},
+	{source: "targets/ch32fun/runtime/adc.h", destination: "include/adc.h", peripheral: "adc"},
+}
+
+// stageRuntimeFiles copies the runtime sources and headers a project needs.
+// Core scheduler and GPIO files are always staged; optional peripheral files
+// are staged only when the program uses them.
+func stageRuntimeFiles(project platformio.Project, used map[string]bool) error {
 	for _, file := range runtimeFiles {
+		if file.peripheral != "" && !used[file.peripheral] {
+			continue
+		}
 		sourcePath, err := resolveProjectPath(file.source)
 		if err != nil {
 			return err
@@ -155,26 +193,29 @@ func generateProject(inputPath string, project platformio.Project) error {
 			return err
 		}
 	}
-	return project.WriteConfig()
+	return nil
 }
 
-var runtimeFiles = []struct {
-	source      string
-	destination string
-}{
-	{source: "runtime/periodic/periodic.c", destination: "src/runtime/periodic.c"},
-	{source: "runtime/periodic/periodic.h", destination: "include/periodic.h"},
-	{source: "targets/ch32fun/runtime/gpio.c", destination: "src/runtime/gpio.c"},
-	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
-	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h"},
-	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
-	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
-	{source: "targets/ch32fun/runtime/uart.c", destination: "src/runtime/uart.c"},
-	{source: "targets/ch32fun/runtime/uart.h", destination: "include/uart.h"},
-	{source: "targets/ch32fun/runtime/pwm.c", destination: "src/runtime/pwm.c"},
-	{source: "targets/ch32fun/runtime/pwm.h", destination: "include/pwm.h"},
-	{source: "targets/ch32fun/runtime/adc.c", destination: "src/runtime/adc.c"},
-	{source: "targets/ch32fun/runtime/adc.h", destination: "include/adc.h"},
+// usedPeripheralsFromC infers which optional runtime units a hand-edited C file
+// needs from its include directives. Generated C only includes the headers for
+// peripherals it uses, so this keeps the staged project minimal while still
+// supporting older generated files that include every header.
+func usedPeripheralsFromC(mainC []byte) map[string]bool {
+	used := map[string]bool{}
+	for _, unit := range []struct {
+		family string
+		header string
+	}{
+		{family: "pins", header: "jikascript_pins.h"},
+		{family: "uart", header: "uart.h"},
+		{family: "pwm", header: "pwm.h"},
+		{family: "adc", header: "adc.h"},
+	} {
+		if bytes.Contains(mainC, []byte(`#include "`+unit.header+`"`)) {
+			used[unit.family] = true
+		}
+	}
+	return used
 }
 
 func copyFile(source, destination string) error {
@@ -368,14 +409,8 @@ func generateProjectFromC(inputPath string, project platformio.Project) error {
 	if err := ensureFunConfig(includeDir); err != nil {
 		return err
 	}
-	for _, file := range runtimeFiles {
-		sourcePath, err := resolveProjectPath(file.source)
-		if err != nil {
-			return err
-		}
-		if err := copyFile(sourcePath, filepath.Join(project.Dir, file.destination)); err != nil {
-			return err
-		}
+	if err := stageRuntimeFiles(project, usedPeripheralsFromC(mainC)); err != nil {
+		return err
 	}
 	return project.WriteConfig()
 }
