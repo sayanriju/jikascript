@@ -231,6 +231,84 @@ func TestPrepareBuildInputTranspilesJikaSource(t *testing.T) {
 	}
 }
 
+func TestPrepareBuildInputStagesOnlyUsedRuntimeFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "runtime-staging.jika")
+	if err := os.WriteFile(inputPath, []byte("const led = pin(\"PC1\");\nled.output();\n"), 0o644); err != nil {
+		t.Fatalf("write temp .jika file: %v", err)
+	}
+
+	project, _, _, err := preparePlatformIOProject(cliOptions{input: inputPath, target: "ch32v003"})
+	if err != nil {
+		t.Fatalf("preparePlatformIOProject error: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(project.Dir) })
+
+	for _, name := range []string{
+		"src/runtime/gpio.c",
+		"src/runtime/periodic.c",
+		"src/runtime/periodic_ch32fun.c",
+		"include/gpio.h",
+		"include/jikascript_pins.h",
+		"include/periodic.h",
+		"include/periodic_ch32fun.h",
+	} {
+		if _, err := os.Stat(filepath.Join(project.Dir, name)); err != nil {
+			t.Errorf("project missing required runtime file %s: %v", name, err)
+		}
+	}
+	for _, name := range []string{
+		"src/runtime/uart.c",
+		"src/runtime/pwm.c",
+		"src/runtime/adc.c",
+		"include/uart.h",
+		"include/pwm.h",
+		"include/adc.h",
+	} {
+		if _, err := os.Stat(filepath.Join(project.Dir, name)); !os.IsNotExist(err) {
+			t.Errorf("project unexpectedly staged unused runtime file %s", name)
+		}
+	}
+}
+
+func TestPrepareBuildInputFromCStagesOnlyIncludedRuntimeFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "uart-only.c")
+	mainC := "#include \"uart.h\"\n\nint main(void) { return 0; }\n"
+	if err := os.WriteFile(inputPath, []byte(mainC), 0o644); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+
+	project, _, _, err := preparePlatformIOProject(cliOptions{input: inputPath, target: "ch32v003"})
+	if err != nil {
+		t.Fatalf("preparePlatformIOProject error: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(project.Dir) })
+
+	for _, name := range []string{
+		"src/runtime/gpio.c",
+		"src/runtime/periodic.c",
+		"src/runtime/periodic_ch32fun.c",
+		"src/runtime/uart.c",
+		"include/uart.h",
+	} {
+		if _, err := os.Stat(filepath.Join(project.Dir, name)); err != nil {
+			t.Errorf("project missing required runtime file %s: %v", name, err)
+		}
+	}
+	for _, name := range []string{
+		"src/runtime/pwm.c",
+		"src/runtime/adc.c",
+		"include/pwm.h",
+		"include/adc.h",
+		"include/jikascript_pins.h",
+	} {
+		if _, err := os.Stat(filepath.Join(project.Dir, name)); !os.IsNotExist(err) {
+			t.Errorf("project unexpectedly staged unused runtime file %s", name)
+		}
+	}
+}
+
 func TestPreparePlatformIOProjectRejectsUnknownBoard(t *testing.T) {
 	_, _, _, err := preparePlatformIOProject(cliOptions{input: "blink.jika", board: "esp32"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported board") {

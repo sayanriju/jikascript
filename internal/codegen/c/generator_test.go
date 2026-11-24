@@ -427,6 +427,75 @@ func TestGenerateRejectsUnsupportedArrayLiteralExpression(t *testing.T) {
 	}
 }
 
+func TestGenerateIncludesOnlyUsedPeripheralHeaders(t *testing.T) {
+	cases := []struct {
+		name    string
+		source  string
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "gpio only",
+			source:  `const led = pin("PC1"); led.output();`,
+			want:    []string{`#include "gpio.h"`, `#include "jikascript_pins.h"`},
+			notWant: []string{`#include "uart.h"`, `#include "pwm.h"`, `#include "adc.h"`},
+		},
+		{
+			name:    "uart",
+			source:  `const serial = uart("PD5", "PD6"); serial.write("hi");`,
+			want:    []string{`#include "uart.h"`, `#include "jikascript_pins.h"`},
+			notWant: []string{`#include "pwm.h"`, `#include "adc.h"`},
+		},
+		{
+			name:    "pwm temporary receiver",
+			source:  `pwm("PC1").set(50);`,
+			want:    []string{`#include "pwm.h"`, `#include "jikascript_pins.h"`},
+			notWant: []string{`#include "uart.h"`, `#include "adc.h"`},
+		},
+		{
+			name:    "adc",
+			source:  `const sensor = adc("PD4"); let value = sensor.read();`,
+			want:    []string{`#include "adc.h"`, `#include "jikascript_pins.h"`},
+			notWant: []string{`#include "uart.h"`, `#include "pwm.h"`},
+		},
+		{
+			name:    "uart inside task callback",
+			source:  `task("poll", 200, () => { uart("PD5", "PD6").write("hi"); });`,
+			want:    []string{`#include "uart.h"`, `#include "jikascript_pins.h"`},
+			notWant: []string{`#include "pwm.h"`, `#include "adc.h"`},
+		},
+		{
+			name:    "no hardware",
+			source:  `task("tick", 1000, () => { });`,
+			want:    []string{`#include "gpio.h"`, `#include "periodic.h"`},
+			notWant: []string{`#include "jikascript_pins.h"`, `#include "uart.h"`, `#include "pwm.h"`, `#include "adc.h"`},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			program, err := parser.ParseProgram(tc.source)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			out, err := Generate(program)
+			if err != nil {
+				t.Fatalf("generate error: %v", err)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(out, want) {
+					t.Errorf("expected %q in generated C, got:\n%s", want, out)
+				}
+			}
+			for _, notWant := range tc.notWant {
+				if strings.Contains(out, notWant) {
+					t.Errorf("did not expect %q in generated C, got:\n%s", notWant, out)
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateEmitsCanonicalPinName(t *testing.T) {
 	program, err := parser.ParseProgram(`const led = pin(" pc1 ");
 led.output();`)
