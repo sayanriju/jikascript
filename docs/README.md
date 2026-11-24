@@ -4,9 +4,9 @@ Ever wanted to write embedded microcontroller firmware with the friendliness and
 
 That's **JikaScript**!
 
-JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers. You write clean, expressive `.jika` code, and the JikaScript compiler translates it directly into readable, lightning-fast C99.
+JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers. You write clean, expressive `.jika` code, and the JikaScript compiler translates it directly into readable, lightning-fast C99. Today that C99 is built and flashed with CH32fun and PlatformIO for the WCH CH32V003 family.
 
-> **Current target scope:** This release supports the WCH CH32V003 family only, through CH32fun and PlatformIO. The Go compiler and language core are target-independent, but GPIO, UART, PWM, ADC, build, and flash support currently exist only for CH32V003. Other MCU families are not yet supported.
+> **Current target scope:** This release supports the WCH CH32V003 family only — the CH32V003 parts covered by CH32fun — through CH32fun and PlatformIO. The Go compiler and language core are target-independent, and the modular backend layout makes other targets feasible in the future, but adding them is not a current goal. GPIO, UART, PWM, ADC, build, and flash support currently exist only for CH32V003. No other MCU family is supported.
 
 ---
 

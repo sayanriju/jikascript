@@ -1,14 +1,17 @@
 # JikaScript
 
-JikaScript is a lightweight ECMAScript-inspired language for embedded development.
+JikaScript is a lightweight, JavaScript-like language for embedded development.
+You write `.jika` source with familiar ECMAScript syntax; the Go compiler
+transpiles it to readable, standard C99. Today that C is built and flashed with
+[CH32fun](https://github.com/cnlohr/ch32fun) and
+[PlatformIO](https://platformio.org/) for the WCH CH32V003 family.
 
-> **Current target scope:** This release supports the WCH CH32V003 family only
-> through CH32fun and PlatformIO. The compiler and language core are
-> target-independent, but hardware, build, and flash support are currently
-> CH32V003-specific. Other MCU families are not yet supported.
-
-Source files (`.jika`) are compiled by a Go-based compiler into readable C99, then
-built with target-native tooling.
+> **Current target scope:** This release supports the WCH CH32V003 family only —
+> the CH32V003 parts covered by CH32fun. The compiler and language core are
+> target-independent, and the modular backend layout makes other targets
+> feasible in the future (see [SPEC.md](SPEC.md) §11), but adding them is not a
+> current goal. Hardware, build, and flash support today are CH32V003-specific;
+> no other MCU family is supported.
 
 Documentation site: [GitHub Pages](https://sayanriju.github.io/jikascript)
 
@@ -437,3 +440,15 @@ For interrupt/main-context synchronization, platforms may register critical-sect
 ```c
 periodic_set_critical_section(enter_fn, exit_fn);
 ```
+
+## Acknowledgements
+
+JikaScript stands on the shoulders of these projects:
+
+- [CH32fun](https://github.com/cnlohr/ch32fun) — the CH32V003 hardware library
+  that backs JikaScript's GPIO, UART, PWM, ADC, and timer integration.
+- [PlatformIO](https://platformio.org/) — the build and upload tooling driven by
+  `jikascript build` and `jikascript flash`.
+- [Community PIO CH32V platform](https://github.com/Community-PIO-CH32V/platform-ch32v)
+  — supplies the `ch32v003fun` framework and RISC-V toolchain that PlatformIO
+  fetches on first build.

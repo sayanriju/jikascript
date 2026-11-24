@@ -83,7 +83,7 @@ calls are all rejected before a single byte is flashed.
 
 ## Why Pure C99 Output Matters
 
-- **Target Flexibility:** C99 can be compiled by virtually any microcontroller toolchain in existence.
+- **Portable output:** C99 is supported by virtually any microcontroller toolchain, so adding other backends later is feasible. Today the only supported path is CH32V003 via CH32fun and PlatformIO; other targets are future work, not current support.
 - **Easy Hand-Editing:** You can generate the `.c` file, tweak it by hand if you need custom low-level hacks, and feed it straight back into `jikascript build blink.c`.
 - **Zero Hidden Surprises:** You can audit the generated C code line-by-line to see exactly how your functions and tasks are translated.
 
