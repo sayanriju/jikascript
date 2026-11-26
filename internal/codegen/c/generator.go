@@ -275,7 +275,14 @@ func Generate(program *ast.Program) (string, error) {
 	collectFunctionTypes(program)
 	usedPeripherals := UsedPeripherals(program)
 	b.WriteString("#include <stdbool.h>\n")
-	b.WriteString("#include <stdint.h>\n\n")
+	b.WriteString("#include <stdint.h>\n")
+	if usedPeripherals["ch32fun"] {
+		b.WriteString("#include <ch32fun.h>\n")
+	}
+	if usedPeripherals["stdio"] {
+		b.WriteString("#include <stdio.h>\n")
+	}
+	b.WriteString("\n")
 	b.WriteString("#include \"periodic.h\"\n\n")
 	b.WriteString("#include \"periodic_ch32fun.h\"\n\n")
 	b.WriteString("#include \"gpio.h\"\n\n")
@@ -853,6 +860,30 @@ func renderExpr(expr ast.Expr) string {
 						return ""
 					}
 					return "adc_open(JIKA_PIN_" + normalizeIdentifier(pin) + ")"
+				}
+			case "printf":
+				if _, shadowed := mangledIdentifiers["printf"]; !shadowed {
+					var args []string
+					for _, arg := range node.Args {
+						args = append(args, renderExpr(arg))
+					}
+					return "printf(" + strings.Join(args, ", ") + ")"
+				}
+			case "delay":
+				if _, shadowed := mangledIdentifiers["delay"]; !shadowed {
+					if len(node.Args) != 1 {
+						setGenerationErrorf("delay() requires one argument")
+						return ""
+					}
+					return "Delay_Ms(" + renderExpr(node.Args[0]) + ")"
+				}
+			case "delay_us":
+				if _, shadowed := mangledIdentifiers["delay_us"]; !shadowed {
+					if len(node.Args) != 1 {
+						setGenerationErrorf("delay_us() requires one argument")
+						return ""
+					}
+					return "Delay_Us(" + renderExpr(node.Args[0]) + ")"
 				}
 			}
 		}

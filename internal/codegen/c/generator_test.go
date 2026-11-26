@@ -39,6 +39,7 @@ func hostIncludeFlags(t *testing.T) []string {
 		"-I", pinInc,
 		"-I", filepath.Join(root, "runtime", "periodic"),
 		"-I", gpioInc,
+		"-I", filepath.Join(gpioInc, "testdata"),
 	}
 }
 
@@ -936,5 +937,60 @@ task("blink", 1000, () => { led.toggle(); });
 		if next != first {
 			t.Fatalf("generated output differs between runs:\n--- first ---\n%s\n--- run %d ---\n%s", first, i+2, next)
 		}
+	}
+}
+
+func TestGenerateDebugBuiltins(t *testing.T) {
+	program, err := parser.ParseProgram(`printf("value=%d\n", 42);
+delay(10);
+delay_us(50);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, genErr := Generate(program)
+	if genErr != nil {
+		t.Fatalf("generate error: %v", genErr)
+	}
+	for _, want := range []string{
+		"#include <ch32fun.h>",
+		"#include <stdio.h>",
+		`printf("value=%d\n", 42);`,
+		"Delay_Ms(10);",
+		"Delay_Us(50);",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "debug.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated debug C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateOmitsDebugHeadersWhenUnused(t *testing.T) {
+	program, err := parser.ParseProgram(`const led = pin("PC1"); led.output();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, genErr := Generate(program)
+	if genErr != nil {
+		t.Fatalf("generate error: %v", genErr)
+	}
+	if strings.Contains(out, "#include <ch32fun.h>") || strings.Contains(out, "#include <stdio.h>") {
+		t.Fatalf("debug headers should only be emitted when printf/delay is used:\n%s", out)
 	}
 }

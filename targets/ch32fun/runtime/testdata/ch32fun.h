@@ -97,4 +97,8 @@ void funPinMode(int pin, int mode);
 void funAnalogInit(void);
 int funAnalogRead(int channel);
 
+/* Delay macros used by generated code that calls delay()/delay_us(). */
+#define Delay_Ms(n) ((void)(n))
+#define Delay_Us(n) ((void)(n))
+
 #endif

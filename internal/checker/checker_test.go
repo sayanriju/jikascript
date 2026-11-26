@@ -1001,3 +1001,51 @@ func TestCheckRejectsPostfixOnNonTarget(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAcceptsDebugBuiltins(t *testing.T) {
+	sources := []string{
+		`printf("hello\n");`,
+		`printf("value=%d\n", 42);`,
+		`delay(10);`,
+		`delay_us(50);`,
+		`let ms = 5; delay(ms);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidDebugBuiltins(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`printf();`, "printf() expects a format string"},
+		{`printf(1);`, "format argument must be a string literal"},
+		{`let x = printf("x");`, "expression does not produce a value"},
+		{`delay();`, "delay() expects exactly one argument"},
+		{`delay(1, 2);`, "delay() expects exactly one argument"},
+		{`delay_us();`, "delay_us() expects exactly one argument"},
+		{`delay("x");`, "delay() expects a numeric argument"},
+		{`delay(true);`, "delay() expects a numeric argument"},
+		{`const led = pin("PC1"); delay(led);`, "delay() expects a numeric argument"},
+		{`let x = delay(1);`, "expression does not produce a value"},
+		{`function printf() {}`, "cannot redeclare predefined name 'printf'"},
+		{`function delay() {}`, "cannot redeclare predefined name 'delay'"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}

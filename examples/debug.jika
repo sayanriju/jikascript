@@ -1,0 +1,12 @@
+// Debug output over SWIO plus a blocking delay.
+const led = pin("PC1");
+
+led.output();
+
+task("debug", 1000, () => {
+    printf("tick\n");
+    led.toggle();
+    delay(10);
+});
+
+scheduler.start();

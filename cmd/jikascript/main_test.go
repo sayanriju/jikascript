@@ -378,7 +378,7 @@ func TestPreparePlatformIOProjectHonorsOptimize(t *testing.T) {
 
 func TestEnsureFunConfigCreatesMinimalHeader(t *testing.T) {
 	tempDir := t.TempDir()
-	if err := ensureFunConfig(tempDir); err != nil {
+	if err := ensureFunConfig(tempDir, "int main(void) { return 0; }\n"); err != nil {
 		t.Fatalf("ensureFunConfig error: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(tempDir, "funconfig.h"))
@@ -387,6 +387,24 @@ func TestEnsureFunConfigCreatesMinimalHeader(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "#ifndef _FUNCONFIG_H") {
 		t.Fatal("expected standard CH32fun guard in generated funconfig.h")
+	}
+	if !strings.Contains(string(data), "#define FUNCONF_USE_DEBUGPRINTF 0") {
+		t.Fatalf("expected debug printf disabled without stdio include:\n%s", data)
+	}
+}
+
+func TestEnsureFunConfigEnablesDebugPrintf(t *testing.T) {
+	tempDir := t.TempDir()
+	mainC := "#include <stdio.h>\nint main(void) { printf(\"x\"); return 0; }\n"
+	if err := ensureFunConfig(tempDir, mainC); err != nil {
+		t.Fatalf("ensureFunConfig error: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(tempDir, "funconfig.h"))
+	if err != nil {
+		t.Fatalf("read generated funconfig.h: %v", err)
+	}
+	if !strings.Contains(string(data), "#define FUNCONF_USE_DEBUGPRINTF 1") {
+		t.Fatalf("expected debug printf enabled with stdio include:\n%s", data)
 	}
 }
 

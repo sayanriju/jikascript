@@ -144,7 +144,7 @@ func generateProject(inputPath string, project platformio.Project) error {
 	if err := os.WriteFile(filepath.Join(srcDir, "main.c"), []byte(mainC), 0o644); err != nil {
 		return err
 	}
-	if err := ensureFunConfig(includeDir); err != nil {
+	if err := ensureFunConfig(includeDir, mainC); err != nil {
 		return err
 	}
 	if err := stageRuntimeFiles(project, cgen.UsedPeripherals(program)); err != nil {
@@ -406,7 +406,7 @@ func generateProjectFromC(inputPath string, project platformio.Project) error {
 	if err := os.WriteFile(filepath.Join(srcDir, "main.c"), mainC, 0o644); err != nil {
 		return err
 	}
-	if err := ensureFunConfig(includeDir); err != nil {
+	if err := ensureFunConfig(includeDir, string(mainC)); err != nil {
 		return err
 	}
 	if err := stageRuntimeFiles(project, usedPeripheralsFromC(mainC)); err != nil {
@@ -537,22 +537,29 @@ func resolveBuildOutput(inputPath, output string) (string, string) {
 	return filepath.Dir(withoutExt), filepath.Base(withoutExt)
 }
 
-func ensureFunConfig(dir string) error {
+func ensureFunConfig(dir string, mainC string) error {
 	configPath := filepath.Join(dir, "funconfig.h")
 	if _, err := os.Stat(configPath); err == nil {
 		return nil
 	}
-	content := `#ifndef _FUNCONFIG_H
+	// Generated C includes <stdio.h> only when the program calls printf. CH32fun
+	// needs FUNCONF_USE_DEBUGPRINTF enabled for printf to route over SWIO; with
+	// it disabled the weak printf has no _write implementation and fails to link.
+	debugPrintf := 0
+	if strings.Contains(mainC, "#include <stdio.h>") {
+		debugPrintf = 1
+	}
+	content := fmt.Sprintf(`#ifndef _FUNCONFIG_H
 #define _FUNCONFIG_H
 
 #define FUNCONF_USE_HSI 1
 #define FUNCONF_SYSTICK_USE_HCLK 1
 #define FUNCONF_USE_PLL 0
-#define FUNCONF_USE_DEBUGPRINTF 0
+#define FUNCONF_USE_DEBUGPRINTF %d
 #define FUNCONF_USE_UARTPRINTF 0
 
 #endif
-`
+`, debugPrintf)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}

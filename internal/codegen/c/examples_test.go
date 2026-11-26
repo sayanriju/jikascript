@@ -79,6 +79,7 @@ func TestExamplesTranspileAndCompile(t *testing.T) {
 			binary := filepath.Join(workDir, name+".bin")
 			cmd := exec.Command("gcc", "-std=c99", "-Wall", "-Wextra", "-Werror",
 				"-I", pinInc, "-I", periodicInc, "-I", gpioInc,
+				"-I", filepath.Join(gpioInc, "testdata"),
 				cFile,
 				filepath.Join(periodicInc, "periodic.c"),
 				filepath.Join(gpioInc, "gpio_stub.c"),

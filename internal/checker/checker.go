@@ -668,6 +668,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 			}
 		}
 	case *ast.FunctionDecl:
+		if builtin(node.Name) {
+			return fmt.Errorf("%d:%d: error: cannot redeclare predefined name '%s'", node.Pos.Line, node.Pos.Column, node.Name)
+		}
 		if existing, ok := current[node.Name]; ok && !strings.HasPrefix(existing, "function-") {
 			return fmt.Errorf("%d:%d: error: function '%s' already declared", node.Pos.Line, node.Pos.Column, node.Name)
 		}
@@ -845,6 +848,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			return fmt.Errorf("%d:%d: error: undefined identifier '%s'", node.Pos.Line, node.Pos.Column, node.Name)
 		}
 	case *ast.CallExpr:
+		if err := checkBuiltinCall(node, scopeStack); err != nil {
+			return err
+		}
 		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
 			if ident, ok := sel.Object.(*ast.Identifier); ok {
 				if binding, exists := lookup(scopeStack, ident.Name); exists {
@@ -1179,6 +1185,9 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 	if returnType, ok := peripheralCallReturnType(value, scopeStack); ok && returnType == "" {
 		return "", fmt.Errorf("expression does not produce a value")
 	}
+	if builtinCallVoid(value) {
+		return "", fmt.Errorf("expression does not produce a value")
+	}
 
 	// A peripheral handle is an opaque runtime value, not a scalar. Letting it
 	// fall through to the default int32 binding would silently copy the handle
@@ -1469,6 +1478,9 @@ func peripheralCallReturnType(expr ast.Expr, scopeStack []map[string]string) (st
 // checkValueExpression rejects an expression that produces no value, such as a
 // void peripheral method call used where a value is required.
 func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if builtinCallVoid(expr) {
+		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
+	}
 	if returnType, ok := peripheralCallReturnType(expr, scopeStack); ok && returnType == "" {
 		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
 	}
@@ -1872,7 +1884,60 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW":
+	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us":
+		return true
+	default:
+		return false
+	}
+}
+
+// checkBuiltinCall validates the argument shape of the debug builtins. printf is
+// variadic: the format string must be a literal so the C compiler can check it,
+// but the remaining arguments are passed through unchanged. delay and delay_us
+// take exactly one numeric argument.
+func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error {
+	ident, ok := call.Function.(*ast.Identifier)
+	if !ok {
+		return nil
+	}
+	switch ident.Name {
+	case "printf":
+		if len(call.Args) == 0 {
+			return fmt.Errorf("%d:%d: error: printf() expects a format string", call.Pos.Line, call.Pos.Column)
+		}
+		if _, ok := call.Args[0].(*ast.StringLiteral); !ok {
+			return fmt.Errorf("%d:%d: error: printf() format argument must be a string literal", call.Pos.Line, call.Pos.Column)
+		}
+	case "delay", "delay_us":
+		if len(call.Args) != 1 {
+			return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", call.Pos.Line, call.Pos.Column, ident.Name, len(call.Args))
+		}
+		if arg, ok := call.Args[0].(*ast.Identifier); ok && scopeStack != nil {
+			if binding, exists := lookup(scopeStack, arg.Name); exists && peripheralKindOf(binding) != "" {
+				return fmt.Errorf("%d:%d: error: %s() expects a numeric argument, got %s peripheral '%s'", call.Pos.Line, call.Pos.Column, ident.Name, peripheralKindOf(binding), arg.Name)
+			}
+		}
+		if t, known := inferLiteralType(call.Args[0], scopeStack); known && (t == "string" || t == "boolean" || strings.Contains(t, ":")) {
+			return fmt.Errorf("%d:%d: error: %s() expects a numeric argument, got %s", call.Pos.Line, call.Pos.Column, ident.Name, t)
+		}
+	}
+	return nil
+}
+
+// builtinCallVoid reports whether expr is a call to a builtin that produces no
+// value. These lower to C functions or macros with void results, so using one
+// as a value would generate invalid C.
+func builtinCallVoid(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := call.Function.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	switch ident.Name {
+	case "printf", "delay", "delay_us":
 		return true
 	default:
 		return false
