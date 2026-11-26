@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
-## [Unreleased]
+## [0.4.5] - 2026-11-26
+
+Language specification: `0.7.0`
+
+This release adds pseudo-random number builtins.
 
 ### Added
 
@@ -298,6 +302,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.4.5]: https://github.com/sayanriju/jikascript/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/sayanriju/jikascript/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/sayanriju/jikascript/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/sayanriju/jikascript/compare/v0.4.1...v0.4.2
