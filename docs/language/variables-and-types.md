@@ -67,6 +67,21 @@ Supported primitive types:
 
 ---
 
+## Strings
+
+Strings are immutable, statically allocated values:
+
+```javascript
+const message = "Hello";
+let n = message.length; // runtime strlen()
+let m = "abc".length;   // compile-time constant 3
+```
+
+`==`, `===`, `!=`, and `!==` compare string contents with `strcmp`, not
+pointers. `.length` returns the number of bytes.
+
+---
+
 ## Numeric Literals
 
 Integer literals may be decimal or hexadecimal:

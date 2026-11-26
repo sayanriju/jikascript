@@ -242,6 +242,9 @@ type SelectorExpr struct {
 	Object Expr
 	Field  string
 	Pos    Position
+	// StringLength marks a .length access on a string literal or string
+	// binding. Code generation emits a compile-time length or strlen().
+	StringLength bool
 }
 
 func (*SelectorExpr) exprNode() {}
@@ -261,6 +264,9 @@ type BinaryExpr struct {
 	Op    string
 	Right Expr
 	Pos   Position
+	// StringCompare marks equality comparisons between two string operands.
+	// Code generation lowers these to strcmp() instead of pointer comparison.
+	StringCompare bool
 }
 
 func (*BinaryExpr) exprNode() {}

@@ -454,9 +454,15 @@ Example:
 
 ```javascript
 const message = "Hello JikaScript";
+let n = message.length; // runtime strlen()
+let m = "abc".length;   // compile-time constant 3
 ```
 
 Strings should be stored in read-only memory where supported by the target toolchain.
+
+`==`, `===`, `!=`, and `!==` compare string contents with `strcmp`, not
+pointers. `.length` returns the number of bytes: a compile-time constant for a
+string literal, or `strlen()` for a string binding.
 
 Dynamic string allocation and garbage collection are excluded.
 

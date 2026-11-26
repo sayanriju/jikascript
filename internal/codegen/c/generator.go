@@ -282,6 +282,9 @@ func Generate(program *ast.Program) (string, error) {
 	if usedPeripherals["stdio"] {
 		b.WriteString("#include <stdio.h>\n")
 	}
+	if usedPeripherals["string"] {
+		b.WriteString("#include <string.h>\n")
+	}
 	b.WriteString("\n")
 	b.WriteString("#include \"periodic.h\"\n\n")
 	b.WriteString("#include \"periodic_ch32fun.h\"\n\n")
@@ -947,6 +950,12 @@ func renderExpr(expr ast.Expr) string {
 		}
 		return renderExpr(node.Function) + "(" + strings.Join(args, ", ") + ")"
 	case *ast.SelectorExpr:
+		if node.StringLength {
+			if lit, ok := node.Object.(*ast.StringLiteral); ok {
+				return fmt.Sprintf("%d", len(lit.Value))
+			}
+			return "strlen(" + renderExpr(node.Object) + ")"
+		}
 		if ident, ok := node.Object.(*ast.Identifier); ok {
 			if meta, exists := generatedArrays[ident.Name]; exists {
 				switch node.Field {
@@ -980,6 +989,13 @@ func renderExpr(expr ast.Expr) string {
 					}
 				}
 			}
+		}
+		if node.StringCompare {
+			cmp := "strcmp(" + renderExpr(node.Left) + ", " + renderExpr(node.Right) + ")"
+			if node.Op == "!=" || node.Op == "!==" {
+				return cmp + " != 0"
+			}
+			return cmp + " == 0"
 		}
 		op := node.Op
 		if op == "===" {

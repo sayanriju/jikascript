@@ -969,6 +969,12 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			}
 		}
 	case *ast.SelectorExpr:
+		if _, ok := node.Object.(*ast.StringLiteral); ok {
+			if node.Field != "length" {
+				return fmt.Errorf("%d:%d: error: unsupported string property '%s'", node.Pos.Line, node.Pos.Column, node.Field)
+			}
+			node.StringLength = true
+		}
 		if ident, ok := node.Object.(*ast.Identifier); ok {
 			if kind, exists := lookup(scopeStack, ident.Name); exists {
 				if isObjectBinding(kind) {
@@ -1002,7 +1008,11 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 					}
 				}
 				if scalarType, isScalar := scalarBindingType(kind); isScalar {
-					return fmt.Errorf("%d:%d: error: '%s' has type %s and no properties or methods", node.Pos.Line, node.Pos.Column, ident.Name, scalarType)
+					if scalarType == "string" && node.Field == "length" {
+						node.StringLength = true
+					} else {
+						return fmt.Errorf("%d:%d: error: '%s' has type %s and no properties or methods", node.Pos.Line, node.Pos.Column, ident.Name, scalarType)
+					}
 				}
 			}
 		}
@@ -1045,6 +1055,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		if isEqualityOp(node.Op) {
 			if leftKnown && rightKnown && !equalityComparable(leftType, rightType) {
 				return fmt.Errorf("%d:%d: error: cannot compare %s and %s with %s", node.Pos.Line, node.Pos.Column, leftType, rightType, node.Op)
+			}
+			if leftKnown && rightKnown && leftType == "string" && rightType == "string" {
+				node.StringCompare = true
 			}
 		}
 		if isAssignmentOp(node.Op) {
@@ -1951,6 +1964,9 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		}
 		return "", false
 	case *ast.SelectorExpr:
+		if _, ok := node.Object.(*ast.StringLiteral); ok && node.Field == "length" {
+			return "int32", true
+		}
 		if ident, ok := node.Object.(*ast.Identifier); ok && scopeStack != nil {
 			if binding, exists := lookup(scopeStack, ident.Name); exists {
 				if isObjectBinding(binding) {
@@ -1961,6 +1977,9 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 					case "length", "capacity":
 						return "int32", true
 					}
+				}
+				if t, ok := scalarBindingType(binding); ok && t == "string" && node.Field == "length" {
+					return "int32", true
 				}
 			}
 		}

@@ -1349,6 +1349,43 @@ func TestCheckRejectsInvalidArrayMethods(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsStringLengthAndEquality(t *testing.T) {
+	sources := []string{
+		`let n = "hello".length;`,
+		`let s = "hi"; let n = s.length;`,
+		`let a = "x"; let b = "y"; if (a == b) { }`,
+		`let a = "x"; let b = "y"; if (a !== b) { }`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidStringProperties(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let n = "hello".bogus;`, "unsupported string property"},
+		{`let s = "hi"; let n = s.bogus;`, "has type string and no properties or methods"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
 func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 	cases := []struct {
 		source string

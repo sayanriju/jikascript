@@ -16,6 +16,13 @@ separately. A compiler release may advance without changing the language.
   `indexOf(value)`, and the `capacity` property. `indexOf` supports numeric and
   boolean arrays; string arrays are rejected.
 
+### Fixed
+
+- String equality (`==`, `===`, `!=`, `!==`) now compares contents with
+  `strcmp` instead of pointers.
+- `string.length` is now supported (compile-time for literals, `strlen()` for
+  bindings) instead of generating invalid C.
+
 ## [0.4.5] - 2026-11-26
 
 Language specification: `0.7.0`

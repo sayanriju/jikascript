@@ -49,11 +49,17 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 				visitExpr(arg)
 			}
 		case *ast.SelectorExpr:
+			if node.StringLength {
+				used["string"] = true
+			}
 			visitExpr(node.Object)
 		case *ast.IndexExpr:
 			visitExpr(node.Object)
 			visitExpr(node.Index)
 		case *ast.BinaryExpr:
+			if node.StringCompare {
+				used["string"] = true
+			}
 			visitExpr(node.Left)
 			visitExpr(node.Right)
 		case *ast.UnaryExpr:
