@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
-## [Unreleased]
+## [0.4.2] - 2026-11-26
+
+Language specification: `0.4.0`
+
+This release adds SWIO debug output and blocking delay builtins.
 
 ### Added
 
@@ -248,6 +252,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.4.2]: https://github.com/sayanriju/jikascript/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/sayanriju/jikascript/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/sayanriju/jikascript/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/sayanriju/jikascript/compare/v0.3.3...v0.3.4
