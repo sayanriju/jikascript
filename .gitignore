@@ -1,6 +1,6 @@
 # Go build artifacts
 bin/
-jikascript
+/jikascript
 *.test
 *.out
 *.exe
