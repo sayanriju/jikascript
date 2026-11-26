@@ -1032,6 +1032,52 @@ func TestGenerateOmitsDebugHeadersWhenUnused(t *testing.T) {
 	}
 }
 
+func TestGenerateSPIAndI2C(t *testing.T) {
+	program, err := parser.ParseProgram(`const spiBus = spi("PC5", "PC7", "PC6");
+spiBus.configure(1000000, 0);
+let rx = spiBus.transfer(0x9F);
+
+const i2cBus = i2c("PC2", "PC1");
+i2cBus.configure(100000);
+i2cBus.write(0x3C, 0x00, 0xAF);
+let v = i2cBus.read(0x3C, 0x00);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`#include "spi.h"`,
+		`#include "i2c.h"`,
+		`js_spiBus = spi_open(JIKA_PIN_PC5, JIKA_PIN_PC7, JIKA_PIN_PC6);`,
+		`spi_configure(js_spiBus, 1000000, 0);`,
+		`js_rx = spi_transfer(js_spiBus, 0x9F);`,
+		`js_i2cBus = i2c_open(JIKA_PIN_PC2, JIKA_PIN_PC1);`,
+		`i2c_configure(js_i2cBus, 100000);`,
+		`i2c_write(js_i2cBus, 0x3C, 0x00, 0xAF);`,
+		`js_v = i2c_read(js_i2cBus, 0x3C, 0x00);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "spi_i2c.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated SPI/I2C C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
 func TestGenerateMillisAndPinPull(t *testing.T) {
 	program, err := parser.ParseProgram(`const button = pin("PD2");
 button.pullUp();

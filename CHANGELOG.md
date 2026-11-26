@@ -27,6 +27,10 @@ resistors, and UART baud/byte I/O.
   pull resistor.
 - UART baud configuration via `uart(tx, rx, baud)` and `serial.setBaud(baud)`,
   plus `serial.writeByte(value)` and `serial.available()`.
+- SPI support via `spi(sck, miso, mosi)` with `configure(hz, mode)` and
+  `transfer(value)`.
+- I2C support via `i2c(scl, sda)` with `configure(hz)`, `write(addr, reg,
+  value)`, and `read(addr, reg)`.
 
 ### Changed
 

@@ -30,7 +30,7 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 		case *ast.CallExpr:
 			if ident, ok := node.Function.(*ast.Identifier); ok {
 				switch ident.Name {
-				case "pin", "uart", "pwm", "adc":
+				case "pin", "uart", "pwm", "adc", "spi", "i2c":
 					used["pins"] = true
 					if ident.Name != "pin" {
 						used[ident.Name] = true

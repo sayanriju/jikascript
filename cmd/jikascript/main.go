@@ -175,6 +175,10 @@ var runtimeFiles = []runtimeFile{
 	{source: "targets/ch32fun/runtime/pwm.h", destination: "include/pwm.h", peripheral: "pwm"},
 	{source: "targets/ch32fun/runtime/adc.c", destination: "src/runtime/adc.c", peripheral: "adc"},
 	{source: "targets/ch32fun/runtime/adc.h", destination: "include/adc.h", peripheral: "adc"},
+	{source: "targets/ch32fun/runtime/spi.c", destination: "src/runtime/spi.c", peripheral: "spi"},
+	{source: "targets/ch32fun/runtime/spi.h", destination: "include/spi.h", peripheral: "spi"},
+	{source: "targets/ch32fun/runtime/i2c.c", destination: "src/runtime/i2c.c", peripheral: "i2c"},
+	{source: "targets/ch32fun/runtime/i2c.h", destination: "include/i2c.h", peripheral: "i2c"},
 }
 
 // stageRuntimeFiles copies the runtime sources and headers a project needs.
@@ -210,6 +214,8 @@ func usedPeripheralsFromC(mainC []byte) map[string]bool {
 		{family: "uart", header: "uart.h"},
 		{family: "pwm", header: "pwm.h"},
 		{family: "adc", header: "adc.h"},
+		{family: "spi", header: "spi.h"},
+		{family: "i2c", header: "i2c.h"},
 	} {
 		if bytes.Contains(mainC, []byte(`#include "`+unit.header+`"`)) {
 			used[unit.family] = true

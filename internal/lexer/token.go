@@ -49,6 +49,8 @@ var Keywords = map[string]TokenType{
 	"uart":      KEYWORD,
 	"pwm":       KEYWORD,
 	"adc":       KEYWORD,
+	"spi":       KEYWORD,
+	"i2c":       KEYWORD,
 	"scheduler": KEYWORD,
 	"start":     KEYWORD,
 	"include":   KEYWORD,

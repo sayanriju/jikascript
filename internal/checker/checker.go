@@ -1328,6 +1328,49 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 			pinName.CanonicalValue = ch32fun.NormalizePin(pinName.Value)
 			return "adc-" + baseKind, nil
 		}
+		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "spi" {
+			if len(call.Args) != 3 {
+				return "", fmt.Errorf("spi() expects exactly three arguments (sck, miso, mosi)")
+			}
+			sck, ok := call.Args[0].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("spi() sck argument must be a string literal")
+			}
+			miso, ok := call.Args[1].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("spi() miso argument must be a string literal")
+			}
+			mosi, ok := call.Args[2].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("spi() mosi argument must be a string literal")
+			}
+			if !ch32fun.IsValidSPITuple(sck.Value, miso.Value, mosi.Value) {
+				return "", fmt.Errorf("unsupported spi pin mapping %q, %q, %q", sck.Value, miso.Value, mosi.Value)
+			}
+			sck.CanonicalValue = ch32fun.NormalizePin(sck.Value)
+			miso.CanonicalValue = ch32fun.NormalizePin(miso.Value)
+			mosi.CanonicalValue = ch32fun.NormalizePin(mosi.Value)
+			return "spi-" + baseKind, nil
+		}
+		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "i2c" {
+			if len(call.Args) != 2 {
+				return "", fmt.Errorf("i2c() expects exactly two arguments (scl, sda)")
+			}
+			scl, ok := call.Args[0].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("i2c() scl argument must be a string literal")
+			}
+			sda, ok := call.Args[1].(*ast.StringLiteral)
+			if !ok {
+				return "", fmt.Errorf("i2c() sda argument must be a string literal")
+			}
+			if !ch32fun.IsValidI2CTuple(scl.Value, sda.Value) {
+				return "", fmt.Errorf("unsupported i2c pin mapping %q, %q", scl.Value, sda.Value)
+			}
+			scl.CanonicalValue = ch32fun.NormalizePin(scl.Value)
+			sda.CanonicalValue = ch32fun.NormalizePin(sda.Value)
+			return "i2c-" + baseKind, nil
+		}
 	}
 	resolvedType := declaredType
 	if resolvedType == "" {
@@ -1393,7 +1436,7 @@ func isPinBinding(kind string) bool {
 // "pin-const" -> "pin" and "uart-var" -> "uart". It returns "" for bindings
 // that are not peripheral objects (scalars, arrays, and records).
 func peripheralKindOf(kind string) string {
-	for _, family := range []string{"pin", "uart", "pwm", "adc"} {
+	for _, family := range []string{"pin", "uart", "pwm", "adc", "spi", "i2c"} {
 		if strings.HasPrefix(kind, family+"-") {
 			return family
 		}
@@ -1414,7 +1457,7 @@ func peripheralTempFamily(expr ast.Expr) (string, bool) {
 		return "", false
 	}
 	switch ident.Name {
-	case "pin", "uart", "pwm", "adc":
+	case "pin", "uart", "pwm", "adc", "spi", "i2c":
 		return ident.Name, true
 	}
 	return "", false
@@ -1449,6 +1492,20 @@ func peripheralMethodReturnType(family, method string) (string, bool) {
 	case "adc":
 		if method == "read" {
 			return "int32", true
+		}
+	case "spi":
+		switch method {
+		case "transfer":
+			return "int32", true
+		case "configure":
+			return "", true
+		}
+	case "i2c":
+		switch method {
+		case "read":
+			return "int32", true
+		case "configure", "write":
+			return "", true
 		}
 	}
 	return "", false
@@ -1506,6 +1563,10 @@ func isValidPeripheralMethod(family, method string) bool {
 		return ch32fun.IsValidPWMMethod(method)
 	case "adc":
 		return ch32fun.IsValidADCMethod(method)
+	case "spi":
+		return ch32fun.IsValidSPIMethod(method)
+	case "i2c":
+		return ch32fun.IsValidI2CMethod(method)
 	}
 	return false
 }
@@ -1549,6 +1610,32 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 		if method == "read" && argc != 0 {
 			return fmt.Errorf("%d:%d: error: read() expects no arguments, got %d", pos.Line, pos.Column, argc)
 		}
+	case "spi":
+		switch method {
+		case "configure":
+			if argc != 2 {
+				return fmt.Errorf("%d:%d: error: configure() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
+			}
+		case "transfer":
+			if argc != 1 {
+				return fmt.Errorf("%d:%d: error: transfer() expects exactly one argument, got %d", pos.Line, pos.Column, argc)
+			}
+		}
+	case "i2c":
+		switch method {
+		case "configure":
+			if argc != 1 {
+				return fmt.Errorf("%d:%d: error: configure() expects exactly one argument, got %d", pos.Line, pos.Column, argc)
+			}
+		case "write":
+			if argc != 3 {
+				return fmt.Errorf("%d:%d: error: write() expects exactly three arguments, got %d", pos.Line, pos.Column, argc)
+			}
+		case "read":
+			if argc != 2 {
+				return fmt.Errorf("%d:%d: error: read() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
+			}
+		}
 	}
 	return nil
 }
@@ -1575,6 +1662,14 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 		}
 	case "pwm":
 		if method == "set" || method == "setFrequency" {
+			expected = "number"
+		}
+	case "spi":
+		if method == "configure" || method == "transfer" {
+			expected = "number"
+		}
+	case "i2c":
+		if method == "configure" || method == "write" || method == "read" {
 			expected = "number"
 		}
 	}
@@ -1904,7 +1999,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis":
+	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis":
 		return true
 	default:
 		return false

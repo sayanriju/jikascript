@@ -1221,3 +1221,51 @@ func TestCheckInfersBooleanForUARTAvailable(t *testing.T) {
 		t.Fatalf("ready ResolvedType = %q, want boolean", decl.ResolvedType)
 	}
 }
+
+func TestCheckAcceptsSPIAndI2C(t *testing.T) {
+	sources := []string{
+		`const bus = spi("PC5", "PC7", "PC6");`,
+		`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000, 0);`,
+		`const bus = spi("PC5", "PC7", "PC6"); let rx = bus.transfer(0x9F);`,
+		`const bus = i2c("PC2", "PC1");`,
+		`const bus = i2c("PC2", "PC1"); bus.configure(100000);`,
+		`const bus = i2c("PC2", "PC1"); bus.write(0x3C, 0x00, 0xAF);`,
+		`const bus = i2c("PC2", "PC1"); let v = bus.read(0x3C, 0x00);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const bus = spi("PC5", "PC6", "PC7");`, "unsupported spi pin mapping"},
+		{`const bus = spi("PC5", "PC7");`, "spi() expects exactly three arguments"},
+		{`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000);`, "configure() expects exactly two arguments"},
+		{`const bus = spi("PC5", "PC7", "PC6"); bus.transfer();`, "transfer() expects exactly one argument"},
+		{`const bus = spi("PC5", "PC7", "PC6"); bus.transfer("x");`, "transfer() argument 1 expects number"},
+		{`const bus = i2c("PC1", "PC2");`, "unsupported i2c pin mapping"},
+		{`const bus = i2c("PC2");`, "i2c() expects exactly two arguments"},
+		{`const bus = i2c("PC2", "PC1"); bus.write(0x3C, 0x00);`, "write() expects exactly three arguments"},
+		{`const bus = i2c("PC2", "PC1"); bus.read(0x3C);`, "read() expects exactly two arguments"},
+		{`const bus = i2c("PC2", "PC1"); bus.configure();`, "configure() expects exactly one argument"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}

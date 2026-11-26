@@ -20,6 +20,8 @@
     - [UART](runtime/uart.md)
     - [PWM](runtime/pwm.md)
     - [ADC](runtime/adc.md)
+    - [SPI](runtime/spi.md)
+    - [I2C](runtime/i2c.md)
   - **Debugging**
     - [Debug Output & Delays](runtime/debug.md)
 

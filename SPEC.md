@@ -921,12 +921,60 @@ if (millis() - last >= 500) {
   the SysTick counter directly, wrap in roughly 89 seconds at 48 MHz, and
   couple the language to the timer implementation.
 
-## 7.7 Future peripherals
+## 7.7 SPI
+
+Example:
+
+```javascript
+const bus = spi("PC5", "PC7", "PC6"); // sck, miso, mosi
+const cs = pin("PD0");
+
+cs.output();
+cs.write(HIGH);
+bus.configure(1000000, 0);
+let id = bus.transfer(0x9F);
+```
+
+`spi()` takes three string-literal pin arguments: SCK, MISO, then MOSI. The
+CH32V003 backend supports the default SPI1 mapping `spi("PC5", "PC7", "PC6")`;
+the compiler rejects any other mapping. Chip select is a normal GPIO pin.
+
+An spi object supports exactly two methods:
+
+- `configure(hz, mode)` sets the clock frequency and CPOL/CPHA mode (0..3).
+  The default is 1 MHz, mode 0.
+- `transfer(value)` performs a full-duplex 8-bit transfer and returns the
+  received byte. Ignore the result when transmitting only.
+
+## 7.8 I2C
+
+Example:
+
+```javascript
+const bus = i2c("PC2", "PC1"); // scl, sda
+
+bus.configure(100000);
+bus.write(0x3C, 0x00, 0xAF); // addr, reg, value
+let v = bus.read(0x3C, 0x00); // addr, reg
+```
+
+`i2c()` takes two string-literal pin arguments: SCL then SDA. The CH32V003
+backend supports the default I2C1 mapping `i2c("PC2", "PC1")`; the compiler
+rejects any other mapping.
+
+An i2c object supports exactly three methods:
+
+- `configure(hz)` sets the bus clock. The default is 100 kHz.
+- `write(addr, reg, value)` writes one byte to a register.
+- `read(addr, reg)` reads one byte from a register, returning `-1` on a timeout
+  or NACK.
+
+Transfers are blocking with a bounded timeout.
+
+## 7.9 Future peripherals
 
 The following are planned extensions:
 
-- SPI
-- I2C
 - Hardware timers
 
 These are not required for the first compiler milestone.

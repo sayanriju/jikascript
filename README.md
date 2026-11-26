@@ -382,6 +382,8 @@ const button = pin("PD2");
 const serial = uart("PD5", "PD6", 9600);
 const dimmer = pwm("PC1");
 const sensor = adc("PD4");
+const spiBus = spi("PC5", "PC7", "PC6");
+const i2cBus = i2c("PC2", "PC1");
 
 led.output();
 led.write(HIGH);
@@ -398,14 +400,22 @@ dimmer.set(50);              // duty cycle 0-100
 dimmer.setFrequency(1000);  // Hz
 
 const level = sensor.read();  // 0..1023
+
+spiBus.configure(1000000, 0);
+spiBus.transfer(0x9F);
+
+i2cBus.configure(100000);
+i2cBus.write(0x3C, 0x00, 0xAF);
+let reg = i2cBus.read(0x3C, 0x00);
 ```
 
 Argument counts and types are validated at compile time: `uart.write`/`println`
-take a string; `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`, and
-`pin.write` take a number; `read()`/`available()` take none. A wrong argument
-fails `jikascript check` instead of reaching the C compiler and breaking the
-firmware build. See [docs/runtime/hardware.md](docs/runtime/hardware.md) and
-[SPEC.md](SPEC.md) §7 for the pin tables and the timer/clock contract.
+take a string; `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`,
+`pin.write`, and the SPI/I2C methods take numbers; `read()`/`available()` take
+none. A wrong argument fails `jikascript check` instead of reaching the C
+compiler and breaking the firmware build. See
+[docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
+for the pin tables and the timer/clock contract.
 
 ## Debug output and delays
 
@@ -452,8 +462,8 @@ and avoid exposing the SysTick counter. See
 - **Target-compiled**: verified by compiling firmware through PlatformIO
   against the `ch32v003fun` framework. `jikascript build` produces a linked
   `.elf` and `.bin` for CH32V003. GPIO (including pull-up/down), UART
-  (including baud and byte I/O), PWM, ADC, the scheduler, `millis()`, and the
-  debug helpers (`printf`, `delay`, `delay_us`) are target-compiled.
+  (including baud and byte I/O), PWM, ADC, SPI, I2C, the scheduler, `millis()`,
+  and the debug helpers (`printf`, `delay`, `delay_us`) are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 

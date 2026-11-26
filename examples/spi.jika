@@ -1,0 +1,15 @@
+// SPI1: SCK=PC5, MISO=PC7, MOSI=PC6. CS is a normal GPIO pin.
+const spiBus = spi("PC5", "PC7", "PC6");
+const cs = pin("PD0");
+
+cs.output();
+cs.write(HIGH);
+spiBus.configure(1000000, 0);
+
+task("spi", 500, () => {
+    cs.write(LOW);
+    spiBus.transfer(0x9F);
+    cs.write(HIGH);
+});
+
+scheduler.start();

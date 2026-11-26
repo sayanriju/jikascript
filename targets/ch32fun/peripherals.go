@@ -85,3 +85,51 @@ func IsValidADCPin(name string) bool {
 func IsValidADCMethod(method string) bool {
 	return method == "read"
 }
+
+// spiPins lists the supported SPI1 mapping as "SCK|MISO|MOSI". The CH32V003
+// has a single SPI peripheral and its default mapping is SCK=PC5, MISO=PC7,
+// MOSI=PC6. Chip select is a normal GPIO pin.
+var spiPins = map[string]struct{}{
+	"PC5|PC7|PC6": {},
+}
+
+// IsValidSPITuple reports whether sck, miso, and mosi form a supported SPI pin
+// mapping.
+func IsValidSPITuple(sck, miso, mosi string) bool {
+	_, ok := spiPins[NormalizePin(sck)+"|"+NormalizePin(miso)+"|"+NormalizePin(mosi)]
+	return ok
+}
+
+// IsValidSPIMethod reports whether a method is valid on a JikaScript spi
+// object.
+func IsValidSPIMethod(method string) bool {
+	switch method {
+	case "configure", "transfer":
+		return true
+	default:
+		return false
+	}
+}
+
+// i2cPins lists the supported I2C1 mapping as "SCL|SDA". The CH32V003 has a
+// single I2C peripheral and its default mapping is SCL=PC2, SDA=PC1.
+var i2cPins = map[string]struct{}{
+	"PC2|PC1": {},
+}
+
+// IsValidI2CTuple reports whether scl and sda form a supported I2C pin mapping.
+func IsValidI2CTuple(scl, sda string) bool {
+	_, ok := i2cPins[NormalizePin(scl)+"|"+NormalizePin(sda)]
+	return ok
+}
+
+// IsValidI2CMethod reports whether a method is valid on a JikaScript i2c
+// object.
+func IsValidI2CMethod(method string) bool {
+	switch method {
+	case "configure", "write", "read":
+		return true
+	default:
+		return false
+	}
+}
