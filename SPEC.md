@@ -854,7 +854,34 @@ value argument to another peripheral method. Method calls require a peripheral
 receiver, either a `pin()`, `uart()`, `pwm()`, or `adc()` binding or a
 constructor used directly; a scalar has no properties or methods.
 
-## 7.5 Future peripherals
+## 7.5 Debug output and delays
+
+Three builtins map directly to CH32fun helpers for quick target debugging:
+
+```javascript
+printf("count=%d\n", count);
+delay(10);
+delay_us(250);
+```
+
+- `printf(format, ...)` writes formatted text over the SWIO debug interface.
+  The format argument must be a string literal; the remaining arguments are
+  passed through to CH32fun's `printf`. The supported conversions are those of
+  CH32fun's mini-printf: `%d`, `%u`, `%x`, `%X`, `%c`, `%s`, and `%%`, with an
+  optional `l` modifier. Floating-point formatting is not supported. Arguments
+  follow C default argument promotions, so the format specifier must match the
+  promoted C type.
+- `delay(ms)` and `delay_us(us)` block for the requested number of milliseconds
+  or microseconds using CH32fun's SysTick-based delay. Each takes exactly one
+  numeric argument.
+- The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF` when the program
+  calls `printf`, so debug output is routed over SWIO. A debugger must be
+  attached to observe it.
+- These helpers busy-wait or block, so they delay cooperative task callbacks.
+  They are intended for short settling delays and debugging, not for periodic
+  scheduling.
+
+## 7.6 Future peripherals
 
 The following are planned extensions:
 

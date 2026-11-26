@@ -19,6 +19,8 @@
     - [UART](runtime/uart.md)
     - [PWM](runtime/pwm.md)
     - [ADC](runtime/adc.md)
+  - **Debugging**
+    - [Debug Output & Delays](runtime/debug.md)
 
 - **Under the Hood**
   - [How Compilation Works](under-the-hood.md)

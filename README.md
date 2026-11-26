@@ -405,6 +405,23 @@ reaching the C compiler and breaking the firmware build. See
 [docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
 for the pin tables and the timer/clock contract.
 
+## Debug output and delays
+
+`printf`, `delay`, and `delay_us` map directly to CH32fun helpers:
+
+```javascript
+printf("count=%d\n", count);  // SWIO debug output
+delay(10);                    // blocking 10 ms
+delay_us(250);                // blocking 250 us
+```
+
+`printf` requires a string-literal format and passes its remaining arguments
+through to CH32fun's mini-printf (`%d`, `%u`, `%x`, `%X`, `%c`, `%s`, `%%`; no
+floating point). The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF`
+automatically when `printf` is used. `delay`/`delay_us` busy-wait on SysTick, so
+they block cooperative task callbacks. See
+[docs/runtime/debug.md](docs/runtime/debug.md).
+
 ## Validation status labels
 
 - **Host-tested**: verified with the Go test suite and host C99 compilation
@@ -412,8 +429,8 @@ for the pin tables and the timer/clock contract.
   documented above are host-tested.
 - **Target-compiled**: verified by compiling firmware through PlatformIO
   against the `ch32v003fun` framework. `jikascript build` produces a linked
-  `.elf` and `.bin` for CH32V003. GPIO, UART, PWM, ADC, and the scheduler are
-  target-compiled.
+  `.elf` and `.bin` for CH32V003. GPIO, UART, PWM, ADC, the scheduler, and the
+  debug helpers (`printf`, `delay`, `delay_us`) are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 

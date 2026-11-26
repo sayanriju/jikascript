@@ -32,12 +32,14 @@ The initial language subset reserves the following names:
 - `true`, `false`
 - `include`
 - `task`, `pin`, `uart`, `pwm`, `adc`, `scheduler`, `start`
+- `printf`, `delay`, `delay_us` (debug output and blocking delays)
 - `HIGH`, `LOW` (predefined GPIO state constants)
 - `++`, `--` are operators rather than identifiers
 
 `uart`, `pwm`, and `adc` are the peripheral constructors, and `pin` is the GPIO
 constructor. See [Peripherals](runtime/hardware.md) for the methods each one
-provides.
+provides. `printf`, `delay`, and `delay_us` are debug helpers; see
+[Debug Output & Delays](runtime/debug.md).
 
 `HIGH` and `LOW` are built-in pin-state constants, not ordinary user variables.
 They are provided by the compiler and should be treated as fixed values for GPIO

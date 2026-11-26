@@ -40,5 +40,10 @@ constructor used directly — and scalars have no properties or methods.
 Everything compiles down to direct register writes through the CH32fun backend —
 fast, efficient, and direct.
 
+## Debug Helpers
+
+`printf`, `delay`, and `delay_us` map directly to CH32fun's SWIO debug output
+and SysTick delays. See [Debug Output & Delays](runtime/debug.md).
+
 Curious how it all turns into C? Check out
 [How Compilation Works](https://sayanriju.github.io/jikascript/#/under-the-hood)!

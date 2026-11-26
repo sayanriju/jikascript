@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [Unreleased]
+
+### Added
+
+- `printf(format, ...)` builtin that emits CH32fun's SWIO debug `printf`.
+  The format string must be a literal; arguments are passed through to
+  CH32fun's mini-printf.
+- `delay(ms)` and `delay_us(us)` builtins that emit CH32fun's `Delay_Ms` and
+  `Delay_Us`.
+- Generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF` automatically when
+  a program uses `printf`.
+- `examples/debug.jika` and `docs/runtime/debug.md`.
+
+### Notes
+
+- `printf`, `delay`, and `delay_us` are reserved names and cannot be redeclared.
+- `delay`/`delay_us` busy-wait on SysTick and therefore block cooperative task
+  callbacks.
+- Host tests and CH32V003 target compilation pass; no physical-hardware
+  verification is claimed yet.
+
 ## [0.4.1] - 2026-11-24
 
 Language specification: `0.3.0`
