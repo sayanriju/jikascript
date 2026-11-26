@@ -21,22 +21,31 @@ In this example:
 
 ---
 
-## Array Methods: `push()` and `pop()`
+## Array Methods
 
 You get the convenient methods you know from JavaScript:
 
 ```javascript
 let queue: int32[4] = [10, 20];
 
-// Add an element to the end:
-queue.push(30);
+queue.push(30);              // append
+const latest = queue.pop();  // remove and return the last element
+const last = queue.peek();   // read the last element without removing it
+const count = queue.length;  // current logical length
+const cap = queue.capacity;  // fixed capacity
 
-// Pop the last element:
-const latest = queue.pop(); // Returns 30
+queue.fill(0);               // set every logical element to 0
+queue.reverse();             // reverse the logical elements in place
+const index = queue.indexOf(20); // first matching index, or -1
 
-// Read the current logical length:
-const count = queue.length; // Returns 2
+queue.clear();               // reset the logical length to zero
 ```
+
+- `peek()` fails if the array is empty, like `pop()`.
+- `fill()` and `reverse()` operate on the current logical length.
+- `indexOf()` supports numeric and boolean arrays; string arrays are rejected.
+- `clear()` resets the logical length without zeroing the backing storage, so it
+  is a constant-time operation.
 
 ---
 

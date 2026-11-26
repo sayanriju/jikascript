@@ -76,8 +76,14 @@ let readings: int32[8] = [21, 23, 25];
 
 readings.push(27);
 const latest = readings.pop();
+const last = readings.peek();
 const count = readings.length;
+const cap = readings.capacity;
 readings[0] = latest;
+readings.fill(0);
+readings.reverse();
+const index = readings.indexOf(0);
+readings.clear();
 ```
 
 ## 6. Multi-file program with `include`

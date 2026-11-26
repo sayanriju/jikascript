@@ -948,8 +948,13 @@ func renderExpr(expr ast.Expr) string {
 		return renderExpr(node.Function) + "(" + strings.Join(args, ", ") + ")"
 	case *ast.SelectorExpr:
 		if ident, ok := node.Object.(*ast.Identifier); ok {
-			if meta, exists := generatedArrays[ident.Name]; exists && node.Field == "length" {
-				return sanitizeName(meta.Name) + ".length"
+			if meta, exists := generatedArrays[ident.Name]; exists {
+				switch node.Field {
+				case "length":
+					return sanitizeName(meta.Name) + ".length"
+				case "capacity":
+					return sanitizeName(meta.Name) + ".capacity"
+				}
 			}
 		}
 		return renderExpr(node.Object) + "." + sanitizeFieldName(node.Field)
@@ -1276,6 +1281,16 @@ func renderSelectorCall(call *ast.CallExpr) string {
 				return sanitizeName(meta.Name) + "_push(" + strings.Join(args, ", ") + ")"
 			case "pop":
 				return sanitizeName(meta.Name) + "_pop()"
+			case "clear":
+				return sanitizeName(meta.Name) + "_clear()"
+			case "peek":
+				return sanitizeName(meta.Name) + "_peek()"
+			case "fill":
+				return sanitizeName(meta.Name) + "_fill(" + strings.Join(args, ", ") + ")"
+			case "reverse":
+				return sanitizeName(meta.Name) + "_reverse()"
+			case "indexOf":
+				return sanitizeName(meta.Name) + "_index_of(" + strings.Join(args, ", ") + ")"
 			}
 		}
 	}
@@ -1420,6 +1435,33 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString(fmt.Sprintf("    if (%s.length == 0) { jikascript_fail(); }\n", name))
 	b.WriteString(fmt.Sprintf("    %s.length--;\n", name))
 	b.WriteString(fmt.Sprintf("    return %s.data[%s.length];\n", name, name))
+	b.WriteString("}\n\n")
+	b.WriteString(fmt.Sprintf("static void %s_clear(void) {\n", name))
+	b.WriteString(fmt.Sprintf("    %s.length = 0;\n", name))
+	b.WriteString("}\n\n")
+	b.WriteString(fmt.Sprintf("static %s %s_peek(void) {\n", meta.CType, name))
+	b.WriteString(fmt.Sprintf("    if (%s.length == 0) { jikascript_fail(); }\n", name))
+	b.WriteString(fmt.Sprintf("    return %s.data[%s.length - 1];\n", name, name))
+	b.WriteString("}\n\n")
+	b.WriteString(fmt.Sprintf("static void %s_fill(%s value) {\n", name, meta.CType))
+	b.WriteString(fmt.Sprintf("    for (uint32_t i = 0; i < %s.length; i++) {\n", name))
+	b.WriteString(fmt.Sprintf("        %s.data[i] = value;\n", name))
+	b.WriteString("    }\n")
+	b.WriteString("}\n\n")
+	b.WriteString(fmt.Sprintf("static void %s_reverse(void) {\n", name))
+	b.WriteString(fmt.Sprintf("    for (uint32_t i = 0; i < %s.length / 2; i++) {\n", name))
+	b.WriteString(fmt.Sprintf("        %s tmp = %s.data[i];\n", meta.CType, name))
+	b.WriteString(fmt.Sprintf("        %s.data[i] = %s.data[%s.length - 1 - i];\n", name, name, name))
+	b.WriteString(fmt.Sprintf("        %s.data[%s.length - 1 - i] = tmp;\n", name, name))
+	b.WriteString("    }\n")
+	b.WriteString("}\n\n")
+	b.WriteString(fmt.Sprintf("static int32_t %s_index_of(%s value) {\n", name, meta.CType))
+	b.WriteString(fmt.Sprintf("    for (uint32_t i = 0; i < %s.length; i++) {\n", name))
+	b.WriteString(fmt.Sprintf("        if (%s.data[i] == value) {\n", name))
+	b.WriteString("            return (int32_t)i;\n")
+	b.WriteString("        }\n")
+	b.WriteString("    }\n")
+	b.WriteString("    return -1;\n")
 	b.WriteString("}\n\n")
 	return b.String()
 }

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [Unreleased]
+
+### Added
+
+- Bounded array methods: `clear()`, `peek()`, `fill(value)`, `reverse()`,
+  `indexOf(value)`, and the `capacity` property. `indexOf` supports numeric and
+  boolean arrays; string arrays are rejected.
+
 ## [0.4.5] - 2026-11-26
 
 Language specification: `0.7.0`

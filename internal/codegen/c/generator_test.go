@@ -1066,6 +1066,83 @@ let value = random();`)
 	}
 }
 
+func TestGenerateArrayClear(t *testing.T) {
+	program, err := parser.ParseProgram(`let values: int32[4] = [1, 2, 3]; values.clear();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`static void js_values_clear(void) {`,
+		`js_values.length = 0;`,
+		`js_values_clear();`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "array_clear.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated array clear C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
+func TestGenerateArrayMethods(t *testing.T) {
+	program, err := parser.ParseProgram(`let a: int32[4] = [1, 2, 3];
+a.peek();
+a.fill(0);
+a.reverse();
+let i = a.indexOf(2);
+let c = a.capacity;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`static int32_t js_a_peek(void) {`,
+		`static void js_a_fill(int32_t value) {`,
+		`static void js_a_reverse(void) {`,
+		`static int32_t js_a_index_of(int32_t value) {`,
+		`js_a_peek();`,
+		`js_a_fill(0);`,
+		`js_a_reverse();`,
+		`js_i = js_a_index_of(2);`,
+		`js_c = js_a.capacity;`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "array_methods.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated array methods C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
 func TestGenerateSPIAndI2C(t *testing.T) {
 	program, err := parser.ParseProgram(`const spiBus = spi("PC5", "PC7", "PC6");
 spiBus.configure(1000000, 0);

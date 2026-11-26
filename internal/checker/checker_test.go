@@ -1282,6 +1282,73 @@ func TestCheckRejectsInvalidRandom(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsArrayClear(t *testing.T) {
+	program, err := parser.ParseProgram(`let values: int32[4] = [1, 2, 3]; values.clear();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("expected array clear to pass check, got %v", err)
+	}
+}
+
+func TestCheckRejectsArrayClearArguments(t *testing.T) {
+	program, err := parser.ParseProgram(`let values: int32[4] = [1, 2, 3]; values.clear(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "clear() expects no arguments") {
+		t.Fatalf("expected clear arity error, got %v", err)
+	}
+}
+
+func TestCheckAcceptsArrayMethods(t *testing.T) {
+	sources := []string{
+		`let a: int32[4] = [1, 2, 3]; a.peek();`,
+		`let a: int32[4] = [1, 2, 3]; a.fill(0);`,
+		`let a: int32[4] = [1, 2, 3]; a.reverse();`,
+		`let a: int32[4] = [1, 2, 3]; let i = a.indexOf(2);`,
+		`let a: int32[4] = [1, 2, 3]; let c = a.capacity;`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidArrayMethods(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let a: int32[4] = [1]; a.peek(1);`, "peek() expects no arguments"},
+		{`let a: int32[4] = [1]; a.fill();`, "fill() expects one argument"},
+		{`let a: int32[4] = [1]; a.fill("x");`, "fill() type mismatch"},
+		{`let a: int32[4] = [1]; a.reverse(1);`, "reverse() expects no arguments"},
+		{`let a: int32[4] = [1]; a.indexOf();`, "indexOf() expects one argument"},
+		{`let a: int32[4] = [1]; a.indexOf("x");`, "indexOf() type mismatch"},
+		{`let a: string[2] = ["a", "b"]; a.indexOf("a");`, "indexOf() is not supported for string arrays"},
+		{`let a: int32[4] = [1]; let x = a.clear();`, "expression does not produce a value"},
+		{`let a: int32[4] = [1]; let x = a.fill(0);`, "expression does not produce a value"},
+		{`let a: int32[4] = [1]; let x = a.reverse();`, "expression does not produce a value"},
+		{`let a: int32[4] = [1]; a.bogus;`, "unsupported array property"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
 func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 	cases := []struct {
 		source string

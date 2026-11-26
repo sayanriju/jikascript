@@ -42,6 +42,12 @@ let values = [1, 2, 3]; // inferred capacity = 3
 | Length property        | `values.length`            | runtime logical length                      |
 | `values.push(x)`       | append                      | capacity-checked                            |
 | `values.pop()`         | remove & return last       | bounds-checked (empty -> fail)              |
+| `values.peek()`        | read last without removing | bounds-checked (empty -> fail)              |
+| `values.fill(x)`       | set logical elements to x  | operates on current length                  |
+| `values.reverse()`     | reverse logical elements   | in place                                    |
+| `values.indexOf(x)`    | first index or -1          | numeric/boolean arrays only                 |
+| `values.clear()`       | reset logical length to 0   | constant time; storage is not zeroed        |
+| `values.capacity`      | fixed capacity             | property, not a method                      |
 
 Example:
 
@@ -50,9 +56,15 @@ let readings: int32[8] = [21, 23, 25];
 
 readings.push(27);         // length 4
 const latest = readings.pop(); // returns 27, length 3
+const last = readings.peek();  // returns 25, length stays 3
 const count = readings.length; // 3
+const cap = readings.capacity; // 8
 readings[0] = latest;      // write at index 0
 const first = readings[0]; // read at index 0
+readings.fill(0);          // set the 3 logical elements to 0
+readings.reverse();        // reverse the 3 logical elements
+const index = readings.indexOf(0); // first matching index, or -1
+readings.clear();          // length 0
 ```
 
 ---
@@ -99,5 +111,5 @@ typedef struct {
 } jikascript_array_int32_t;
 ```
 
-Methods (`push`, `pop`, indexed access) become bounds/capacity-checked helper
-calls in the generated C.
+Methods (`push`, `pop`, `clear`, indexed access) become bounds/capacity-checked
+helper calls in the generated C.

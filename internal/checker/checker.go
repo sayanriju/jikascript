@@ -882,6 +882,48 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 							return fmt.Errorf("%d:%d: error: pop() expects no arguments", node.Pos.Line, node.Pos.Column)
 						}
 						return nil
+					case "clear":
+						if len(node.Args) != 0 {
+							return fmt.Errorf("%d:%d: error: clear() expects no arguments", node.Pos.Line, node.Pos.Column)
+						}
+						return nil
+					case "peek":
+						if len(node.Args) != 0 {
+							return fmt.Errorf("%d:%d: error: peek() expects no arguments", node.Pos.Line, node.Pos.Column)
+						}
+						return nil
+					case "reverse":
+						if len(node.Args) != 0 {
+							return fmt.Errorf("%d:%d: error: reverse() expects no arguments", node.Pos.Line, node.Pos.Column)
+						}
+						return nil
+					case "fill":
+						if len(node.Args) != 1 {
+							return fmt.Errorf("%d:%d: error: fill() expects one argument", node.Pos.Line, node.Pos.Column)
+						}
+						if err := checkExpr(node.Args[0], scopeStack, functionArity); err != nil {
+							return err
+						}
+						argType, ok := inferLiteralType(node.Args[0], scopeStack)
+						if ok && !typeCompatible(arrayElemType(binding), argType) && !literalFitsType(node.Args[0], arrayElemType(binding)) {
+							return fmt.Errorf("%d:%d: error: fill() type mismatch for array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+						}
+						return nil
+					case "indexOf":
+						if len(node.Args) != 1 {
+							return fmt.Errorf("%d:%d: error: indexOf() expects one argument", node.Pos.Line, node.Pos.Column)
+						}
+						if arrayElemType(binding) == "string" {
+							return fmt.Errorf("%d:%d: error: indexOf() is not supported for string arrays", node.Pos.Line, node.Pos.Column)
+						}
+						if err := checkExpr(node.Args[0], scopeStack, functionArity); err != nil {
+							return err
+						}
+						argType, ok := inferLiteralType(node.Args[0], scopeStack)
+						if ok && !typeCompatible(arrayElemType(binding), argType) && !literalFitsType(node.Args[0], arrayElemType(binding)) {
+							return fmt.Errorf("%d:%d: error: indexOf() type mismatch for array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+						}
+						return nil
 					default:
 						return fmt.Errorf("%d:%d: error: unsupported array method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
 					}
@@ -955,7 +997,7 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 					}
 				}
 				if isArrayBinding(kind) {
-					if node.Field != "length" {
+					if node.Field != "length" && node.Field != "capacity" {
 						return fmt.Errorf("%d:%d: error: unsupported array property '%s'", node.Pos.Line, node.Pos.Column, node.Field)
 					}
 				}
@@ -1186,6 +1228,9 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 		return "", fmt.Errorf("expression does not produce a value")
 	}
 	if builtinCallVoid(value) {
+		return "", fmt.Errorf("expression does not produce a value")
+	}
+	if arrayCallVoid(value, scopeStack) {
 		return "", fmt.Errorf("expression does not produce a value")
 	}
 
@@ -1546,6 +1591,9 @@ func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast
 	if builtinCallVoid(expr) {
 		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
 	}
+	if arrayCallVoid(expr, scopeStack) {
+		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
+	}
 	if returnType, ok := peripheralCallReturnType(expr, scopeStack); ok && returnType == "" {
 		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
 	}
@@ -1875,6 +1923,18 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
 			return "int32", true
 		}
+		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.Object.(*ast.Identifier); ok && scopeStack != nil {
+				if binding, exists := lookup(scopeStack, ident.Name); exists && isArrayBinding(binding) {
+					switch sel.Field {
+					case "pop", "peek":
+						return arrayElemType(binding), true
+					case "indexOf":
+						return "int32", true
+					}
+				}
+			}
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && scopeStack != nil {
 			if binding, exists := lookup(scopeStack, ident.Name); exists {
 				if returnType, ok := functionReturnType(binding); ok && returnType != "void" {
@@ -1892,8 +1952,16 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		return "", false
 	case *ast.SelectorExpr:
 		if ident, ok := node.Object.(*ast.Identifier); ok && scopeStack != nil {
-			if binding, exists := lookup(scopeStack, ident.Name); exists && isObjectBinding(binding) {
-				return objectPropertyType(binding, node.Field)
+			if binding, exists := lookup(scopeStack, ident.Name); exists {
+				if isObjectBinding(binding) {
+					return objectPropertyType(binding, node.Field)
+				}
+				if isArrayBinding(binding) {
+					switch node.Field {
+					case "length", "capacity":
+						return "int32", true
+					}
+				}
 			}
 		}
 		return "", false
@@ -2048,6 +2116,34 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		}
 	}
 	return nil
+}
+
+// arrayCallVoid reports whether expr is a call to an array method that produces
+// no value. These lower to void helper functions, so using one as a value would
+// generate invalid C.
+func arrayCallVoid(expr ast.Expr, scopeStack []map[string]string) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := call.Function.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := sel.Object.(*ast.Identifier)
+	if !ok || scopeStack == nil {
+		return false
+	}
+	binding, exists := lookup(scopeStack, ident.Name)
+	if !exists || !isArrayBinding(binding) {
+		return false
+	}
+	switch sel.Field {
+	case "clear", "fill", "reverse":
+		return true
+	default:
+		return false
+	}
 }
 
 // builtinCallVoid reports whether expr is a call to a builtin that produces no

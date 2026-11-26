@@ -413,8 +413,17 @@ Supported:
 - Indexed reads: `values[i]`
 - Indexed writes: `values[i] = x`
 - Length property: `values.length`
+- Capacity property: `values.capacity`
 - `values.push(x)`
 - `values.pop()`
+- `values.peek()`
+- `values.fill(x)`
+- `values.reverse()`
+- `values.indexOf(x)`
+- `values.clear()`
+
+`indexOf` is supported for numeric and boolean arrays. String arrays are
+rejected because element comparison would require `strcmp`.
 
 Not supported:
 

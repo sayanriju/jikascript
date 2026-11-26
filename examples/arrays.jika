@@ -1,0 +1,20 @@
+// Bounded arrays with push, pop, peek, fill, reverse, indexOf, and clear.
+let readings: int32[8] = [21, 23, 25];
+
+readings.push(27);
+readings[0] = readings.pop();
+if (readings[0] > 0 && readings.peek() > 0) {
+    readings.reverse();
+}
+let index = readings.indexOf(23);
+if (index >= 0 && readings.capacity > 0) {
+    readings.fill(0);
+}
+readings.clear();
+
+task("arrays", 500, () => {
+    readings.push(1);
+    readings.clear();
+});
+
+scheduler.start();

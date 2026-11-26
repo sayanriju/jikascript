@@ -280,12 +280,21 @@ JikaScript supports bounded, homogeneous arrays with static capacity and mutable
 let readings: int32[8] = [21, 23, 25];
 readings.push(27);
 const latest = readings.pop();
+const last = readings.peek();
 const count = readings.length;
+const cap = readings.capacity;
 readings[0] = latest;
+readings.fill(0);
+readings.reverse();
+const index = readings.indexOf(0);
+readings.clear();  // logical length becomes 0
 ```
 
-`push()` is capacity-checked and `pop()`/index operations are bounds-checked in generated C.
-Array declarations are top-level only and array-literal reassignment is rejected.
+`push()` is capacity-checked and `pop()`/`peek()`/index operations are
+bounds-checked in generated C. `fill()` and `reverse()` operate on the current
+logical length, `indexOf()` supports numeric and boolean arrays, and `clear()`
+resets the logical length without zeroing the backing storage. Array
+declarations are top-level only and array-literal reassignment is rejected.
 
 ## Static objects
 
