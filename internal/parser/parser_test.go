@@ -81,6 +81,20 @@ readings[0] = latest;
 	}
 }
 
+func TestParseHexArrayCapacity(t *testing.T) {
+	program, err := ParseProgram(`let readings: int32[0x10] = [];`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	decl, ok := program.Statements[0].(*ast.VarDecl)
+	if !ok {
+		t.Fatalf("expected VarDecl, got %T", program.Statements[0])
+	}
+	if decl.ArrayCapacity != 16 {
+		t.Fatalf("ArrayCapacity = %d, want 16", decl.ArrayCapacity)
+	}
+}
+
 func TestParseEmptyBoundedArrayLiteral(t *testing.T) {
 	program, err := ParseProgram(`let queue: uint16[8] = [];`)
 	if err != nil {

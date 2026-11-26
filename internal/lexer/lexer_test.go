@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -72,6 +73,40 @@ func TestNumberLiterals(t *testing.T) {
 	for i, want := range []string{"12", "3.14", "0.5"} {
 		if tokens[i].Type != NUMBER || tokens[i].Literal != want {
 			t.Fatalf("token %d = %+v, want NUMBER %q", i, tokens[i], want)
+		}
+	}
+}
+
+func TestHexNumberLiterals(t *testing.T) {
+	tokens := lexAll(t, "0xFF 0X1a 0x0")
+	if len(tokens) != 3 {
+		t.Fatalf("expected 3 NUMBER tokens, got %+v", tokens)
+	}
+	for i, want := range []string{"0xFF", "0X1a", "0x0"} {
+		if tokens[i].Type != NUMBER || tokens[i].Literal != want {
+			t.Fatalf("token %d = %+v, want NUMBER %q", i, tokens[i], want)
+		}
+	}
+}
+
+func TestInvalidHexNumberLiterals(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{"0x", "hex literal requires at least one digit"},
+		{"0xG", "hex literal requires at least one digit"},
+		{"0xFFg", "invalid hex literal"},
+		{"0xFF_", "invalid hex literal"},
+		{"0x1.5", "hex floating-point literals are not supported"},
+	}
+	for _, tc := range cases {
+		tokens := lexAll(t, tc.source)
+		if len(tokens) == 0 || tokens[len(tokens)-1].Type != ILLEGAL {
+			t.Fatalf("expected ILLEGAL for %q, got %+v", tc.source, tokens)
+		}
+		if !strings.Contains(tokens[len(tokens)-1].Literal, tc.want) {
+			t.Fatalf("expected %q for %q, got %+v", tc.want, tc.source, tokens)
 		}
 	}
 }

@@ -67,6 +67,23 @@ Supported primitive types:
 
 ---
 
+## Numeric Literals
+
+Integer literals may be decimal or hexadecimal:
+
+```javascript
+let mask: uint32 = 0xFFFFFFFF;
+let flags: uint8 = 0xFF;
+let value = 0x10; // inferred int32
+```
+
+Hexadecimal literals use the `0x` or `0X` prefix and default to `int32`, just
+like decimal literals. A value above `INT32_MAX` needs an explicit unsigned
+annotation, as shown above. Hexadecimal floating-point literals are not
+supported.
+
+---
+
 ## Numeric Ranges and Overflow
 
 Each explicit integer annotation maps to the corresponding fixed-width C type. The accepted range is:

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [Unreleased]
+
+### Added
+
+- Hexadecimal integer literals (`0x` / `0X`) for masks and register values.
+  They default to `int32`; values above `INT32_MAX` require an explicit
+  unsigned annotation. Hexadecimal floating-point literals are rejected.
+
 ## [0.4.2] - 2026-11-26
 
 Language specification: `0.4.0`

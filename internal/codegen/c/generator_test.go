@@ -994,3 +994,35 @@ func TestGenerateOmitsDebugHeadersWhenUnused(t *testing.T) {
 		t.Fatalf("debug headers should only be emitted when printf/delay is used:\n%s", out)
 	}
 }
+
+func TestGenerateHexLiterals(t *testing.T) {
+	program, err := parser.ParseProgram(`let mask: uint32 = 0xFFFFFFFF;
+let flags: uint8 = 0xFF;
+let value = 0x10;
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, genErr := Generate(program)
+	if genErr != nil {
+		t.Fatalf("generate error: %v", genErr)
+	}
+	for _, want := range []string{"0xFFFFFFFF", "0xFF", "0x10"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "hex.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated hex C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

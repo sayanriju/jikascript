@@ -1049,3 +1049,43 @@ func TestCheckRejectsInvalidDebugBuiltins(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAcceptsHexLiterals(t *testing.T) {
+	sources := []string{
+		`let mask: uint32 = 0xFFFFFFFF;`,
+		`let flags: uint8 = 0xFF;`,
+		`let value = 0x10;`,
+		`let readings: int32[0x10] = [];`,
+		`let readings: int32[4] = [1, 2, 3, 4]; readings[0x2] = 5;`,
+		`task("tick", 0x10, () => { });`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidHexLiterals(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let mask: uint8 = 0x100;`, "type mismatch for declaration"},
+		{`let mask = 0xFFFFFFFF;`, "integer literal out of range for int32"},
+		{`let readings: int32[4] = [1, 2, 3, 4]; readings[0x10] = 1;`, "out of bounds"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}

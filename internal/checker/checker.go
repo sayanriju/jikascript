@@ -1630,7 +1630,13 @@ func literalNumber(expr ast.Expr) (float64, bool) {
 	}
 	value, err := strconv.ParseFloat(lit.Value, 64)
 	if err != nil {
-		return 0, false
+		// ParseFloat does not accept hexadecimal integers, so fall back to the
+		// integer parser for literals such as 0x10.
+		intValue, ok := intLiteralValue(lit)
+		if !ok {
+			return 0, false
+		}
+		value = float64(intValue)
 	}
 	if negate {
 		value = -value
@@ -1710,11 +1716,11 @@ func indexLiteral(expr ast.Expr) (int, bool) {
 	if strings.Contains(n.Value, ".") {
 		return 0, false
 	}
-	v, err := strconv.Atoi(n.Value)
+	v, err := strconv.ParseInt(n.Value, 0, 64)
 	if err != nil {
 		return 0, false
 	}
-	return v, true
+	return int(v), true
 }
 
 func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bool) {

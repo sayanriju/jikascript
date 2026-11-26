@@ -212,6 +212,11 @@ Because embedded hardware has limited resources, numeric representation must be 
 Initial numeric representation:
 
 - Integer literals: select a suitable signed or unsigned integer representation.
+- Integer literals may be written in decimal or hexadecimal (`0x` / `0X`).
+  Hexadecimal literals are emitted as C hex literals and default to `int32`
+  like decimal literals, so values above `INT32_MAX` require an explicit
+  unsigned annotation (for example `let mask: uint32 = 0xFFFFFFFF;`).
+  Hexadecimal floating-point literals are not supported.
 - Floating-point literals: `float32`.
 - Explicit numeric type annotations should be supported.
 - Unsupported conversions must produce compile-time errors.

@@ -1,0 +1,14 @@
+// Hexadecimal masks and bitwise compound assignments.
+const led = pin("PC1");
+let flags: uint8 = 0x00;
+
+led.output();
+
+task("bits", 500, () => {
+    flags |= 0x01;
+    flags ^= 0x03;
+    flags &= 0x0F;
+    led.toggle();
+});
+
+scheduler.start();

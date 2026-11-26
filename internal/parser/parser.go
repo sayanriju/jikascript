@@ -320,11 +320,11 @@ func (p *Parser) parseVarDecl(constDecl bool) (ast.Stmt, error) {
 			if p.cur.Type != lexer.NUMBER {
 				return nil, fmt.Errorf("%d:%d: error: expected numeric array capacity", p.cur.Line, p.cur.Column)
 			}
-			capValue, err := strconv.Atoi(p.cur.Literal)
-			if err != nil || capValue <= 0 {
+			capValue, err := strconv.ParseUint(p.cur.Literal, 0, 31)
+			if err != nil || capValue == 0 {
 				return nil, fmt.Errorf("%d:%d: error: invalid array capacity %q", p.cur.Line, p.cur.Column, p.cur.Literal)
 			}
-			arrayCapacity = capValue
+			arrayCapacity = int(capValue)
 			p.next()
 			if p.cur.Type != lexer.PUNCT || p.cur.Literal != "]" {
 				return nil, fmt.Errorf("%d:%d: error: expected ']' after array capacity", p.cur.Line, p.cur.Column)

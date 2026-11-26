@@ -104,6 +104,31 @@ func (l *Lexer) readIdentifier() Token {
 
 func (l *Lexer) readNumber() Token {
 	startLine, startColumn := l.line, l.column
+	start := l.pos
+
+	// Hexadecimal integer literal: 0x / 0X followed by one or more hex digits.
+	if l.source[l.pos] == '0' && l.pos+1 < len(l.source) && (l.source[l.pos+1] == 'x' || l.source[l.pos+1] == 'X') {
+		l.advance()
+		l.advance()
+		digits := l.pos
+		for l.pos < len(l.source) && isHexDigit(l.source[l.pos]) {
+			l.advance()
+		}
+		if l.pos == digits {
+			return Token{Type: ILLEGAL, Literal: "hex literal requires at least one digit", Line: startLine, Column: startColumn}
+		}
+		if l.pos < len(l.source) {
+			ch := l.source[l.pos]
+			if ch == '.' {
+				return Token{Type: ILLEGAL, Literal: "hex floating-point literals are not supported", Line: startLine, Column: startColumn}
+			}
+			if isIdentifierChar(ch) {
+				return Token{Type: ILLEGAL, Literal: "invalid hex literal", Line: startLine, Column: startColumn}
+			}
+		}
+		return Token{Type: NUMBER, Literal: string(l.source[start:l.pos]), Line: startLine, Column: startColumn}
+	}
+
 	var b strings.Builder
 	seenDot := false
 	for l.pos < len(l.source) {
@@ -122,6 +147,14 @@ func (l *Lexer) readNumber() Token {
 		break
 	}
 	return Token{Type: NUMBER, Literal: b.String(), Line: startLine, Column: startColumn}
+}
+
+func isHexDigit(ch rune) bool {
+	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+}
+
+func isIdentifierChar(ch rune) bool {
+	return ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch)
 }
 
 func (l *Lexer) readString(quote rune) Token {
