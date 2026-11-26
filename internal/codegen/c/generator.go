@@ -837,11 +837,15 @@ func renderExpr(expr ast.Expr) string {
 				if _, shadowed := mangledIdentifiers["uart"]; !shadowed {
 					tx, txOK := peripheralPinLiteral(node.Args, 0)
 					rx, rxOK := peripheralPinLiteral(node.Args, 1)
-					if !txOK || !rxOK || len(node.Args) != 2 {
-						setGenerationErrorf("uart() requires two string literal pin arguments")
+					if !txOK || !rxOK || (len(node.Args) != 2 && len(node.Args) != 3) {
+						setGenerationErrorf("uart() requires two string literal pin arguments and an optional baud")
 						return ""
 					}
-					return "uart_open(JIKA_PIN_" + normalizeIdentifier(tx) + ", JIKA_PIN_" + normalizeIdentifier(rx) + ")"
+					baud := "115200"
+					if len(node.Args) == 3 {
+						baud = renderExpr(node.Args[2])
+					}
+					return "uart_open(JIKA_PIN_" + normalizeIdentifier(tx) + ", JIKA_PIN_" + normalizeIdentifier(rx) + ", " + baud + ")"
 				}
 			case "pwm":
 				if _, shadowed := mangledIdentifiers["pwm"]; !shadowed {
@@ -860,6 +864,10 @@ func renderExpr(expr ast.Expr) string {
 						return ""
 					}
 					return "adc_open(JIKA_PIN_" + normalizeIdentifier(pin) + ")"
+				}
+			case "millis":
+				if _, shadowed := mangledIdentifiers["millis"]; !shadowed {
+					return "periodic_millis()"
 				}
 			case "printf":
 				if _, shadowed := mangledIdentifiers["printf"]; !shadowed {
@@ -1247,6 +1255,10 @@ func renderSelectorCall(call *ast.CallExpr) string {
 			return "gpio_output(" + object + ")"
 		case "input":
 			return "gpio_input(" + object + ")"
+		case "pullUp":
+			return "gpio_pull_up(" + object + ")"
+		case "pullDown":
+			return "gpio_pull_down(" + object + ")"
 		case "toggle":
 			return "gpio_toggle(" + object + ")"
 		case "read":
@@ -1265,6 +1277,12 @@ func renderSelectorCall(call *ast.CallExpr) string {
 			return "uart_write(" + object + ", " + strings.Join(args, ", ") + ")"
 		case "println":
 			return "uart_println(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "writeByte":
+			return "uart_write_byte(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "setBaud":
+			return "uart_set_baud(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "available":
+			return "uart_available(" + object + ")"
 		case "read":
 			return "uart_read(" + object + ")"
 		}

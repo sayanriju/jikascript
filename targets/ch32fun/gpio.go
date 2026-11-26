@@ -24,7 +24,7 @@ func IsValidPin(name string) bool {
 // IsValidPinMethod reports whether a method is valid on a JikaScript pin object.
 func IsValidPinMethod(method string) bool {
 	switch method {
-	case "output", "input", "write", "read", "toggle":
+	case "output", "input", "pullUp", "pullDown", "write", "read", "toggle":
 		return true
 	default:
 		return false

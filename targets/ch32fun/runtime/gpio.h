@@ -4,6 +4,8 @@
 void gpio_ch32fun_init(void);
 void gpio_output(int pin_id);
 void gpio_input(int pin_id);
+void gpio_pull_up(int pin_id);
+void gpio_pull_down(int pin_id);
 void gpio_toggle(int pin_id);
 int gpio_read(int pin_id);
 void gpio_write(int pin_id, int value);

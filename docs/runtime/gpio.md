@@ -8,7 +8,7 @@ const led = pin("PC1");
 const button = pin("PD2");
 
 led.output();
-button.input();
+button.pullUp();
 
 led.write(HIGH);
 let pressed = button.read() == LOW;
@@ -39,19 +39,25 @@ pin-name switch in the firmware.
 
 ## Pin Methods
 
-A pin object supports exactly these five methods. Any other method name is a
+A pin object supports exactly these seven methods. Any other method name is a
 compile error.
 
 | Method | Arguments | Returns | Description |
 | --- | --- | --- | --- |
 | `.output()` | none | — | Configure the pin as a push-pull output. |
 | `.input()` | none | — | Configure the pin as a floating input. |
+| `.pullUp()` | none | — | Configure an input with the internal pull-up resistor. |
+| `.pullDown()` | none | — | Configure an input with the internal pull-down resistor. |
 | `.write(value)` | optional | — | Drive an output pin to `HIGH` or `LOW`. |
 | `.read()` | none | `int` | Read the pin level: `1` for high, `0` for low. |
 | `.toggle()` | none | — | Invert the current output level. |
 
 `write()` accepts any value: non-zero drives the pin high, zero drives it low.
 Calling `write()` with no argument writes `LOW`.
+
+`pullUp()` and `pullDown()` replace `input()` when a button or switch needs a
+defined idle level. An active-low button wired to ground should use `pullUp()`
+and read `LOW` when pressed.
 
 Passing arguments to any other method is a compile error.
 
@@ -75,7 +81,7 @@ const led = pin("PC1");
 const button = pin("PD2");
 
 led.output();
-button.input();
+button.pullUp();
 
 task("button_check", 20, () => {
     if (button.read() == LOW) {

@@ -1276,8 +1276,8 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 			return "pin-" + baseKind, nil
 		}
 		if fn, ok := call.Function.(*ast.Identifier); ok && fn.Name == "uart" {
-			if len(call.Args) != 2 {
-				return "", fmt.Errorf("uart() expects exactly two arguments (tx, rx)")
+			if len(call.Args) != 2 && len(call.Args) != 3 {
+				return "", fmt.Errorf("uart() expects two or three arguments (tx, rx[, baud])")
 			}
 			txName, ok := call.Args[0].(*ast.StringLiteral)
 			if !ok {
@@ -1289,6 +1289,12 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 			}
 			if !ch32fun.IsValidUARTTuple(txName.Value, rxName.Value) {
 				return "", fmt.Errorf("unsupported uart pin pair %q, %q", txName.Value, rxName.Value)
+			}
+			if len(call.Args) == 3 {
+				baud, ok := intLiteralValue(call.Args[2])
+				if !ok || baud <= 0 || baud > math.MaxUint32 {
+					return "", fmt.Errorf("uart() baud argument must be a positive integer literal")
+				}
 			}
 			txName.CanonicalValue = ch32fun.NormalizePin(txName.Value)
 			rxName.CanonicalValue = ch32fun.NormalizePin(rxName.Value)
@@ -1423,14 +1429,16 @@ func peripheralMethodReturnType(family, method string) (string, bool) {
 		switch method {
 		case "read":
 			return "int32", true
-		case "output", "input", "toggle", "write":
+		case "output", "input", "pullUp", "pullDown", "toggle", "write":
 			return "", true
 		}
 	case "uart":
 		switch method {
 		case "read":
 			return "int32", true
-		case "write", "println":
+		case "available":
+			return "boolean", true
+		case "write", "println", "writeByte", "setBaud":
 			return "", true
 		}
 	case "pwm":
@@ -1510,7 +1518,7 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 	switch family {
 	case "pin":
 		switch method {
-		case "output", "input", "toggle", "read":
+		case "output", "input", "pullUp", "pullDown", "toggle", "read":
 			if argc != 0 {
 				return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", pos.Line, pos.Column, method, argc)
 			}
@@ -1521,13 +1529,13 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 		}
 	case "uart":
 		switch method {
-		case "write", "println":
+		case "write", "println", "writeByte", "setBaud":
 			if argc != 1 {
 				return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", pos.Line, pos.Column, method, argc)
 			}
-		case "read":
+		case "read", "available":
 			if argc != 0 {
-				return fmt.Errorf("%d:%d: error: read() expects no arguments, got %d", pos.Line, pos.Column, argc)
+				return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", pos.Line, pos.Column, method, argc)
 			}
 		}
 	case "pwm":
@@ -1559,8 +1567,11 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 			expected = "number"
 		}
 	case "uart":
-		if method == "write" || method == "println" {
+		switch method {
+		case "write", "println":
 			expected = "string"
+		case "writeByte", "setBaud":
+			expected = "number"
 		}
 	case "pwm":
 		if method == "set" || method == "setFrequency" {
@@ -1763,6 +1774,9 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 			}
 			return returnType, true
 		}
+		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "millis" {
+			return "uint32", true
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
 			return "int32", true
 		}
@@ -1890,7 +1904,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us":
+	case "pin", "uart", "pwm", "adc", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis":
 		return true
 	default:
 		return false
@@ -1913,6 +1927,10 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		}
 		if _, ok := call.Args[0].(*ast.StringLiteral); !ok {
 			return fmt.Errorf("%d:%d: error: printf() format argument must be a string literal", call.Pos.Line, call.Pos.Column)
+		}
+	case "millis":
+		if len(call.Args) != 0 {
+			return fmt.Errorf("%d:%d: error: millis() expects no arguments, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
 		}
 	case "delay", "delay_us":
 		if len(call.Args) != 1 {
@@ -2039,6 +2057,12 @@ func returnTypeCompatible(expected, actual string) bool {
 func mergeNumericType(a, b string) string {
 	if a == "float32" || b == "float32" {
 		return "float32"
+	}
+	// Match C's usual arithmetic conversions for 32-bit integers: an unsigned
+	// 32-bit operand makes the result unsigned. This keeps millis() arithmetic
+	// wrap-safe and lets elapsed-time bindings infer uint32.
+	if a == "uint32" || b == "uint32" {
+		return "uint32"
 	}
 	return "int32"
 }

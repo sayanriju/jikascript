@@ -24,6 +24,16 @@ void gpio_input(int pin_id) {
     funPinMode(pin_id, GPIO_CFGLR_IN_FLOAT);
 }
 
+void gpio_pull_up(int pin_id) {
+    funPinMode(pin_id, GPIO_CFGLR_IN_PUPD);
+    funDigitalWrite(pin_id, FUN_HIGH);
+}
+
+void gpio_pull_down(int pin_id) {
+    funPinMode(pin_id, GPIO_CFGLR_IN_PUPD);
+    funDigitalWrite(pin_id, FUN_LOW);
+}
+
 void gpio_toggle(int pin_id) {
     funDigitalWrite(pin_id, !funDigitalRead(pin_id));
 }

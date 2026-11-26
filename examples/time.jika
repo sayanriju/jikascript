@@ -1,0 +1,14 @@
+// Non-blocking timing with millis().
+const led = pin("PC1");
+let last: uint32 = 0;
+
+led.output();
+
+task("tick", 10, () => {
+    if (millis() - last >= 500) {
+        last = millis();
+        led.toggle();
+    }
+});
+
+scheduler.start();

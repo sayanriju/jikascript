@@ -15,6 +15,19 @@ separately. A compiler release may advance without changing the language.
 - Hexadecimal integer literals (`0x` / `0X`) for masks and register values.
   They default to `int32`; values above `INT32_MAX` require an explicit
   unsigned annotation. Hexadecimal floating-point literals are rejected.
+- `millis()` returns the scheduler's millisecond counter as a `uint32`.
+  `micros()` is intentionally omitted to keep the surface small and avoid
+  exposing the SysTick counter.
+- `pin.pullUp()` and `pin.pullDown()` configure an input with the internal
+  pull resistor.
+- UART baud configuration via `uart(tx, rx, baud)` and `serial.setBaud(baud)`,
+  plus `serial.writeByte(value)` and `serial.available()`.
+
+### Changed
+
+- Integer arithmetic involving a `uint32` operand now infers `uint32`,
+  matching C's usual arithmetic conversions. This keeps `millis()`
+  subtraction wrap-safe.
 
 ## [0.4.2] - 2026-11-26
 

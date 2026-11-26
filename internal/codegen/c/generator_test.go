@@ -534,7 +534,7 @@ let ch = serial.read();`)
 		t.Fatalf("generate error: %v", err)
 	}
 	for _, want := range []string{
-		`js_serial = uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6);`,
+		`js_serial = uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6, 115200);`,
 		`uart_write(js_serial, "hi");`,
 		`uart_println(js_serial, "ok");`,
 		`js_ch = uart_read(js_serial);`,
@@ -545,6 +545,43 @@ let ch = serial.read();`)
 	}
 	if strings.Contains(out, `" pd5 "`) {
 		t.Fatalf("expected raw uart pin literal to be replaced by canonical form, got:\n%s", out)
+	}
+}
+
+func TestGenerateEmitsUARTBaudAndByteCalls(t *testing.T) {
+	program, err := parser.ParseProgram(`const serial = uart("PD5", "PD6", 9600);
+serial.setBaud(19200);
+serial.writeByte(0xFF);
+let ready = serial.available();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`js_serial = uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6, 9600);`,
+		`uart_set_baud(js_serial, 19200);`,
+		`uart_write_byte(js_serial, 0xFF);`,
+		`js_ready = uart_available(js_serial);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "uart.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated uart C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
 
@@ -669,7 +706,7 @@ pin("PC1").toggle();
 	}
 	for _, want := range []string{
 		`pwm_set(pwm_open(JIKA_PIN_PC1), 50);`,
-		`uart_write(uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6), "hi");`,
+		`uart_write(uart_open(JIKA_PIN_PD5, JIKA_PIN_PD6, 115200), "hi");`,
 		`adc_read(adc_open(JIKA_PIN_PD4));`,
 		`gpio_toggle(JIKA_PIN_PC1);`,
 	} {
@@ -992,6 +1029,40 @@ func TestGenerateOmitsDebugHeadersWhenUnused(t *testing.T) {
 	}
 	if strings.Contains(out, "#include <ch32fun.h>") || strings.Contains(out, "#include <stdio.h>") {
 		t.Fatalf("debug headers should only be emitted when printf/delay is used:\n%s", out)
+	}
+}
+
+func TestGenerateMillisAndPinPull(t *testing.T) {
+	program, err := parser.ParseProgram(`const button = pin("PD2");
+button.pullUp();
+let now = millis();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`gpio_pull_up(js_button);`,
+		`js_now = periodic_millis();`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "millis.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated millis C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
 

@@ -25,7 +25,7 @@ func IsValidUARTTuple(tx, rx string) bool {
 // object.
 func IsValidUARTMethod(method string) bool {
 	switch method {
-	case "write", "println", "read":
+	case "write", "println", "writeByte", "available", "setBaud", "read":
 		return true
 	default:
 		return false

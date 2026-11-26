@@ -1,0 +1,16 @@
+// Active-low button using the internal pull-up.
+const led = pin("PC1");
+const button = pin("PD2");
+
+led.output();
+button.pullUp();
+
+task("button", 20, () => {
+    if (button.read() == LOW) {
+        led.write(HIGH);
+    } else {
+        led.write(LOW);
+    }
+});
+
+scheduler.start();

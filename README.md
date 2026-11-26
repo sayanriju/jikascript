@@ -378,15 +378,21 @@ handle, and the handle's methods do the work:
 
 ```javascript
 const led = pin("PC1");
-const serial = uart("PD5", "PD6");
+const button = pin("PD2");
+const serial = uart("PD5", "PD6", 9600);
 const dimmer = pwm("PC1");
 const sensor = adc("PD4");
 
 led.output();
 led.write(HIGH);
+button.pullUp();
 
 serial.println("boot");
 serial.write("ping");
+serial.writeByte(0x55);
+if (serial.available()) {
+    let ch = serial.read();
+}
 
 dimmer.set(50);              // duty cycle 0-100
 dimmer.setFrequency(1000);  // Hz
@@ -395,11 +401,11 @@ const level = sensor.read();  // 0..1023
 ```
 
 Argument counts and types are validated at compile time: `uart.write`/`println`
-take a string, `pwm.set`/`setFrequency` and `pin.write` take a number, and
-`read()` takes none. A wrong argument fails `jikascript check` instead of
-reaching the C compiler and breaking the firmware build. See
-[docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
-for the pin tables and the timer/clock contract.
+take a string; `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`, and
+`pin.write` take a number; `read()`/`available()` take none. A wrong argument
+fails `jikascript check` instead of reaching the C compiler and breaking the
+firmware build. See [docs/runtime/hardware.md](docs/runtime/hardware.md) and
+[SPEC.md](SPEC.md) §7 for the pin tables and the timer/clock contract.
 
 ## Debug output and delays
 
@@ -418,6 +424,26 @@ automatically when `printf` is used. `delay`/`delay_us` busy-wait on SysTick, so
 they block cooperative task callbacks. See
 [docs/runtime/debug.md](docs/runtime/debug.md).
 
+## Time
+
+`millis()` returns the scheduler's millisecond counter as a `uint32`:
+
+```javascript
+let last: uint32 = 0;
+
+task("tick", 10, () => {
+    if (millis() - last >= 500) {
+        last = millis();
+        led.toggle();
+    }
+});
+```
+
+The counter wraps after roughly 49.7 days; subtract two `uint32` values for
+wrap-safe timing. `micros()` is intentionally omitted to keep the surface small
+and avoid exposing the SysTick counter. See
+[docs/runtime/time.md](docs/runtime/time.md).
+
 ## Validation status labels
 
 - **Host-tested**: verified with the Go test suite and host C99 compilation
@@ -425,7 +451,8 @@ they block cooperative task callbacks. See
   documented above are host-tested.
 - **Target-compiled**: verified by compiling firmware through PlatformIO
   against the `ch32v003fun` framework. `jikascript build` produces a linked
-  `.elf` and `.bin` for CH32V003. GPIO, UART, PWM, ADC, the scheduler, and the
+  `.elf` and `.bin` for CH32V003. GPIO (including pull-up/down), UART
+  (including baud and byte I/O), PWM, ADC, the scheduler, `millis()`, and the
   debug helpers (`printf`, `delay`, `delay_us`) are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.

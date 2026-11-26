@@ -766,12 +766,17 @@ Input:
 ```javascript
 const button = pin("PD2");
 
-button.input();
+button.pullUp();
 
 if (button.read() == LOW) {
     led.toggle();
 }
 ```
+
+A pin supports `output`, `input`, `pullUp`, `pullDown`, `write`, `read`, and
+`toggle`. `pullUp` and `pullDown` configure an input with the internal pull
+resistor; use them instead of `input` when a button or switch needs a defined
+idle level.
 
 The backend must validate pin names and supported operations. `write` takes a
 number, or no argument (meaning `LOW`).
@@ -783,26 +788,36 @@ Do not assume all MCUs have identical pin names or peripheral capabilities.
 Example:
 
 ```javascript
-const serial = uart("PD5", "PD6");
+const serial = uart("PD5", "PD6");        // 115200 baud
+const slow = uart("PD5", "PD6", 9600);    // explicit baud
 
 serial.write("hello");
 serial.println("ok");
-let ch = serial.read();
+serial.writeByte(0x55);
+if (serial.available()) {
+    let ch = serial.read();
+}
+serial.setBaud(115200);
 ```
 
-`uart()` takes two string-literal pin arguments: TX then RX. The CH32V003
-backend supports the default USART1 pair `uart("PD5", "PD6")`; the compiler
-rejects any other pair. The configuration is fixed at 8N1, 115200 baud.
+`uart()` takes two string-literal pin arguments, TX then RX, and an optional
+positive integer baud literal. The CH32V003 backend supports the default USART1
+pair `uart("PD5", "PD6")`; the compiler rejects any other pair. The frame format
+is fixed at 8N1 and the default baud is 115200.
 
-A uart object supports exactly three methods:
+A uart object supports exactly these methods:
 
 - `write(text)` transmits a string.
 - `println(text)` transmits a string followed by `\r\n`.
+- `writeByte(value)` transmits one byte, masked to 8 bits.
+- `available()` returns `true` when a received byte is waiting.
 - `read()` returns the next received byte as an `int`, or `-1` when no byte is
   available. Reads are non-blocking.
+- `setBaud(baud)` changes the baud rate at runtime.
 
 The backend must validate the pin pair and supported methods. `write` and
-`println` take a string.
+`println` take a string; `writeByte` and `setBaud` take a number. There is one
+USART1, so `setBaud` affects the single open port.
 
 ## 7.3 PWM
 
@@ -886,7 +901,27 @@ delay_us(250);
   They are intended for short settling delays and debugging, not for periodic
   scheduling.
 
-## 7.6 Future peripherals
+## 7.6 Time
+
+`millis()` returns the scheduler's millisecond counter as a `uint32`:
+
+```javascript
+let last: uint32 = 0;
+
+if (millis() - last >= 500) {
+    last = millis();
+}
+```
+
+- The counter wraps after roughly 49.7 days. Subtract two `uint32` values
+  instead of comparing absolute timestamps so the arithmetic stays correct
+  across the wrap.
+- `micros()` is intentionally not provided. Millisecond resolution covers the
+  scheduler, debounce, and timeout use cases; a microsecond API would expose
+  the SysTick counter directly, wrap in roughly 89 seconds at 48 MHz, and
+  couple the language to the timer implementation.
+
+## 7.7 Future peripherals
 
 The following are planned extensions:
 

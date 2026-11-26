@@ -136,8 +136,8 @@ func TestCheckRejectsInvalidUART(t *testing.T) {
 	}{
 		{`const serial = uart("PA2", "PA1");`, "unsupported uart pin pair"},
 		{`const serial = uart("PD6", "PD5");`, "unsupported uart pin pair"},
-		{`const serial = uart("PD5");`, "uart() expects exactly two arguments"},
-		{`const serial = uart("PD5", "PD6", "PC1");`, "uart() expects exactly two arguments"},
+		{`const serial = uart("PD5");`, "uart() expects two or three arguments"},
+		{`const serial = uart("PD5", "PD6", "PC1");`, "baud argument must be a positive integer literal"},
 		{`const serial = uart("PD5", 1);`, "rx argument must be a string literal"},
 	}
 	for _, tc := range cases {
@@ -1087,5 +1087,137 @@ func TestCheckRejectsInvalidHexLiterals(t *testing.T) {
 		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
 		}
+	}
+}
+
+func TestCheckAcceptsMillis(t *testing.T) {
+	sources := []string{
+		`let now = millis();`,
+		`let now: uint32 = millis();`,
+		`let last: uint32 = 0; let elapsed = millis() - last;`,
+		`if (millis() - 0 > 500) { }`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsMillisArguments(t *testing.T) {
+	program, err := parser.ParseProgram(`millis(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "millis() expects no arguments") {
+		t.Fatalf("expected millis arity error, got %v", err)
+	}
+}
+
+func TestCheckInfersUint32ForMillisArithmetic(t *testing.T) {
+	program, err := parser.ParseProgram(`let last: uint32 = 0; let elapsed = millis() - last;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	decl, ok := program.Statements[1].(*ast.VarDecl)
+	if !ok {
+		t.Fatalf("expected VarDecl, got %T", program.Statements[1])
+	}
+	if decl.ResolvedType != "uint32" {
+		t.Fatalf("elapsed ResolvedType = %q, want uint32", decl.ResolvedType)
+	}
+}
+
+func TestCheckAcceptsPinPullMethods(t *testing.T) {
+	sources := []string{
+		`const button = pin("PD2"); button.pullUp();`,
+		`const button = pin("PD2"); button.pullDown();`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsPinPullMethodArguments(t *testing.T) {
+	program, err := parser.ParseProgram(`const button = pin("PD2"); button.pullUp(1);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "pullUp() expects no arguments") {
+		t.Fatalf("expected pullUp arity error, got %v", err)
+	}
+}
+
+func TestCheckAcceptsUARTBaudAndByteMethods(t *testing.T) {
+	sources := []string{
+		`const serial = uart("PD5", "PD6", 9600);`,
+		`const serial = uart("PD5", "PD6", 0x2580);`,
+		`const serial = uart("PD5", "PD6"); serial.setBaud(19200);`,
+		`const serial = uart("PD5", "PD6"); serial.writeByte(0xFF);`,
+		`const serial = uart("PD5", "PD6"); let ready = serial.available();`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidUARTBaudAndByteMethods(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const serial = uart("PD5", "PD6", 0);`, "baud argument must be a positive integer literal"},
+		{`const serial = uart("PD5", "PD6", -1);`, "baud argument must be a positive integer literal"},
+		{`const serial = uart("PD5", "PD6", 9600, 1);`, "uart() expects two or three arguments"},
+		{`const serial = uart("PD5", "PD6"); serial.writeByte();`, "writeByte() expects exactly one argument"},
+		{`const serial = uart("PD5", "PD6"); serial.writeByte("x");`, "writeByte() argument 1 expects number"},
+		{`const serial = uart("PD5", "PD6"); serial.available(1);`, "available() expects no arguments"},
+		{`const serial = uart("PD5", "PD6"); serial.setBaud();`, "setBaud() expects exactly one argument"},
+		{`const serial = uart("PD5", "PD6"); serial.setBaud("x");`, "setBaud() argument 1 expects number"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckInfersBooleanForUARTAvailable(t *testing.T) {
+	program, err := parser.ParseProgram(`const serial = uart("PD5", "PD6"); let ready = serial.available();`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	decl, ok := program.Statements[1].(*ast.VarDecl)
+	if !ok {
+		t.Fatalf("expected VarDecl, got %T", program.Statements[1])
+	}
+	if decl.ResolvedType != "boolean" {
+		t.Fatalf("ready ResolvedType = %q, want boolean", decl.ResolvedType)
 	}
 }
