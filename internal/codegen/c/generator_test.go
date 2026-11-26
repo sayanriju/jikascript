@@ -1183,6 +1183,41 @@ let y = map(512, 0, 1023, 0, 255);`)
 	}
 }
 
+func TestGenerateStringCharAt(t *testing.T) {
+	program, err := parser.ParseProgram(`let s = "hi";
+let a = "hello".charAt(1);
+let b = s.charAt(0);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`#include "text.h"`,
+		`js_a = jikascript_char_at("hello", 1);`,
+		`js_b = jikascript_char_at(js_s, 0);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "string_char_at.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated charAt C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
 func TestGenerateStringEqualityAndLength(t *testing.T) {
 	program, err := parser.ParseProgram(`let a = "hello";
 let b = "world";

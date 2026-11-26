@@ -1,0 +1,8 @@
+// String length, equality, and character access.
+const message = "hello";
+let n = message.length;
+let c = message.charAt(1);
+
+if (message == "hello" && c >= 0) {
+    n = n + 1;
+}

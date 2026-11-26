@@ -19,6 +19,7 @@ separately. A compiler release may advance without changing the language.
 - `i2c.ping(addr)` for device discovery.
 - SPI bit order selection via the optional third `configure(hz, mode, bitOrder)`
   argument.
+- `string.charAt(index)` for bounds-checked character access.
 
 ### Fixed
 

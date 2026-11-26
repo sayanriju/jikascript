@@ -78,7 +78,8 @@ let m = "abc".length;   // compile-time constant 3
 ```
 
 `==`, `===`, `!=`, and `!==` compare string contents with `strcmp`, not
-pointers. `.length` returns the number of bytes.
+pointers. `.length` returns the number of bytes, and `.charAt(index)` returns
+the byte at `index` or `-1` when out of range.
 
 ---
 

@@ -66,6 +66,7 @@ The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) 
 - [`i2c.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/i2c.jika) — I2C register access
 - [`random.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/random.jika) — pseudo-random values
 - [`math.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/math.jika) — ADC scaling with `map` and `clamp`
+- [`strings.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/strings.jika) — string length, equality, and character access
 - [`time.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/time.jika) — non-blocking `millis()` timing
 - [`button_pullup.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/button_pullup.jika) — internal pull-up button
 - [`bitmask.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/bitmask.jika) — hex masks and bitwise operators

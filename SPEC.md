@@ -462,7 +462,8 @@ Strings should be stored in read-only memory where supported by the target toolc
 
 `==`, `===`, `!=`, and `!==` compare string contents with `strcmp`, not
 pointers. `.length` returns the number of bytes: a compile-time constant for a
-string literal, or `strlen()` for a string binding.
+string literal, or `strlen()` for a string binding. `.charAt(index)` returns the
+byte at `index` as an `int32`, or `-1` when the index is out of range.
 
 Dynamic string allocation and garbage collection are excluded.
 

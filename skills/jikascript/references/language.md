@@ -131,8 +131,9 @@ Explicit annotations retain their mapped C types (`uint8` → `uint8_t`, etc.).
 Type inference is supported wherever the type is unambiguous.
 
 Strings are immutable and statically allocated. `==`/`===`/`!=`/`!==` compare
-contents with `strcmp`, and `.length` returns the byte length (compile-time for
-literals, `strlen()` for bindings).
+contents with `strcmp`, `.length` returns the byte length (compile-time for
+literals, `strlen()` for bindings), and `.charAt(index)` returns the byte at
+`index` or `-1` when out of range.
 
 ---
 

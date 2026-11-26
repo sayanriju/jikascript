@@ -804,7 +804,7 @@ func TestCheckRejectsMembersOnScalars(t *testing.T) {
 	}{
 		{`let x = 5; x.write(1);`, "'x' has type int32 and no properties or methods"},
 		{`let x = 5; let y = x.length;`, "'x' has type int32 and no properties or methods"},
-		{`let s = "hi"; s.println("x");`, "'s' has type string and no properties or methods"},
+		{`let s = "hi"; s.println("x");`, "unsupported string method"},
 		{`let b = true; b.toggle();`, "'b' has type boolean and no properties or methods"},
 		{`const c = 10; c.read();`, "'c' has type int32 and no properties or methods"},
 	}
@@ -1400,6 +1400,43 @@ func TestCheckRejectsInvalidMathBuiltins(t *testing.T) {
 		{`max(1, "x");`, "max() argument 2 expects a number"},
 		{`clamp(1, 2);`, "clamp() expects exactly three arguments"},
 		{`map(1, 2, 3, 4);`, "map() expects exactly five arguments"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsStringCharAt(t *testing.T) {
+	sources := []string{
+		`let c = "hello".charAt(1);`,
+		`let s = "hi"; let c = s.charAt(0);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidStringCharAt(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let c = "x".charAt();`, "charAt() expects exactly one argument"},
+		{`let c = "x".charAt(1, 2);`, "charAt() expects exactly one argument"},
+		{`let c = "x".charAt("a");`, "charAt() argument 1 expects a number"},
+		{`let c = "x".bogus();`, "unsupported string method"},
 	}
 	for _, tc := range cases {
 		program, err := parser.ParseProgram(tc.source)

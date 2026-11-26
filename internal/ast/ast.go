@@ -245,6 +245,9 @@ type SelectorExpr struct {
 	// StringLength marks a .length access on a string literal or string
 	// binding. Code generation emits a compile-time length or strlen().
 	StringLength bool
+	// StringCharAt marks a .charAt() call on a string literal or string
+	// binding. Code generation emits a bounds-checked runtime helper.
+	StringCharAt bool
 }
 
 func (*SelectorExpr) exprNode() {}

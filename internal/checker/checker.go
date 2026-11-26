@@ -940,6 +940,24 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 				}
 			}
 		}
+		if sel, ok := node.Function.(*ast.SelectorExpr); ok && isStringReceiver(sel.Object, scopeStack) {
+			switch sel.Field {
+			case "charAt":
+				if len(node.Args) != 1 {
+					return fmt.Errorf("%d:%d: error: charAt() expects exactly one argument, got %d", node.Pos.Line, node.Pos.Column, len(node.Args))
+				}
+				if err := checkExpr(node.Args[0], scopeStack, functionArity); err != nil {
+					return err
+				}
+				if t, known := inferLiteralType(node.Args[0], scopeStack); known && !isNumericType(t) {
+					return fmt.Errorf("%d:%d: error: charAt() argument 1 expects a number, got %s", node.Pos.Line, node.Pos.Column, t)
+				}
+				sel.StringCharAt = true
+				return nil
+			default:
+				return fmt.Errorf("%d:%d: error: unsupported string method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
+			}
+		}
 		if err := checkExpr(node.Function, scopeStack, functionArity); err != nil {
 			return err
 		}
@@ -1972,6 +1990,9 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 			return "int32", true
 		}
 		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
+			if isStringReceiver(sel.Object, scopeStack) && sel.Field == "charAt" {
+				return "int32", true
+			}
 			if ident, ok := sel.Object.(*ast.Identifier); ok && scopeStack != nil {
 				if binding, exists := lookup(scopeStack, ident.Name); exists && isArrayBinding(binding) {
 					switch sel.Field {
@@ -2190,6 +2211,22 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		}
 	}
 	return nil
+}
+
+// isStringReceiver reports whether expr is a string literal or a binding whose
+// scalar type is string.
+func isStringReceiver(expr ast.Expr, scopeStack []map[string]string) bool {
+	if _, ok := expr.(*ast.StringLiteral); ok {
+		return true
+	}
+	if ident, ok := expr.(*ast.Identifier); ok && scopeStack != nil {
+		if binding, exists := lookup(scopeStack, ident.Name); exists {
+			if t, ok := scalarBindingType(binding); ok && t == "string" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // checkNumericBuiltinArgs validates that every argument to a math builtin is

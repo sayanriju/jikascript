@@ -54,6 +54,9 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 			if node.StringLength {
 				used["string"] = true
 			}
+			if node.StringCharAt {
+				used["text"] = true
+			}
 			visitExpr(node.Object)
 		case *ast.IndexExpr:
 			visitExpr(node.Object)
