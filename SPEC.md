@@ -341,6 +341,12 @@ Increment/decrement:
 ++ --
 ```
 
+Conditional:
+
+```javascript
+condition ? whenTrue : whenFalse
+```
+
 Bitwise operators should also be supported where appropriate for embedded register and GPIO operations.
 
 Do not collapse `==` and `===` into identical behavior without explicitly defining and documenting the semantics.

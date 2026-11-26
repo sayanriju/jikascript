@@ -15,7 +15,7 @@ func TestNodeInterfaces(t *testing.T) {
 	expressions := []Expr{
 		&ArrowFunctionExpr{}, &Identifier{}, &NumberLiteral{}, &StringLiteral{},
 		&BoolLiteral{}, &CallExpr{}, &SelectorExpr{}, &IndexExpr{},
-		&BinaryExpr{}, &UnaryExpr{}, &ArrayLiteralExpr{}, &ObjectLiteralExpr{},
+		&BinaryExpr{}, &ConditionalExpr{}, &UnaryExpr{}, &ArrayLiteralExpr{}, &ObjectLiteralExpr{},
 	}
 	if len(statements) == 0 || len(expressions) == 0 {
 		t.Fatal("node interface lists must not be empty")

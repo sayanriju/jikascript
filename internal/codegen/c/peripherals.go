@@ -67,6 +67,10 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 			}
 			visitExpr(node.Left)
 			visitExpr(node.Right)
+		case *ast.ConditionalExpr:
+			visitExpr(node.Cond)
+			visitExpr(node.Then)
+			visitExpr(node.Else)
 		case *ast.UnaryExpr:
 			visitExpr(node.Expr)
 		case *ast.ArrayLiteralExpr:

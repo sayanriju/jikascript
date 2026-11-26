@@ -1497,3 +1497,30 @@ func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAcceptsConditionalExpressions(t *testing.T) {
+	sources := []string{
+		`let x = 1 > 0 ? 1 : 2;`,
+		`let s = true ? "a" : "b";`,
+		`let x = 1 > 0 ? 1 : 2; let y = x > 0 ? x : 0;`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsIncompatibleConditionalBranches(t *testing.T) {
+	program, err := parser.ParseProgram(`let x = true ? 1 : "a";`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := Check(program); err == nil || !strings.Contains(err.Error(), "conditional branches have incompatible types") {
+		t.Fatalf("expected conditional branch type error, got %v", err)
+	}
+}

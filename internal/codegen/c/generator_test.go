@@ -1373,3 +1373,30 @@ let value = 0x10;
 		t.Fatalf("generated hex C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+func TestGenerateConditionalExpression(t *testing.T) {
+	program, err := parser.ParseProgram(`let x = 1 > 0 ? 1 : 2;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, `js_x = (1 > 0 ? 1 : 2);`) {
+		t.Fatalf("expected conditional expression in generated C:\n%s", out)
+	}
+
+	tmp := filepath.Join(t.TempDir(), "conditional.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated conditional C failed C99 syntax check: %v\n%s", err, output)
+	}
+}

@@ -84,4 +84,5 @@ var SingleCharOperators = map[byte]string{
 	'|': "|",
 	'^': "^",
 	'~': "~",
+	'?': "?",
 }

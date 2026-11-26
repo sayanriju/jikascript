@@ -61,4 +61,17 @@ switch (state) {
 }
 ```
 
+## Ternary Operator
+
+Use `?:` for a concise conditional expression:
+
+```javascript
+let level = sensor.read() > 512 ? HIGH : LOW;
+```
+
+Only the selected branch is evaluated. Both branches must have compatible
+types.
+
+---
+
 Now let's see how JikaScript handles the hardware world: [Tasks & Scheduling](runtime/tasks.md)!

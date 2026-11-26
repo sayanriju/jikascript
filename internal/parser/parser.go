@@ -591,7 +591,7 @@ func (p *Parser) parseExpression() (ast.Expr, error) {
 }
 
 func (p *Parser) parseAssignment() (ast.Expr, error) {
-	left, err := p.parseLogicalOr()
+	left, err := p.parseConditional()
 	if err != nil {
 		return nil, err
 	}
@@ -606,6 +606,31 @@ func (p *Parser) parseAssignment() (ast.Expr, error) {
 		return &ast.BinaryExpr{Left: left, Op: op, Right: right, Pos: start}, nil
 	}
 	return left, nil
+}
+
+func (p *Parser) parseConditional() (ast.Expr, error) {
+	cond, err := p.parseLogicalOr()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == lexer.OPERATOR && p.cur.Literal == "?" {
+		start := ast.Position{Line: p.cur.Line, Column: p.cur.Column}
+		p.next()
+		thenExpr, err := p.parseAssignment()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != lexer.PUNCT || p.cur.Literal != ":" {
+			return nil, fmt.Errorf("%d:%d: error: expected ':' in conditional expression", p.cur.Line, p.cur.Column)
+		}
+		p.next()
+		elseExpr, err := p.parseAssignment()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ConditionalExpr{Cond: cond, Then: thenExpr, Else: elseExpr, Pos: start}, nil
+	}
+	return cond, nil
 }
 
 func (p *Parser) parseLogicalOr() (ast.Expr, error) {

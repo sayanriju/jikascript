@@ -274,6 +274,16 @@ type BinaryExpr struct {
 
 func (*BinaryExpr) exprNode() {}
 
+// ConditionalExpr represents the ternary operator: cond ? then : else.
+type ConditionalExpr struct {
+	Cond Expr
+	Then Expr
+	Else Expr
+	Pos  Position
+}
+
+func (*ConditionalExpr) exprNode() {}
+
 // UnaryExpr represents a prefix or postfix unary expression.
 type UnaryExpr struct {
 	Op      string

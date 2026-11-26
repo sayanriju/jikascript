@@ -303,6 +303,10 @@ func inferParameterUsage(stmts []ast.Stmt, name string) string {
 				visitExpr(node.Left, "numeric")
 				visitExpr(node.Right, "numeric")
 			}
+		case *ast.ConditionalExpr:
+			visitExpr(node.Cond, "logical")
+			visitExpr(node.Then, context)
+			visitExpr(node.Else, context)
 		case *ast.UnaryExpr:
 			visitExpr(node.Expr, "numeric")
 		case *ast.CallExpr:
@@ -394,6 +398,10 @@ func walkStatementExpressions(stmt ast.Stmt, visit func(ast.Expr)) {
 		case *ast.BinaryExpr:
 			walkExpr(node.Left)
 			walkExpr(node.Right)
+		case *ast.ConditionalExpr:
+			walkExpr(node.Cond)
+			walkExpr(node.Then)
+			walkExpr(node.Else)
 		case *ast.UnaryExpr:
 			walkExpr(node.Expr)
 		case *ast.ArrayLiteralExpr:
@@ -1135,6 +1143,30 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		if err := checkExpr(node.Right, scopeStack, functionArity); err != nil {
 			return err
 		}
+	case *ast.ConditionalExpr:
+		if err := checkExpr(node.Cond, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Cond, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		if err := checkExpr(node.Then, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkExpr(node.Else, scopeStack, functionArity); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Then, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		if err := checkValueExpression(node.Else, scopeStack, node.Pos); err != nil {
+			return err
+		}
+		thenType, thenKnown := inferLiteralType(node.Then, scopeStack)
+		elseType, elseKnown := inferLiteralType(node.Else, scopeStack)
+		if thenKnown && elseKnown && !typeCompatible(thenType, elseType) && !typeCompatible(elseType, thenType) {
+			return fmt.Errorf("%d:%d: error: conditional branches have incompatible types %s and %s", node.Pos.Line, node.Pos.Column, thenType, elseType)
+		}
 	case *ast.UnaryExpr:
 		if node.Op == "++" || node.Op == "--" {
 			if !isIncrementTarget(node.Expr) {
@@ -1621,6 +1653,14 @@ func peripheralCallReturnType(expr ast.Expr, scopeStack []map[string]string) (st
 // checkValueExpression rejects an expression that produces no value, such as a
 // void peripheral method call used where a value is required.
 func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if cond, ok := expr.(*ast.ConditionalExpr); ok {
+		if err := checkValueExpression(cond.Then, scopeStack, pos); err != nil {
+			return err
+		}
+		if err := checkValueExpression(cond.Else, scopeStack, pos); err != nil {
+			return err
+		}
+	}
 	if builtinCallVoid(expr) {
 		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
 	}
@@ -2053,6 +2093,18 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		}
 		if node.Op == "=" || isAssignmentOp(node.Op) {
 			return left, leftOK
+		}
+		return "", false
+	case *ast.ConditionalExpr:
+		thenType, thenOK := inferLiteralType(node.Then, scopeStack)
+		elseType, elseOK := inferLiteralType(node.Else, scopeStack)
+		if thenOK && elseOK {
+			if isNumericType(thenType) && isNumericType(elseType) {
+				return mergeNumericType(thenType, elseType), true
+			}
+			if thenType == elseType {
+				return thenType, true
+			}
 		}
 		return "", false
 	case *ast.UnaryExpr:

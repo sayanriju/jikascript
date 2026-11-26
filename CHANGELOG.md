@@ -20,6 +20,7 @@ separately. A compiler release may advance without changing the language.
 - SPI bit order selection via the optional third `configure(hz, mode, bitOrder)`
   argument.
 - `string.charAt(index)` for bounds-checked character access.
+- Ternary conditional expressions (`cond ? a : b`).
 
 ### Fixed
 

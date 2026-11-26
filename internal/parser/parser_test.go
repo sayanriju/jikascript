@@ -233,3 +233,17 @@ i--;
 		}
 	}
 }
+
+func TestParseConditionalExpression(t *testing.T) {
+	program, err := ParseProgram(`let x = 1 > 0 ? 1 : 2;`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	decl, ok := program.Statements[0].(*ast.VarDecl)
+	if !ok {
+		t.Fatalf("expected VarDecl, got %T", program.Statements[0])
+	}
+	if _, ok := decl.Value.(*ast.ConditionalExpr); !ok {
+		t.Fatalf("expected ConditionalExpr, got %T", decl.Value)
+	}
+}

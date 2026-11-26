@@ -374,6 +374,15 @@ Bitwise operators are supported where appropriate for embedded register and
 GPIO operations (`&`, `|`, `^`, `<<`, `>>`, `~`), following ECMAScript
 precedence.
 
+### 8.8 Conditional
+
+```javascript
+condition ? whenTrue : whenFalse
+```
+
+The condition is evaluated first; only the selected branch is evaluated. Both
+branches must have compatible types.
+
 Operator precedence follows ECMAScript.
 
 ---

@@ -1062,6 +1062,8 @@ func renderExpr(expr ast.Expr) string {
 			op = "!="
 		}
 		return renderExpr(node.Left) + " " + op + " " + renderExpr(node.Right)
+	case *ast.ConditionalExpr:
+		return "(" + renderExpr(node.Cond) + " ? " + renderExpr(node.Then) + " : " + renderExpr(node.Else) + ")"
 	case *ast.UnaryExpr:
 		if node.Postfix {
 			return renderExpr(node.Expr) + node.Op
@@ -1284,6 +1286,8 @@ func isStaticInitSafe(expr ast.Expr) bool {
 		return isStaticInitSafe(node.Expr)
 	case *ast.BinaryExpr:
 		return isStaticInitSafe(node.Left) && isStaticInitSafe(node.Right)
+	case *ast.ConditionalExpr:
+		return isStaticInitSafe(node.Cond) && isStaticInitSafe(node.Then) && isStaticInitSafe(node.Else)
 	case *ast.ObjectLiteralExpr:
 		for _, property := range node.Properties {
 			if !isStaticInitSafe(property.Value) {
@@ -1657,6 +1661,10 @@ func walkExprChildren(expr ast.Expr, visit func(ast.Expr)) {
 	case *ast.BinaryExpr:
 		walkExpr(node.Left, visit)
 		walkExpr(node.Right, visit)
+	case *ast.ConditionalExpr:
+		walkExpr(node.Cond, visit)
+		walkExpr(node.Then, visit)
+		walkExpr(node.Else, visit)
 	case *ast.UnaryExpr:
 		walkExpr(node.Expr, visit)
 	case *ast.ArrowFunctionExpr:
