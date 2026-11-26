@@ -1933,6 +1933,35 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 		if ident, ok := node.Function.(*ast.Identifier); ok && (ident.Name == "millis" || ident.Name == "random") {
 			return "uint32", true
 		}
+		if ident, ok := node.Function.(*ast.Identifier); ok {
+			switch ident.Name {
+			case "abs":
+				if len(node.Args) == 1 {
+					if t, ok := inferLiteralType(node.Args[0], scopeStack); ok && isNumericType(t) {
+						return t, true
+					}
+				}
+				return "int32", true
+			case "min", "max":
+				if len(node.Args) == 2 {
+					left, lok := inferLiteralType(node.Args[0], scopeStack)
+					right, rok := inferLiteralType(node.Args[1], scopeStack)
+					if lok && rok && isNumericType(left) && isNumericType(right) {
+						return mergeNumericType(left, right), true
+					}
+				}
+				return "int32", true
+			case "clamp":
+				if len(node.Args) == 3 {
+					if t, ok := inferLiteralType(node.Args[0], scopeStack); ok && isNumericType(t) {
+						return t, true
+					}
+				}
+				return "int32", true
+			case "map":
+				return "int32", true
+			}
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
 			return "int32", true
 		}
@@ -2086,7 +2115,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis", "random", "randomSeed":
+	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis", "random", "randomSeed", "abs", "min", "max", "clamp", "map":
 		return true
 	default:
 		return false
@@ -2121,6 +2150,26 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		if t, known := inferLiteralType(call.Args[0], scopeStack); known && (t == "string" || t == "boolean" || strings.Contains(t, ":")) {
 			return fmt.Errorf("%d:%d: error: randomSeed() expects a numeric argument, got %s", call.Pos.Line, call.Pos.Column, t)
 		}
+	case "abs":
+		if len(call.Args) != 1 {
+			return fmt.Errorf("%d:%d: error: abs() expects exactly one argument, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
+		}
+		return checkNumericBuiltinArgs("abs", call.Args, scopeStack, call.Pos)
+	case "min", "max":
+		if len(call.Args) != 2 {
+			return fmt.Errorf("%d:%d: error: %s() expects exactly two arguments, got %d", call.Pos.Line, call.Pos.Column, ident.Name, len(call.Args))
+		}
+		return checkNumericBuiltinArgs(ident.Name, call.Args, scopeStack, call.Pos)
+	case "clamp":
+		if len(call.Args) != 3 {
+			return fmt.Errorf("%d:%d: error: clamp() expects exactly three arguments, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
+		}
+		return checkNumericBuiltinArgs("clamp", call.Args, scopeStack, call.Pos)
+	case "map":
+		if len(call.Args) != 5 {
+			return fmt.Errorf("%d:%d: error: map() expects exactly five arguments, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
+		}
+		return checkNumericBuiltinArgs("map", call.Args, scopeStack, call.Pos)
 	case "delay", "delay_us":
 		if len(call.Args) != 1 {
 			return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", call.Pos.Line, call.Pos.Column, ident.Name, len(call.Args))
@@ -2132,6 +2181,23 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		}
 		if t, known := inferLiteralType(call.Args[0], scopeStack); known && (t == "string" || t == "boolean" || strings.Contains(t, ":")) {
 			return fmt.Errorf("%d:%d: error: %s() expects a numeric argument, got %s", call.Pos.Line, call.Pos.Column, ident.Name, t)
+		}
+	}
+	return nil
+}
+
+// checkNumericBuiltinArgs validates that every argument to a math builtin is
+// numeric. Unknown types are allowed so calls to user functions can be checked
+// by their own return type.
+func checkNumericBuiltinArgs(name string, args []ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	for i, arg := range args {
+		if ident, ok := arg.(*ast.Identifier); ok && scopeStack != nil {
+			if binding, exists := lookup(scopeStack, ident.Name); exists && peripheralKindOf(binding) != "" {
+				return fmt.Errorf("%d:%d: error: %s() argument %d expects a number, got %s peripheral '%s'", pos.Line, pos.Column, name, i+1, peripheralKindOf(binding), ident.Name)
+			}
+		}
+		if t, known := inferLiteralType(arg, scopeStack); known && !isNumericType(t) {
+			return fmt.Errorf("%d:%d: error: %s() argument %d expects a number, got %s", pos.Line, pos.Column, name, i+1, t)
 		}
 	}
 	return nil

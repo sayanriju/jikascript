@@ -141,6 +141,14 @@ two `uint32` values for wrap-safe timing. `random()` returns a pseudo-random
 `uint32`, and `randomSeed(seed)` reseeds the LFSR generator. `micros()` is not
 provided.
 
+## Math helpers
+
+`abs(x)`, `min(a, b)`, `max(a, b)`, and `clamp(x, lo, hi)` lower to inline C
+expressions and work for integer and floating-point operands. `map(x, inLo,
+inHi, outLo, outHi)` maps an integer range using 64-bit intermediate arithmetic.
+The inline helpers evaluate their arguments more than once, so pass simple
+values.
+
 ## Timer and clock assumptions
 
 The scheduler (SysTick, 1 ms tick) and PWM (TIM1/TIM2) both derive their timing

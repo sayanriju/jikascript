@@ -181,6 +181,8 @@ var runtimeFiles = []runtimeFile{
 	{source: "targets/ch32fun/runtime/i2c.h", destination: "include/i2c.h", peripheral: "i2c"},
 	{source: "targets/ch32fun/runtime/random.c", destination: "src/runtime/random.c", peripheral: "random"},
 	{source: "targets/ch32fun/runtime/random.h", destination: "include/random.h", peripheral: "random"},
+	{source: "targets/ch32fun/runtime/math.c", destination: "src/runtime/math.c", peripheral: "math"},
+	{source: "targets/ch32fun/runtime/math.h", destination: "include/math.h", peripheral: "math"},
 }
 
 // stageRuntimeFiles copies the runtime sources and headers a project needs.
@@ -219,6 +221,7 @@ func usedPeripheralsFromC(mainC []byte) map[string]bool {
 		{family: "spi", header: "spi.h"},
 		{family: "i2c", header: "i2c.h"},
 		{family: "random", header: "random.h"},
+		{family: "math", header: "math.h"},
 	} {
 		if bytes.Contains(mainC, []byte(`#include "`+unit.header+`"`)) {
 			used[unit.family] = true

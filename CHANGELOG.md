@@ -15,6 +15,7 @@ separately. A compiler release may advance without changing the language.
 - Bounded array methods: `clear()`, `peek()`, `fill(value)`, `reverse()`,
   `indexOf(value)`, and the `capacity` property. `indexOf` supports numeric and
   boolean arrays; string arrays are rejected.
+- Math helpers: `abs`, `min`, `max`, `clamp`, and `map`.
 
 ### Fixed
 

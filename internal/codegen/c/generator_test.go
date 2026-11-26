@@ -1143,6 +1143,46 @@ let c = a.capacity;`)
 	}
 }
 
+func TestGenerateMathBuiltins(t *testing.T) {
+	program, err := parser.ParseProgram(`let a = abs(-5);
+let m = min(1, 2);
+let x = max(1, 2);
+let c = clamp(5, 0, 10);
+let y = map(512, 0, 1023, 0, 255);`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, want := range []string{
+		`#include "math.h"`,
+		`js_a = ((-5) < 0 ? -(-5) : (-5));`,
+		`js_m = ((1) < (2) ? (1) : (2));`,
+		`js_x = ((1) > (2) ? (1) : (2));`,
+		`js_c = ((5) < (0) ? (0) : ((5) > (10) ? (10) : (5)));`,
+		`js_y = jikascript_map(512, 0, 1023, 0, 255);`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in generated C:\n%s", want, out)
+		}
+	}
+
+	tmp := filepath.Join(t.TempDir(), "math.c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated math C failed C99 syntax check: %v\n%s", err, output)
+	}
+}
+
 func TestGenerateStringEqualityAndLength(t *testing.T) {
 	program, err := parser.ParseProgram(`let a = "hello";
 let b = "world";

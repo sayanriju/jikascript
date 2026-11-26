@@ -1,0 +1,14 @@
+// Integer math helpers for ADC scaling.
+const sensor = adc("PD4");
+const led = pwm("PC1");
+
+led.set(0);
+
+task("math", 100, () => {
+    let raw = sensor.read();
+    let duty = map(raw, 0, 1023, 0, 100);
+    duty = clamp(duty, 0, 100);
+    led.set(duty);
+});
+
+scheduler.start();

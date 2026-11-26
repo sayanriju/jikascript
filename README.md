@@ -476,6 +476,18 @@ let value = random();
 The generator is deterministic for a given seed and is not a cryptographic RNG.
 See [docs/runtime/random.md](docs/runtime/random.md).
 
+## Math helpers
+
+`abs`, `min`, `max`, `clamp`, and `map` cover common sensor scaling:
+
+```javascript
+let duty = map(sensor.read(), 0, 1023, 0, 100);
+duty = clamp(duty, 0, 100);
+```
+
+`abs`/`min`/`max`/`clamp` lower to inline C expressions; `map` uses 64-bit
+intermediate arithmetic. See [docs/runtime/math.md](docs/runtime/math.md).
+
 ## Validation status labels
 
 - **Host-tested**: verified with the Go test suite and host C99 compilation

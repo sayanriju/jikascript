@@ -1367,6 +1367,49 @@ func TestCheckAcceptsStringLengthAndEquality(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsMathBuiltins(t *testing.T) {
+	sources := []string{
+		`let a = abs(-5);`,
+		`let m = min(1, 2);`,
+		`let m = max(1, 2);`,
+		`let c = clamp(5, 0, 10);`,
+		`let y = map(512, 0, 1023, 0, 255);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidMathBuiltins(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`abs();`, "abs() expects exactly one argument"},
+		{`abs(1, 2);`, "abs() expects exactly one argument"},
+		{`abs("x");`, "abs() argument 1 expects a number"},
+		{`min(1);`, "min() expects exactly two arguments"},
+		{`max(1, "x");`, "max() argument 2 expects a number"},
+		{`clamp(1, 2);`, "clamp() expects exactly three arguments"},
+		{`map(1, 2, 3, 4);`, "map() expects exactly five arguments"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
 func TestCheckRejectsInvalidStringProperties(t *testing.T) {
 	cases := []struct {
 		source string

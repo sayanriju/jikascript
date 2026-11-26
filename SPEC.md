@@ -1002,7 +1002,26 @@ let value = random();
 - The generator is deterministic for a given seed; it is not a cryptographic
   RNG.
 
-## 7.10 Future peripherals
+## 7.10 Math helpers
+
+Integer-friendly math helpers:
+
+```javascript
+let a = abs(-5);
+let m = min(1, 2);
+let x = max(1, 2);
+let c = clamp(5, 0, 10);
+let y = map(512, 0, 1023, 0, 255);
+```
+
+- `abs(x)`, `min(a, b)`, `max(a, b)`, and `clamp(x, lo, hi)` lower to inline C
+  expressions and work for integer and floating-point operands. Their arguments
+  are evaluated more than once, so pass simple values rather than calls with
+  side effects.
+- `map(x, inLo, inHi, outLo, outHi)` maps an integer from one range to another
+  using 64-bit intermediate arithmetic. If `inHi == inLo`, it returns `outLo`.
+
+## 7.11 Future peripherals
 
 The following are planned extensions:
 

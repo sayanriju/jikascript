@@ -15,6 +15,7 @@
   - [Tasks & Scheduling](runtime/tasks.md)
   - [Time & millis()](runtime/time.md)
   - [Random numbers](runtime/random.md)
+  - [Math helpers](runtime/math.md)
   - **Peripherals**
     - [Overview](runtime/hardware.md)
     - [GPIO](runtime/gpio.md)
