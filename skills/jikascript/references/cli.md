@@ -61,7 +61,7 @@ Print compiler and language specification versions:
 jikascript version
 ```
 
-(Current release 0.4.2, language spec 0.4.0.)
+(Current release 0.4.3, language spec 0.5.0.)
 
 ### transpile
 

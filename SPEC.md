@@ -1,7 +1,7 @@
 # JikaScript
 ## Language, Compiler & Runtime Specification
 
-**Specification version:** 0.4.0
+**Specification version:** 0.5.0
 **Status:** Initial implementation specification  
 **Language reference:** ECMAScript 2024  
 **Compiler implementation:** Go  
