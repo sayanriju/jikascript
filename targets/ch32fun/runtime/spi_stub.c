@@ -5,5 +5,5 @@
 #include "spi.h"
 
 int spi_open(int sck_pin, int miso_pin, int mosi_pin) { (void)sck_pin; (void)miso_pin; (void)mosi_pin; return 0; }
-void spi_configure(int handle, uint32_t hz, int mode) { (void)handle; (void)hz; (void)mode; }
+void spi_configure(int handle, uint32_t hz, int mode, int bit_order) { (void)handle; (void)hz; (void)mode; (void)bit_order; }
 int spi_transfer(int handle, int value) { (void)handle; (void)value; return 0; }

@@ -114,8 +114,9 @@ bus.configure(1000000, 0);
 let rx = bus.transfer(0x9F);
 ```
 
-An spi object supports `configure(hz, mode)` (mode 0..3; default 1 MHz, mode 0)
-and `transfer(value)` (full-duplex 8-bit transfer returning the received byte).
+An spi object supports `configure(hz, mode[, bitOrder])` (mode 0..3; optional
+bit order 0 = MSB, non-zero = LSB; default 1 MHz, mode 0, MSB-first) and
+`transfer(value)` (full-duplex 8-bit transfer returning the received byte).
 
 ## I2C
 

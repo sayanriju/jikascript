@@ -1226,6 +1226,7 @@ let m = a.length;`)
 func TestGenerateSPIAndI2C(t *testing.T) {
 	program, err := parser.ParseProgram(`const spiBus = spi("PC5", "PC7", "PC6");
 spiBus.configure(1000000, 0);
+spiBus.configure(1000000, 0, 1);
 let rx = spiBus.transfer(0x9F);
 
 const i2cBus = i2c("PC2", "PC1");
@@ -1247,7 +1248,8 @@ let ok = i2cBus.ping(0x3C);`)
 		`#include "spi.h"`,
 		`#include "i2c.h"`,
 		`js_spiBus = spi_open(JIKA_PIN_PC5, JIKA_PIN_PC7, JIKA_PIN_PC6);`,
-		`spi_configure(js_spiBus, 1000000, 0);`,
+		`spi_configure(js_spiBus, 1000000, 0, 0);`,
+		`spi_configure(js_spiBus, 1000000, 0, 1);`,
 		`js_rx = spi_transfer(js_spiBus, 0x9F);`,
 		`js_i2cBus = i2c_open(JIKA_PIN_PC2, JIKA_PIN_PC1);`,
 		`i2c_configure(js_i2cBus, 100000);`,

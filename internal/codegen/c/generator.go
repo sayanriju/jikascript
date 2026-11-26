@@ -1435,6 +1435,9 @@ func renderSelectorCall(call *ast.CallExpr) string {
 	case "spi":
 		switch selector.Field {
 		case "configure":
+			if len(args) == 2 {
+				return "spi_configure(" + object + ", " + strings.Join(args, ", ") + ", 0)"
+			}
 			return "spi_configure(" + object + ", " + strings.Join(args, ", ") + ")"
 		case "transfer":
 			return "spi_transfer(" + object + ", " + strings.Join(args, ", ") + ")"

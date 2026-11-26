@@ -28,16 +28,19 @@ static uint32_t spi_prescaler_bits(uint32_t hz) {
     return bits;
 }
 
-void spi_configure(int handle, uint32_t hz, int mode) {
+void spi_configure(int handle, uint32_t hz, int mode, int bit_order) {
     (void)handle;
     uint16_t ctlr = SPI1->CTLR1;
-    ctlr &= (uint16_t)~(SPI_CTLR1_SPE | SPI_CTLR1_BR | SPI_CTLR1_CPOL | SPI_CTLR1_CPHA);
+    ctlr &= (uint16_t)~(SPI_CTLR1_SPE | SPI_CTLR1_BR | SPI_CTLR1_CPOL | SPI_CTLR1_CPHA | SPI_CTLR1_LSBFIRST);
     ctlr |= (uint16_t)(spi_prescaler_bits(hz) << 3);
     if ((mode & 2) != 0) {
         ctlr |= SPI_CTLR1_CPOL;
     }
     if ((mode & 1) != 0) {
         ctlr |= SPI_CTLR1_CPHA;
+    }
+    if (bit_order != 0) {
+        ctlr |= SPI_CTLR1_LSBFIRST;
     }
     SPI1->CTLR1 = (uint16_t)(ctlr | SPI_CTLR1_SPE);
 }
@@ -50,7 +53,7 @@ int spi_open(int sck_pin, int miso_pin, int mosi_pin) {
         funPinMode(miso_pin, GPIO_CFGLR_IN_FLOAT);
         SPI1->CTLR1 = SPI_CTLR1_MSTR | SPI_CTLR1_SSM | SPI_CTLR1_SSI;
         SPI1->CTLR2 = 0;
-        spi_configure(0, JIKA_SPI_DEFAULT_HZ, 0);
+        spi_configure(0, JIKA_SPI_DEFAULT_HZ, 0, 0);
         spi_ready = 1;
     }
     return 0;

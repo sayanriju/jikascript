@@ -17,6 +17,8 @@ separately. A compiler release may advance without changing the language.
   boolean arrays; string arrays are rejected.
 - Math helpers: `abs`, `min`, `max`, `clamp`, and `map`.
 - `i2c.ping(addr)` for device discovery.
+- SPI bit order selection via the optional third `configure(hz, mode, bitOrder)`
+  argument.
 
 ### Fixed
 

@@ -1226,6 +1226,7 @@ func TestCheckAcceptsSPIAndI2C(t *testing.T) {
 	sources := []string{
 		`const bus = spi("PC5", "PC7", "PC6");`,
 		`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000, 0);`,
+		`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000, 0, 1);`,
 		`const bus = spi("PC5", "PC7", "PC6"); let rx = bus.transfer(0x9F);`,
 		`const bus = i2c("PC2", "PC1");`,
 		`const bus = i2c("PC2", "PC1"); bus.configure(100000);`,
@@ -1437,7 +1438,8 @@ func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 	}{
 		{`const bus = spi("PC5", "PC6", "PC7");`, "unsupported spi pin mapping"},
 		{`const bus = spi("PC5", "PC7");`, "spi() expects exactly three arguments"},
-		{`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000);`, "configure() expects exactly two arguments"},
+		{`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1000000);`, "configure() expects two or three arguments"},
+		{`const bus = spi("PC5", "PC7", "PC6"); bus.configure(1, 2, 3, 4);`, "configure() expects two or three arguments"},
 		{`const bus = spi("PC5", "PC7", "PC6"); bus.transfer();`, "transfer() expects exactly one argument"},
 		{`const bus = spi("PC5", "PC7", "PC6"); bus.transfer("x");`, "transfer() argument 1 expects number"},
 		{`const bus = i2c("PC1", "PC2");`, "unsupported i2c pin mapping"},

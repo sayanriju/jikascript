@@ -1676,8 +1676,8 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 	case "spi":
 		switch method {
 		case "configure":
-			if argc != 2 {
-				return fmt.Errorf("%d:%d: error: configure() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
+			if argc != 2 && argc != 3 {
+				return fmt.Errorf("%d:%d: error: configure() expects two or three arguments, got %d", pos.Line, pos.Column, argc)
 			}
 		case "transfer":
 			if argc != 1 {

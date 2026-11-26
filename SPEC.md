@@ -956,8 +956,9 @@ the compiler rejects any other mapping. Chip select is a normal GPIO pin.
 
 An spi object supports exactly two methods:
 
-- `configure(hz, mode)` sets the clock frequency and CPOL/CPHA mode (0..3).
-  The default is 1 MHz, mode 0.
+- `configure(hz, mode[, bitOrder])` sets the clock frequency, CPOL/CPHA mode
+  (0..3), and optional bit order (0 = MSB-first, non-zero = LSB-first). The
+  default is 1 MHz, mode 0, MSB-first.
 - `transfer(value)` performs a full-duplex 8-bit transfer and returns the
   received byte. Ignore the result when transmitting only.
 
