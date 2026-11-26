@@ -26,7 +26,7 @@ type Token struct {
 	Column  int
 }
 
-// Keywords are the reserved words in the initial v0.1 language subset.
+// Keywords are the reserved words in the initial language subset.
 var Keywords = map[string]TokenType{
 	"let":       KEYWORD,
 	"const":     KEYWORD,

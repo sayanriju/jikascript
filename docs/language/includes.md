@@ -71,7 +71,7 @@ properties.
 
 ---
 
-## Known limitation (v0.1)
+## Known limitation
 
 Diagnostics for declarations that come from an included file are attributed to
 the entry file's path and line, the same way as spliced top-level code.

@@ -140,7 +140,7 @@ The compiler must generate pure C99-compatible code.
 
 Do not generate C++.
 
-Do not introduce LLVM or a complex intermediate representation in v0.1.
+Do not introduce LLVM or a complex intermediate representation.
 
 An AST-based direct C generator is sufficient.
 
@@ -194,7 +194,7 @@ Requirements:
 - Compile-time detection of invalid assignments to constants.
 - No implicit global variables.
 
-`var` is excluded from v0.1.
+`var` is excluded.
 
 ### Primitive types
 
@@ -220,7 +220,7 @@ The compiler must document numeric ranges and overflow behavior.
 
 Do not silently generate unsafe narrowing conversions.
 
-Full JavaScript `Number`, `BigInt`, and arbitrary-precision semantics are not required in v0.1.
+Full JavaScript `Number`, `BigInt`, and arbitrary-precision semantics are not required.
 
 ### Type annotations
 
@@ -340,7 +340,7 @@ Bitwise operators should also be supported where appropriate for embedded regist
 
 Do not collapse `==` and `===` into identical behavior without explicitly defining and documenting the semantics.
 
-JikaScript v0.1 equality semantics:
+JikaScript equality semantics:
 
 - `==` and `===` are both strict, non-coercing equality for supported types.
 - `!=` and `!==` are both strict inequality.
@@ -372,10 +372,10 @@ Requirements:
 - Homogeneous element type.
 - Indexed reads/writes.
 - Bounds and capacity checks.
-- Array-literal reassignment is not supported in v0.1.
-- Array declarations are restricted to top-level scope in v0.1.
+- Array-literal reassignment is not supported.
+- Array declarations are restricted to top-level scope.
 
-### Array declaration syntax (v0.1)
+### Array declaration syntax
 
 Use a single declaration form:
 
@@ -400,7 +400,7 @@ Array capacity inference is allowed only when no explicit capacity is declared:
 let values = [1, 2, 3]; // inferred capacity = 3
 ```
 
-### Array operations (v0.1)
+### Array operations
 
 Supported:
 
@@ -411,7 +411,7 @@ Supported:
 - `values.push(x)`
 - `values.pop()`
 
-Not supported in v0.1:
+Not supported:
 
 - Sparse arrays
 - Mixed-type arrays
@@ -494,7 +494,7 @@ Rules:
 
 `include` is a textual, compile-time mechanism akin to C's `#include`. It does not create modules or scopes. A future `import`/module feature should be designed separately.
 
-Known v0.1 limitation: diagnostics for declarations that come from an included file are attributed to the entry file's path and line in the same way as spliced top-level code.
+Known limitation: diagnostics for declarations that come from an included file are attributed to the entry file's path and line in the same way as spliced top-level code.
 
 ---
 
@@ -502,7 +502,7 @@ Known v0.1 limitation: diagnostics for declarations that come from an included f
 
 Cooperative periodic task scheduling is the primary programming model of JikaScript.
 
-There will be one task model in v0.1.
+There is one task model.
 
 JikaScript will reuse the standalone C scheduler described in Section 6.
 
@@ -560,9 +560,9 @@ A long-running callback delays the execution of other due callbacks. This must b
 
 ## 5.4 Important distinction
 
-The v0.1 task API is based on periodic callbacks.
+The task API is based on periodic callbacks.
 
-The following are not part of v0.1:
+The following are not part of the task API:
 
 - `async` functions.
 - `await`.
@@ -1021,7 +1021,7 @@ The checker should validate:
 - Return types.
 - Function return consistency (no mixed bare/value returns in one function).
 - Type compatibility.
-- Equality-operand compatibility under the strict v0.1 equality policy.
+- Equality-operand compatibility under the strict equality policy.
 - Unsupported language constructs.
 - Hardware API usage.
 - Task declarations.
@@ -1459,7 +1459,7 @@ scheduler.start();
 
 ---
 
-# 15. Explicit Non-Goals for v0.1
+# 15. Explicit Non-Goals
 
 The following features are excluded from the initial implementation:
 
@@ -1553,13 +1553,13 @@ Deliverable: Working JikaScript blink firmware.
 - Add examples.
 - Add installation and usage documentation.
 
-Deliverable: JikaScript v0.1.
+Deliverable: first usable release.
 
 ---
 
 # 17. Definition of Done
 
-JikaScript v0.1 is complete when:
+The initial release is complete when:
 
 1. The scheduler exists as an independently usable pure C library.
 2. The Go compiler can read `.jika` files.
@@ -1584,7 +1584,7 @@ Treat this document as the primary implementation specification.
 Follow these rules:
 
 1. Implement the project incrementally, milestone by milestone.
-2. Do not implement features outside the v0.1 scope without explicit approval.
+2. Do not implement features outside the current scope without explicit approval.
 3. Do not introduce unnecessary frameworks, dependencies, or abstractions.
 4. Do not use LLVM.
 5. Do not generate C++.

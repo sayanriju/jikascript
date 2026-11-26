@@ -324,7 +324,7 @@ contexts.
 ==  !=  ===  !==
 ```
 
-**Strict, non-coercing semantics (v0.1):**
+**Strict, non-coercing semantics:**
 
 - `==` and `===` are both strict, non-coercing equality for supported types.
 - `!=` and `!==` are both strict inequality.
@@ -471,9 +471,9 @@ Invalid task interval
 
 ---
 
-## 15. Non-Goals of v0.1
+## 15. Non-Goals
 
-Not part of v0.1 — do not use or rely on them:
+Not part of the language — do not use or rely on them:
 
 - Full JavaScript compatibility, `var`, dynamic arrays/objects, GC, heap.
 - `async` / `await`, Promises, arbitrary task suspension, stackful

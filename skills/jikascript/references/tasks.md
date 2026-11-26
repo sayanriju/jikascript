@@ -4,7 +4,7 @@ Cooperative periodic task scheduling is the **primary programming model** of
 JikaScript. The compiler reuses the standalone pure-C periodic scheduler
 (`runtime/periodic`) and wires it into generated firmware.
 
-There is one task model in v0.1.
+There is one task model.
 
 ---
 
@@ -80,7 +80,7 @@ not implement scheduler internals manually.
   dynamic allocation.
 - Task registration is **statically resolvable** at compile time; nested task
   declarations are rejected.
-- Task removal and interval reconfiguration are not supported in v0.1.
+- Task removal and interval reconfiguration are not supported.
 - **A long-running callback delays other due callbacks** (documented behavior).
 - When multiple intervals elapse between runs, at most one callback executes
   per `periodic_run()` and the deadline advances to the latest elapsed interval
@@ -88,7 +88,7 @@ not implement scheduler internals manually.
 
 ---
 
-## Not part of v0.1
+## Not part of the task API
 
 - `async` functions, `await`, Promises.
 - Arbitrary task suspension and resumption.

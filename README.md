@@ -114,10 +114,6 @@ jikascript version
 
 The current release is `0.4.2`, targeting language specification `0.4.0`.
 
-The `v0.1` labels throughout this README refer to the implementation milestone
-and feature set described in [SPEC.md](SPEC.md); they do not indicate the
-compiler release version.
-
 ### transpile
 
 Generate readable C99:
@@ -261,7 +257,7 @@ Artifacts:
 - [pwm.jika](examples/pwm.jika)
 - [adc.jika](examples/adc.jika)
 
-## Multi-file programs (v0.1)
+## Multi-file programs
 
 Programs may be split across multiple `.jika` files with the compile-time
 `include` statement:
@@ -276,7 +272,7 @@ resolved relative to the including file, included files must end in `.jika`,
 `include` is top-level only, and circular includes are rejected. See
 [SPEC.md](SPEC.md) §4.3 and `docs/language/includes.md` for details.
 
-## Bounded arrays (v0.1)
+## Bounded arrays
 
 JikaScript supports bounded, homogeneous arrays with static capacity and mutable logical length.
 
@@ -289,9 +285,9 @@ readings[0] = latest;
 ```
 
 `push()` is capacity-checked and `pop()`/index operations are bounds-checked in generated C.
-In v0.1, array declarations are top-level only and array-literal reassignment is rejected.
+Array declarations are top-level only and array-literal reassignment is rejected.
 
-## Static objects (v0.1)
+## Static objects
 
 Object literals are statically shaped records, not dynamic JavaScript objects.
 Property names and inferred property types are checked at compile time; property access
@@ -306,13 +302,13 @@ Unknown properties, duplicate property names, and incompatible property assignme
 compile-time errors. Functions may accept and return inferred object records when their
 object arguments and returned object literals are statically resolvable.
 
-## Equality semantics (v0.1)
+## Equality semantics
 
 - `==` and `===` are strict, non-coercing equality for supported types.
 - `!=` and `!==` are strict inequality.
 - Mixed-type equality comparisons (for example `number` vs `string`) are compile-time errors.
 
-## Scalar and function typing (v0.1)
+## Scalar and function typing
 
 Declarations without annotations are inferred and emitted with matching C types:
 
@@ -335,7 +331,7 @@ compile-time errors. A function whose parameter or return type cannot be
 resolved is rejected rather than silently emitted as `int`. Generated C uses
 matching parameter and return types.
 
-## Scheduler capacity (v0.1)
+## Scheduler capacity
 
 The portable scheduler's task capacity is a build-time macro in
 `runtime/periodic/periodic.h`:

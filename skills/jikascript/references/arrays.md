@@ -28,7 +28,7 @@ When no explicit capacity is declared, capacity is inferred from the initializer
 let values = [1, 2, 3]; // inferred capacity = 3
 ```
 
-`var` is not supported. Array declarations are **top-level only** in v0.1.
+`var` is not supported. Array declarations are **top-level only**.
 
 ---
 
@@ -57,7 +57,7 @@ const first = readings[0]; // read at index 0
 
 ---
 
-## Not supported in v0.1
+## Not supported
 
 - Sparse arrays
 - Mixed-type arrays

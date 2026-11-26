@@ -97,7 +97,7 @@ after regenerating the project.
 
 ## Task Removal and Reconfiguration
 
-Task removal and interval reconfiguration are **not supported** in v0.1. Tasks
+Task removal and interval reconfiguration are **not supported**. Tasks
 are registered once at startup and keep their interval for the lifetime of the
 firmware. The scheduler has no `periodic_task_remove` or
 `periodic_task_set_interval` API.
