@@ -2,6 +2,6 @@
 package version
 
 const (
-	Compiler = "0.4.3"
-	Spec     = "0.5.0"
+	Compiler = "0.4.4"
+	Spec     = "0.6.0"
 )

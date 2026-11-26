@@ -106,7 +106,7 @@ Then run it directly:
 ```
 
 It reports the compiler version and the language specification it targets, for
-example JikaScript `0.4.3` and language spec `0.5.0`.
+example JikaScript `0.4.4` and language spec `0.6.0`.
 
 Or install it to your Go `PATH` and use the command name directly:
 

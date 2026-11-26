@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [0.4.4] - 2026-11-26
+
+Language specification: `0.6.0`
+
+This release adds SPI and I2C peripheral support.
+
+### Added
+
+- SPI support via `spi(sck, miso, mosi)` with `configure(hz, mode)` and
+  `transfer(value)`.
+- I2C support via `i2c(scl, sda)` with `configure(hz)`, `write(addr, reg,
+  value)`, and `read(addr, reg)`.
+
 ## [0.4.3] - 2026-11-26
 
 Language specification: `0.5.0`
@@ -27,10 +40,6 @@ resistors, and UART baud/byte I/O.
   pull resistor.
 - UART baud configuration via `uart(tx, rx, baud)` and `serial.setBaud(baud)`,
   plus `serial.writeByte(value)` and `serial.available()`.
-- SPI support via `spi(sck, miso, mosi)` with `configure(hz, mode)` and
-  `transfer(value)`.
-- I2C support via `i2c(scl, sda)` with `configure(hz)`, `write(addr, reg,
-  value)`, and `read(addr, reg)`.
 
 ### Changed
 
@@ -282,6 +291,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.4.4]: https://github.com/sayanriju/jikascript/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/sayanriju/jikascript/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/sayanriju/jikascript/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/sayanriju/jikascript/compare/v0.4.0...v0.4.1
