@@ -6,7 +6,7 @@ That's **JikaScript**!
 
 JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers. You write clean, expressive `.jika` code, and the JikaScript compiler translates it directly into readable, lightning-fast C99. Today that C99 is built and flashed with CH32fun and PlatformIO for the WCH CH32V003 family.
 
-> **Current target scope:** This release supports the WCH CH32V003 family only — the CH32V003 parts covered by CH32fun — through CH32fun and PlatformIO. The Go compiler and language core are target-independent, and the modular backend layout makes other targets feasible in the future, but adding them is not a current goal. GPIO, UART, PWM, ADC, build, and flash support currently exist only for CH32V003. No other MCU family is supported.
+> **Current target scope:** This release supports the WCH CH32V003 family only — the CH32V003 parts covered by CH32fun — through CH32fun and PlatformIO. The Go compiler and language core are target-independent, and the modular backend layout makes other targets feasible in the future, but adding them is not a current goal. GPIO, UART, PWM, ADC, SPI, I2C, build, and flash support currently exist only for CH32V003. No other MCU family is supported.
 
 ---
 
@@ -17,7 +17,7 @@ JikaScript brings modern ECMAScript syntax directly to tiny microcontrollers. Yo
 - **Familiar Syntax:** Variables, arrow functions, object literals, and arrays feel just like modern JavaScript.
 - **Multi-file Programs:** Split code across `.jika` files with `include`, resolved at compile time.
 - **Built-in Cooperative Multitasking:** Forget juggling raw timer interrupts. Schedule periodic tasks cleanly with simple `task(...)` calls.
-- **Built-in Peripherals:** GPIO, UART, PWM, and ADC are first-class builtins — no register bit-poking.
+- **Built-in Peripherals:** GPIO, UART, PWM, ADC, SPI, and I2C are first-class builtins — no register bit-poking.
 - **Inspectable C Code:** Transpile anytime to see the clean, human-readable C code emitted under the hood, then review or tweak it before you build firmware.
 - **One-Command Build & Flash:** `jikascript build` and `jikascript flash` drive PlatformIO for you, fetching the toolchain on first run.
 
@@ -62,6 +62,13 @@ The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) 
 - [`pwm.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/pwm.jika) — PWM output and a fading task
 - [`adc.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/adc.jika) — ADC threshold detection
 - [`uart.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/uart.jika) — serial output and input polling
+- [`spi.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/spi.jika) — SPI transfers
+- [`i2c.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/i2c.jika) — I2C register access
+- [`random.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/random.jika) — pseudo-random values
+- [`time.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/time.jika) — non-blocking `millis()` timing
+- [`button_pullup.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/button_pullup.jika) — internal pull-up button
+- [`bitmask.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/bitmask.jika) — hex masks and bitwise operators
+- [`debug.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/debug.jika) — SWIO `printf` and delays
 - [`objects.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/objects.jika) — fixed-shape record objects
 - [`postfix.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/postfix.jika) — `++` and `--` in loops and expressions
 - [`multi-file/`](https://github.com/sayanriju/jikascript/tree/master/examples/multi-file) — compile-time includes

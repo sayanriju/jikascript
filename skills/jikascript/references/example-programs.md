@@ -156,3 +156,93 @@ let offset: int16 = -500;
 let counter: uint32 = 100000;
 let tempCelsius: float32 = 24.5;
 ```
+
+## 10. Non-blocking timing with millis()
+
+```javascript
+const led = pin("PC1");
+let last: uint32 = 0;
+
+led.output();
+
+task("tick", 10, () => {
+    if (millis() - last >= 500) {
+        last = millis();
+        led.toggle();
+    }
+});
+
+scheduler.start();
+```
+
+## 11. Pull-up button
+
+```javascript
+const led = pin("PC1");
+const button = pin("PD2");
+
+led.output();
+button.pullUp();
+
+task("button", 20, () => {
+    if (button.read() == LOW) {
+        led.write(HIGH);
+    } else {
+        led.write(LOW);
+    }
+});
+
+scheduler.start();
+```
+
+## 12. SPI transfer
+
+```javascript
+const bus = spi("PC5", "PC7", "PC6");
+const cs = pin("PD0");
+
+cs.output();
+cs.write(HIGH);
+bus.configure(1000000, 0);
+
+task("spi", 500, () => {
+    cs.write(LOW);
+    bus.transfer(0x9F);
+    cs.write(HIGH);
+});
+
+scheduler.start();
+```
+
+## 13. I2C register access
+
+```javascript
+const bus = i2c("PC2", "PC1");
+
+bus.configure(100000);
+
+task("i2c", 500, () => {
+    bus.write(0x3C, 0x00, 0xAF);
+    bus.read(0x3C, 0x00);
+});
+
+scheduler.start();
+```
+
+## 14. Random values
+
+```javascript
+const led = pin("PC1");
+
+led.output();
+randomSeed(0x12345678);
+
+task("random", 500, () => {
+    let value = random();
+    if (value > 0x80000000) {
+        led.toggle();
+    }
+});
+
+scheduler.start();
+```

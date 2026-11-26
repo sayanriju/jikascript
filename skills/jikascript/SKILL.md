@@ -142,7 +142,7 @@ Detailed, exhaustive references available on demand:
 - `references/objects.md` — Static object records: declaration, struct lowering, mutable properties, compile-time safety.
 - `references/tasks.md` — Cooperative periodic tasks and the scheduler model.
 - `references/scheduler.md` — Standalone pure-C periodic scheduler API, scheduling rules, and timer adapter.
-- `references/hardware.md` — GPIO, UART, PWM, and ADC hardware API (`pin`, `uart`, `pwm`, `adc`, `output`, `input`, `read`, `write`, `println`, `set`, `setFrequency`, `toggle`, `HIGH`, `LOW`).
+- `references/hardware.md` — GPIO, UART, PWM, ADC, SPI, and I2C hardware API (`pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`, `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`, `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`), plus `millis()`, `random()`, and `randomSeed()`.
 - `references/includes.md` — Multi-file `include` splicing rules and example.
 - `references/cli.md` — Install, build, CLI commands, flags, board/env selection, optimization, PlatformIO artifacts.
 - `references/example-programs.md` — Complete end-to-end example programs.
@@ -155,8 +155,8 @@ Detailed, exhaustive references available on demand:
 - `==` and `===` are both strict and non-coercing. Mixed-type comparisons are
   compile-time errors — never compare a `number` to a `string`.
 - Reserve the words `task`, `scheduler`, `start`, `pin`, `uart`, `pwm`, `adc`,
-  `include`, `HIGH`, and `LOW`: they are language syntax or fixed built-ins, not
-  ordinary identifiers.
+  `spi`, `i2c`, `millis`, `random`, `randomSeed`, `include`, `HIGH`, and `LOW`:
+  they are language syntax or fixed built-ins, not ordinary identifiers.
 - `HIGH` and `LOW` are predefined pin-state constants with fixed meanings
   `HIGH == 1` and `LOW == 0`; do not shadow or rebind them in user code.
 - Array push/pop and index access are bounds- and capacity-checked at runtime;

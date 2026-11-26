@@ -435,7 +435,7 @@ scheduler.start();
 
 ---
 
-## 13. Hardware (GPIO)
+## 13. Hardware
 
 See `references/hardware.md`. Summary:
 
@@ -446,9 +446,21 @@ led.write(HIGH);
 led.toggle();
 
 const button = pin("PD2");
-button.input();
+button.pullUp();
 if (button.read() == LOW) { ... }
+
+const serial = uart("PD5", "PD6", 9600);
+serial.writeByte(0x55);
+
+const spiBus = spi("PC5", "PC7", "PC6");
+spiBus.transfer(0x9F);
+
+const i2cBus = i2c("PC2", "PC1");
+i2cBus.write(0x3C, 0x00, 0xAF);
 ```
+
+`millis()` returns the scheduler's `uint32` millisecond counter. `random()` and
+`randomSeed(seed)` provide a small LFSR generator.
 
 ---
 

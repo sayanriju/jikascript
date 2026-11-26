@@ -31,15 +31,18 @@ The initial language subset reserves the following names:
 - `break`, `continue`
 - `true`, `false`
 - `include`
-- `task`, `pin`, `uart`, `pwm`, `adc`, `scheduler`, `start`
+- `task`, `pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `scheduler`, `start`
 - `printf`, `delay`, `delay_us` (debug output and blocking delays)
+- `millis`, `random`, `randomSeed` (time and pseudo-random helpers)
 - `HIGH`, `LOW` (predefined GPIO state constants)
 - `++`, `--` are operators rather than identifiers
 
-`uart`, `pwm`, and `adc` are the peripheral constructors, and `pin` is the GPIO
-constructor. See [Peripherals](runtime/hardware.md) for the methods each one
-provides. `printf`, `delay`, and `delay_us` are debug helpers; see
-[Debug Output & Delays](runtime/debug.md).
+`uart`, `pwm`, `adc`, `spi`, and `i2c` are the peripheral constructors, and
+`pin` is the GPIO constructor. See [Peripherals](runtime/hardware.md) for the
+methods each one provides. `printf`, `delay`, and `delay_us` are debug helpers;
+see [Debug Output & Delays](runtime/debug.md). `millis()` is documented in
+[Time & millis()](runtime/time.md), and `random()`/`randomSeed()` in
+[Random numbers](runtime/random.md).
 
 `HIGH` and `LOW` are built-in pin-state constants, not ordinary user variables.
 They are provided by the compiler and should be treated as fixed values for GPIO

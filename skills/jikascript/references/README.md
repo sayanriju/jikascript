@@ -16,13 +16,17 @@ language, runtime, scheduler, and CLI.
 - `tasks.md` — Cooperative periodic tasks and scheduler model.
 - `scheduler.md` — Standalone pure-C periodic scheduler: API, usage, scheduling
   rules, timer adapter, project layout.
-- `hardware.md` — GPIO hardware API: `pin`, `output`, `input`, `read`,
-  `write`, `toggle`, `HIGH`, `LOW`, abstraction layers.
+- `hardware.md` — GPIO, UART, PWM, ADC, SPI, and I2C hardware API: `pin`,
+  `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`,
+  `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`,
+  `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`, plus
+  `millis()`, `random()`, `randomSeed()`, and abstraction layers.
 - `includes.md` — Multi-file `include` splicing rules and example.
 - `cli.md` — Install, build, `check`/`transpile`/`build`/`flash`, board/env,
   optimization, PlatformIO artifacts, validation commands.
 - `example-programs.md` — Complete end-to-end programs (blink, multi-task,
-  button task, objects, arrays, multi-file, functions, control flow, types).
+  button task, objects, arrays, multi-file, functions, control flow, types,
+  timing, pull-up, SPI, I2C, random).
 
 ## Core facts to remember
 

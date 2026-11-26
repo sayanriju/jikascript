@@ -21,8 +21,12 @@ capabilities.
 
 ```javascript
 led.output();    // make it an output
-button.input();  // make it an input (with pull-up where applicable)
+button.input();  // make it a floating input
+button.pullUp(); // or configure an input with the internal pull-up
 ```
+
+`pullUp()` and `pullDown()` replace `input()` when a button or switch needs a
+defined idle level.
 
 ## Writing outputs
 
@@ -62,9 +66,11 @@ serial.println("ok");
 let ch = serial.read();
 ```
 
-The configuration is fixed at 8N1, 115200 baud. A uart object supports exactly
-three methods: `write(text)`, `println(text)` (adds a CRLF line ending), and
-`read()`. `read()` is non-blocking and returns `-1` when no byte is available.
+The frame format is fixed at 8N1; the baud defaults to 115200 and can be set at
+construction (`uart("PD5", "PD6", 9600)`) or changed with `setBaud(baud)`. A uart
+object supports `write(text)`, `println(text)` (adds a CRLF line ending),
+`writeByte(value)`, `available()`, `read()`, and `setBaud(baud)`. `read()` and
+`available()` are non-blocking; `read()` returns `-1` when no byte is available.
 
 ## PWM
 
@@ -96,6 +102,45 @@ Supported pins on CH32V003 (channels A0-A7): `PA2`, `PA1`, `PC4`, `PD2`, `PD3`,
 `PD5`, `PD6`, `PD4`. An adc object supports exactly one method: `read()`, which
 returns the raw 10-bit sample (0-1023).
 
+## SPI
+
+`spi()` binds the CH32V003 SPI1 peripheral. It takes three string-literal pin
+arguments — SCK, MISO, then MOSI — and only the default mapping
+`spi("PC5", "PC7", "PC6")` is accepted. Chip select is a normal GPIO pin.
+
+```javascript
+const bus = spi("PC5", "PC7", "PC6");
+bus.configure(1000000, 0);
+let rx = bus.transfer(0x9F);
+```
+
+An spi object supports `configure(hz, mode)` (mode 0..3; default 1 MHz, mode 0)
+and `transfer(value)` (full-duplex 8-bit transfer returning the received byte).
+
+## I2C
+
+`i2c()` binds the CH32V003 I2C1 peripheral. It takes two string-literal pin
+arguments — SCL then SDA — and only the default mapping `i2c("PC2", "PC1")` is
+accepted.
+
+```javascript
+const bus = i2c("PC2", "PC1");
+bus.configure(100000);
+bus.write(0x3C, 0x00, 0xAF);
+let v = bus.read(0x3C, 0x00);
+```
+
+An i2c object supports `configure(hz)` (default 100 kHz), `write(addr, reg,
+value)`, and `read(addr, reg)` (returns `-1` on timeout/NACK). Transfers are
+blocking with a bounded timeout.
+
+## Time and random
+
+`millis()` returns the scheduler's millisecond counter as a `uint32`; subtract
+two `uint32` values for wrap-safe timing. `random()` returns a pseudo-random
+`uint32`, and `randomSeed(seed)` reseeds the LFSR generator. `micros()` is not
+provided.
+
 ## Timer and clock assumptions
 
 The scheduler (SysTick, 1 ms tick) and PWM (TIM1/TIM2) both derive their timing
@@ -112,16 +157,18 @@ not a PWM pin because TIM2 is remapped for `PC1`.
 
 Argument counts and types are checked at transpile time, so erroneous API use
 fails cleanly instead of breaking the C build. `uart.write`/`println` take a
-string; `pwm.set`/`setFrequency` and `pin.write` take a number; `read` takes
-none. A peripheral handle is opaque and cannot be assigned to a scalar or passed
-as a value argument. Method calls require a peripheral receiver (a `pin()`,
-`uart()`, `pwm()`, or `adc()` binding or a constructor used directly); scalars
-have no properties or methods.
+string; `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`, `pin.write`, and
+the SPI/I2C methods take numbers; `read`/`available` take none. A peripheral
+handle is opaque and cannot be assigned to a scalar or passed as a value
+argument. Method calls require a peripheral receiver (a `pin()`, `uart()`,
+`pwm()`, `adc()`, `spi()`, or `i2c()` binding or a constructor used directly);
+scalars have no properties or methods.
 
 ## Reserved names
 
-`pin`, `uart`, `pwm`, `adc`, `HIGH`, and `LOW` are reserved or special built-ins;
-do not use them as variable names.
+`pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `millis`, `random`, `randomSeed`,
+`HIGH`, and `LOW` are reserved or special built-ins; do not use them as variable
+names.
 
 ## Complete interactive example: button toggle
 
@@ -130,7 +177,7 @@ const led = pin("PC1");
 const button = pin("PD2");
 
 led.output();
-button.input();
+button.pullUp();
 
 task("button_check", 20, () => {
     if (button.read() == LOW) {
@@ -143,9 +190,8 @@ scheduler.start();
 
 ## Current and future peripheral scope
 
-The first release supports GPIO, UART, PWM, and ADC on the WCH CH32V003 family
-only. SPI and I2C are future extensions and are not part of the current language
-or CH32V003 backend.
+The current release supports GPIO, UART, PWM, ADC, SPI, and I2C on the WCH
+CH32V003 family only. Hardware timers are a future extension.
 
 ## Hardware abstraction layers
 

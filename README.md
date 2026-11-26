@@ -373,8 +373,8 @@ periodic_ch32fun_init();
 
 ## Peripherals (CH32V003)
 
-GPIO, UART, PWM, and ADC are first-class builtins. Each constructor returns a
-handle, and the handle's methods do the work:
+GPIO, UART, PWM, ADC, SPI, and I2C are first-class builtins. Each constructor
+returns a handle, and the handle's methods do the work:
 
 ```javascript
 const led = pin("PC1");
@@ -509,7 +509,8 @@ periodic_set_critical_section(enter_fn, exit_fn);
 JikaScript stands on the shoulders of these projects:
 
 - [CH32fun](https://github.com/cnlohr/ch32fun) — the CH32V003 hardware library
-  that backs JikaScript's GPIO, UART, PWM, ADC, and timer integration.
+  that backs JikaScript's GPIO, UART, PWM, ADC, SPI, I2C, random, and timer
+  integration.
 - [PlatformIO](https://platformio.org/) — the build and upload tooling driven by
   `jikascript build` and `jikascript flash`.
 - [Community PIO CH32V platform](https://github.com/Community-PIO-CH32V/platform-ch32v)
