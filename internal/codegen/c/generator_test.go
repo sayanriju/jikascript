@@ -1231,7 +1231,8 @@ let rx = spiBus.transfer(0x9F);
 const i2cBus = i2c("PC2", "PC1");
 i2cBus.configure(100000);
 i2cBus.write(0x3C, 0x00, 0xAF);
-let v = i2cBus.read(0x3C, 0x00);`)
+let v = i2cBus.read(0x3C, 0x00);
+let ok = i2cBus.ping(0x3C);`)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -1252,6 +1253,7 @@ let v = i2cBus.read(0x3C, 0x00);`)
 		`i2c_configure(js_i2cBus, 100000);`,
 		`i2c_write(js_i2cBus, 0x3C, 0x00, 0xAF);`,
 		`js_v = i2c_read(js_i2cBus, 0x3C, 0x00);`,
+		`js_ok = i2c_ping(js_i2cBus, 0x3C);`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("expected %q in generated C:\n%s", want, out)

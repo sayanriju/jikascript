@@ -108,6 +108,31 @@ void i2c_write(int handle, int addr, int reg, int value) {
     i2c_stop();
 }
 
+int i2c_ping(int handle, int addr) {
+    (void)handle;
+    uint32_t timeout = JIKA_I2C_TIMEOUT;
+    while ((I2C1->STAR2 & I2C_STAR2_BUSY) != 0) {
+        if (timeout-- == 0U) {
+            return 0;
+        }
+    }
+
+    I2C1->CTLR1 |= I2C_CTLR1_START;
+    if (i2c_wait(I2C_STAR1_SB) != 0) {
+        i2c_stop();
+        return 0;
+    }
+    I2C1->DATAR = (uint16_t)((addr << 1) & 0xFE);
+    if (i2c_wait(I2C_STAR1_ADDR) != 0) {
+        I2C1->STAR1 &= (uint16_t)~I2C_STAR1_AF;
+        i2c_stop();
+        return 0;
+    }
+    i2c_clear_addr();
+    i2c_stop();
+    return 1;
+}
+
 int i2c_read(int handle, int addr, int reg) {
     (void)handle;
     uint32_t timeout = JIKA_I2C_TIMEOUT;

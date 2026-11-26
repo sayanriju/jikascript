@@ -4,8 +4,10 @@ const i2cBus = i2c("PC2", "PC1");
 i2cBus.configure(100000);
 
 task("i2c", 500, () => {
-    i2cBus.write(0x3C, 0x00, 0xAF);
-    i2cBus.read(0x3C, 0x00);
+    if (i2cBus.ping(0x3C)) {
+        i2cBus.write(0x3C, 0x00, 0xAF);
+        i2cBus.read(0x3C, 0x00);
+    }
 });
 
 scheduler.start();

@@ -1449,6 +1449,8 @@ func renderSelectorCall(call *ast.CallExpr) string {
 			return "i2c_write(" + object + ", " + strings.Join(args, ", ") + ")"
 		case "read":
 			return "i2c_read(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "ping":
+			return "i2c_ping(" + object + ", " + strings.Join(args, ", ") + ")"
 		}
 		setGenerationErrorf("unsupported i2c method '%s'", selector.Field)
 		return ""

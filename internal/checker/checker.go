@@ -1562,6 +1562,8 @@ func peripheralMethodReturnType(family, method string) (string, bool) {
 		switch method {
 		case "read":
 			return "int32", true
+		case "ping":
+			return "boolean", true
 		case "configure", "write":
 			return "", true
 		}
@@ -1696,6 +1698,10 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 			if argc != 2 {
 				return fmt.Errorf("%d:%d: error: read() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
 			}
+		case "ping":
+			if argc != 1 {
+				return fmt.Errorf("%d:%d: error: ping() expects exactly one argument, got %d", pos.Line, pos.Column, argc)
+			}
 		}
 	}
 	return nil
@@ -1730,7 +1736,7 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 			expected = "number"
 		}
 	case "i2c":
-		if method == "configure" || method == "write" || method == "read" {
+		if method == "configure" || method == "write" || method == "read" || method == "ping" {
 			expected = "number"
 		}
 	}

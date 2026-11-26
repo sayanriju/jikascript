@@ -983,6 +983,7 @@ An i2c object supports exactly three methods:
 - `write(addr, reg, value)` writes one byte to a register.
 - `read(addr, reg)` reads one byte from a register, returning `-1` on a timeout
   or NACK.
+- `ping(addr)` returns `true` when the device acknowledges its address.
 
 Transfers are blocking with a bounded timeout.
 

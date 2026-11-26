@@ -131,7 +131,8 @@ let v = bus.read(0x3C, 0x00);
 ```
 
 An i2c object supports `configure(hz)` (default 100 kHz), `write(addr, reg,
-value)`, and `read(addr, reg)` (returns `-1` on timeout/NACK). Transfers are
+value)`, `read(addr, reg)` (returns `-1` on timeout/NACK), and `ping(addr)`
+(returns `true` when the device acknowledges its address). Transfers are
 blocking with a bounded timeout.
 
 ## Time and random

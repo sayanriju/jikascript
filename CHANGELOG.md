@@ -16,6 +16,7 @@ separately. A compiler release may advance without changing the language.
   `indexOf(value)`, and the `capacity` property. `indexOf` supports numeric and
   boolean arrays; string arrays are rejected.
 - Math helpers: `abs`, `min`, `max`, `clamp`, and `map`.
+- `i2c.ping(addr)` for device discovery.
 
 ### Fixed
 

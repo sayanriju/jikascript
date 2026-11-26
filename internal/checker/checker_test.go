@@ -1231,6 +1231,7 @@ func TestCheckAcceptsSPIAndI2C(t *testing.T) {
 		`const bus = i2c("PC2", "PC1"); bus.configure(100000);`,
 		`const bus = i2c("PC2", "PC1"); bus.write(0x3C, 0x00, 0xAF);`,
 		`const bus = i2c("PC2", "PC1"); let v = bus.read(0x3C, 0x00);`,
+		`const bus = i2c("PC2", "PC1"); let ok = bus.ping(0x3C);`,
 	}
 	for _, source := range sources {
 		program, err := parser.ParseProgram(source)
@@ -1444,6 +1445,8 @@ func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 		{`const bus = i2c("PC2", "PC1"); bus.write(0x3C, 0x00);`, "write() expects exactly three arguments"},
 		{`const bus = i2c("PC2", "PC1"); bus.read(0x3C);`, "read() expects exactly two arguments"},
 		{`const bus = i2c("PC2", "PC1"); bus.configure();`, "configure() expects exactly one argument"},
+		{`const bus = i2c("PC2", "PC1"); bus.ping();`, "ping() expects exactly one argument"},
+		{`const bus = i2c("PC2", "PC1"); bus.ping("x");`, "ping() argument 1 expects number"},
 	}
 	for _, tc := range cases {
 		program, err := parser.ParseProgram(tc.source)

@@ -19,6 +19,7 @@ An i2c object supports exactly three methods:
 | `.configure(hz)` | number | — | Set the bus clock. Default 100 kHz. |
 | `.write(addr, reg, value)` | numbers | — | Write one byte to a register. |
 | `.read(addr, reg)` | numbers | `int` | Read one byte from a register, or `-1` on timeout/NACK. |
+| `.ping(addr)` | number | `boolean` | True when the device acknowledges its address. |
 
 Transfers are blocking with a bounded timeout, so a missing device cannot hang
 the cooperative scheduler forever. Any other method name, or the wrong number

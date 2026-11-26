@@ -127,7 +127,7 @@ func IsValidI2CTuple(scl, sda string) bool {
 // object.
 func IsValidI2CMethod(method string) bool {
 	switch method {
-	case "configure", "write", "read":
+	case "configure", "write", "read", "ping":
 		return true
 	default:
 		return false
