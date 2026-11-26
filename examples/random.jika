@@ -1,0 +1,14 @@
+// Pseudo-random values from the LFSR generator.
+const led = pin("PC1");
+
+led.output();
+randomSeed(0x12345678);
+
+task("random", 500, () => {
+    let value = random();
+    if (value > 0x80000000) {
+        led.toggle();
+    }
+});
+
+scheduler.start();

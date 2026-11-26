@@ -454,6 +454,19 @@ wrap-safe timing. `micros()` is intentionally omitted to keep the surface small
 and avoid exposing the SysTick counter. See
 [docs/runtime/time.md](docs/runtime/time.md).
 
+## Random numbers
+
+`random()` returns a pseudo-random `uint32`; `randomSeed(seed)` reseeds the
+LFSR generator ported from CH32fun's `lib_rand.h`.
+
+```javascript
+randomSeed(0x12345678);
+let value = random();
+```
+
+The generator is deterministic for a given seed and is not a cryptographic RNG.
+See [docs/runtime/random.md](docs/runtime/random.md).
+
 ## Validation status labels
 
 - **Host-tested**: verified with the Go test suite and host C99 compilation

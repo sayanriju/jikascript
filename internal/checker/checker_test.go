@@ -1243,6 +1243,45 @@ func TestCheckAcceptsSPIAndI2C(t *testing.T) {
 	}
 }
 
+func TestCheckAcceptsRandom(t *testing.T) {
+	sources := []string{
+		`let r = random();`,
+		`let r: uint32 = random();`,
+		`randomSeed(123);`,
+		`randomSeed(0x12345678);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
+func TestCheckRejectsInvalidRandom(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`random(1);`, "random() expects no arguments"},
+		{`randomSeed();`, "randomSeed() expects exactly one argument"},
+		{`randomSeed("x");`, "randomSeed() expects a numeric argument"},
+		{`let x = randomSeed(1);`, "expression does not produce a value"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
 func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 	cases := []struct {
 		source string

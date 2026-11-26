@@ -1869,7 +1869,7 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 			}
 			return returnType, true
 		}
-		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "millis" {
+		if ident, ok := node.Function.(*ast.Identifier); ok && (ident.Name == "millis" || ident.Name == "random") {
 			return "uint32", true
 		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "pin" {
@@ -1999,7 +1999,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis":
+	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis", "random", "randomSeed":
 		return true
 	default:
 		return false
@@ -2023,9 +2023,16 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		if _, ok := call.Args[0].(*ast.StringLiteral); !ok {
 			return fmt.Errorf("%d:%d: error: printf() format argument must be a string literal", call.Pos.Line, call.Pos.Column)
 		}
-	case "millis":
+	case "millis", "random":
 		if len(call.Args) != 0 {
-			return fmt.Errorf("%d:%d: error: millis() expects no arguments, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
+			return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", call.Pos.Line, call.Pos.Column, ident.Name, len(call.Args))
+		}
+	case "randomSeed":
+		if len(call.Args) != 1 {
+			return fmt.Errorf("%d:%d: error: randomSeed() expects exactly one argument, got %d", call.Pos.Line, call.Pos.Column, len(call.Args))
+		}
+		if t, known := inferLiteralType(call.Args[0], scopeStack); known && (t == "string" || t == "boolean" || strings.Contains(t, ":")) {
+			return fmt.Errorf("%d:%d: error: randomSeed() expects a numeric argument, got %s", call.Pos.Line, call.Pos.Column, t)
 		}
 	case "delay", "delay_us":
 		if len(call.Args) != 1 {
@@ -2056,7 +2063,7 @@ func builtinCallVoid(expr ast.Expr) bool {
 		return false
 	}
 	switch ident.Name {
-	case "printf", "delay", "delay_us":
+	case "printf", "delay", "delay_us", "randomSeed":
 		return true
 	default:
 		return false

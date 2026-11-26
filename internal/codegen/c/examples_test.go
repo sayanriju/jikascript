@@ -89,6 +89,7 @@ func TestExamplesTranspileAndCompile(t *testing.T) {
 				filepath.Join(gpioInc, "adc_stub.c"),
 				filepath.Join(gpioInc, "spi_stub.c"),
 				filepath.Join(gpioInc, "i2c_stub.c"),
+				filepath.Join(gpioInc, "random_stub.c"),
 				"-o", binary)
 			output, err := cmd.CombinedOutput()
 			if err != nil {

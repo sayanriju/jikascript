@@ -971,7 +971,23 @@ An i2c object supports exactly three methods:
 
 Transfers are blocking with a bounded timeout.
 
-## 7.9 Future peripherals
+## 7.9 Random numbers
+
+`random()` returns a pseudo-random `uint32` from an LFSR generator ported from
+CH32fun's `lib_rand.h`. `randomSeed(seed)` reseeds it.
+
+```javascript
+randomSeed(0x12345678);
+let value = random();
+```
+
+- `random()` takes no arguments and returns `uint32`.
+- `randomSeed(seed)` takes one numeric argument and returns no value. A seed of
+  zero is replaced by the default seed so the generator cannot get stuck.
+- The generator is deterministic for a given seed; it is not a cryptographic
+  RNG.
+
+## 7.10 Future peripherals
 
 The following are planned extensions:
 
@@ -988,6 +1004,23 @@ Separate:
 3. Target-specific C implementation.
 
 This separation is mandatory for portability.
+
+### Backend implementation policy
+
+Target backends should use CH32fun macros and helpers wherever they exist:
+
+- Pin configuration goes through `funPinMode`, `funDigitalWrite`, and
+  `funDigitalRead`.
+- Register bit definitions come from the CH32fun/CH32V003 headers.
+- Simple builtins map directly to CH32fun helpers (`printf`, `Delay_Ms`,
+  `Delay_Us`, `funAnalogInit`, `funAnalogRead`).
+
+When a CH32fun helper is compile-time-configured or application-specific, the
+backend implements the peripheral state machine directly instead of forcing a
+poor fit. Examples: `ch32v003_SPI.h` cannot support runtime `configure(hz,
+mode)`, `static_i2c.h` is bitbang rather than hardware I2C, and `SetupUART` is
+only compiled with `FUNCONF_USE_UARTPRINTF`. Direct register access in those
+cases still uses the CH32fun register macros and pin helpers.
 
 ---
 

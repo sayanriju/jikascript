@@ -14,6 +14,7 @@
 - **Embedded Runtime**
   - [Tasks & Scheduling](runtime/tasks.md)
   - [Time & millis()](runtime/time.md)
+  - [Random numbers](runtime/random.md)
   - **Peripherals**
     - [Overview](runtime/hardware.md)
     - [GPIO](runtime/gpio.md)

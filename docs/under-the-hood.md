@@ -81,6 +81,32 @@ calls are all rejected before a single byte is flashed.
 
 ---
 
+## Backend Implementation Policy
+
+The target backends prefer CH32fun macros and helpers wherever they exist:
+
+- Pin configuration goes through `funPinMode`, `funDigitalWrite`, and
+  `funDigitalRead`.
+- Register bit definitions come from the CH32fun/CH32V003 headers.
+- Simple builtins map directly to CH32fun helpers: `printf`, `Delay_Ms`,
+  `Delay_Us`, `funAnalogInit`, and `funAnalogRead`.
+
+When a CH32fun helper is compile-time-configured or application-specific, the
+backend implements the peripheral state machine directly instead of forcing a
+poor fit:
+
+- `ch32v003_SPI.h` is configured entirely by compile-time macros, so it cannot
+  support runtime `configure(hz, mode)`.
+- `static_i2c.h` is bitbang, not hardware I2C.
+- `SetupUART` is only compiled with `FUNCONF_USE_UARTPRINTF`, which conflicts
+  with the SWIO debug printf path.
+
+Direct register access in those cases still uses the CH32fun register macros and
+pin helpers. This keeps the backends small and predictable without pretending
+that every extralib is a reusable runtime API.
+
+---
+
 ## Why Pure C99 Output Matters
 
 - **Portable output:** C99 is supported by virtually any microcontroller toolchain, so adding other backends later is feasible. Today the only supported path is CH32V003 via CH32fun and PlatformIO; other targets are future work, not current support.

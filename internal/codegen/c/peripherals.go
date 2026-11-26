@@ -40,6 +40,8 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 					used["stdio"] = true
 				case "delay", "delay_us":
 					used["ch32fun"] = true
+				case "random", "randomSeed":
+					used["random"] = true
 				}
 			}
 			visitExpr(node.Function)
