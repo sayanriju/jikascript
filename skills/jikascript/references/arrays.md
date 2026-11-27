@@ -113,3 +113,14 @@ typedef struct {
 
 Methods (`push`, `pop`, `peek`, `fill`, `reverse`, `indexOf`, `clear`, indexed
 access) become bounds/capacity-checked helper calls in the generated C.
+
+### Read-only storage
+
+A top-level `const` array whose initializer is a compile-time constant and that
+is never written (`[i] =`, `push`, `pop`, `clear`, `fill`, `reverse`) is emitted
+as `static const`, so the linker places it in flash instead of SRAM. Only the
+read-only helpers the program uses (`get`, `peek`, `indexOf`) are emitted.
+
+A 256-entry `int32` table therefore costs zero bytes of the CH32V003's 2 KB
+SRAM. Any mutation, a bare whole-array reference, or a non-constant initializer
+keeps the array in RAM with the full mutable helper set.

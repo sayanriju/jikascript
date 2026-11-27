@@ -50,6 +50,29 @@ queue.clear();               // reset the logical length to zero
 
 ---
 
+## Read-Only Arrays
+
+A `const` array that is never mutated and whose initializer is a compile-time
+constant is emitted as read-only data, so the linker places it in flash instead
+of SRAM:
+
+```javascript
+// Never mutated: stored in flash and costs no RAM.
+const table: int32[4] = [10, 20, 30];
+const last = table.peek();
+```
+
+The compiler promotes an array only when it can prove it is read-only. If the
+program writes an element (`table[0] = 1`), calls `push`, `pop`, `clear`,
+`fill`, or `reverse`, or uses an initializer that is not a compile-time
+constant, the array stays in RAM with the full mutable API. `let` arrays always
+stay mutable.
+
+This matters on parts like the CH32V003: a 256-entry `int32` table consumes
+about 1 KB, over half of the 2 KB SRAM, unless it is stored in flash.
+
+---
+
 ## Safety & Bounds Checking
 
 JikaScript keeps your firmware safe:

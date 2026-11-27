@@ -378,6 +378,9 @@ readings[0] = latest;
 Requirements:
 
 - Static allocation only (no heap allocation).
+- A `const` array that is never mutated and whose initializer is a compile-time
+  constant should be placed in read-only memory (flash) where the target
+  toolchain supports it. Arrays that may be written remain in RAM.
 - Compile-time known capacity.
 - Runtime logical length (`length`) that changes via `push()`, `pop()`, and `clear()`.
 - Homogeneous element type.

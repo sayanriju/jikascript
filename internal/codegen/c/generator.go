@@ -15,6 +15,13 @@ type arrayMeta struct {
 	ElemType string
 	CType    string
 	Capacity int
+	// ReadOnly marks a const array that is never mutated and whose initializer
+	// is a compile-time constant. Such arrays are emitted as read-only data so
+	// the linker places them in flash instead of SRAM.
+	ReadOnly bool
+	InitLen  int
+	InitVals []string
+	Usage    arrayUsage
 }
 
 var generatedArrays map[string]arrayMeta
@@ -339,23 +346,36 @@ func Generate(program *ast.Program) (string, error) {
 			}
 		case *ast.ConstDecl:
 			if meta, init, ok := buildArrayDeclFromConst(node); ok {
+				meta.Usage = analyzeArrayUsage(program, node)
+				if arrayInitializerIsStatic(node.Value) && !meta.Usage.mutates {
+					meta.ReadOnly = true
+					init = nil
+				}
 				arrayDecls = append(arrayDecls, meta)
 				generatedArrays[node.Name] = meta
 				arrayInitStmts[node.Name] = init
 			}
 		}
 	}
+	helpersEmitted := false
 	if len(arrayDecls) > 0 {
-		b.WriteString("static void jikascript_fail(void);\n\n")
+		helperCode := ""
+		for _, meta := range arrayDecls {
+			helperCode += renderArrayHelpers(meta)
+		}
+		if helperCode != "" {
+			b.WriteString("static void jikascript_fail(void);\n\n")
+		}
 		for _, meta := range arrayDecls {
 			b.WriteString(renderArrayDecl(meta))
 		}
-		for _, meta := range arrayDecls {
-			b.WriteString(renderArrayHelpers(meta))
+		if helperCode != "" {
+			helpersEmitted = true
+			b.WriteString(helperCode)
+			b.WriteString("static void jikascript_fail(void) {\n")
+			b.WriteString("    while (1) { }\n")
+			b.WriteString("}\n\n")
 		}
-		b.WriteString("static void jikascript_fail(void) {\n")
-		b.WriteString("    while (1) { }\n")
-		b.WriteString("}\n\n")
 	}
 
 	taskHandlers := []taskRegistration{}
@@ -431,7 +451,7 @@ func Generate(program *ast.Program) (string, error) {
 		}
 	}
 
-	if len(taskHandlers) > 0 && len(arrayDecls) == 0 {
+	if len(taskHandlers) > 0 && !helpersEmitted {
 		b.WriteString("static void jikascript_fail(void) {\n")
 		b.WriteString("    while (1) { }\n")
 		b.WriteString("}\n\n")
@@ -1497,16 +1517,40 @@ func renderOptionalExpr(expr ast.Expr) string {
 
 func renderArrayDecl(meta arrayMeta) string {
 	name := sanitizeName(meta.Name)
-	return fmt.Sprintf("static struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s;\n", meta.CType, meta.Capacity, name)
+	if !meta.ReadOnly {
+		return fmt.Sprintf("static struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s;\n", meta.CType, meta.Capacity, name)
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("static const struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s = { %d, %d",
+		meta.CType, meta.Capacity, name, meta.InitLen, meta.Capacity))
+	b.WriteString(", { ")
+	if len(meta.InitVals) > 0 {
+		b.WriteString(strings.Join(meta.InitVals, ", "))
+	} else {
+		// Explicit zero keeps -Wmissing-field-initializers quiet while the
+		// remaining elements are zero-filled by C.
+		b.WriteString("0")
+	}
+	b.WriteString(" } };\n")
+	return b.String()
 }
 
 func renderArrayHelpers(meta arrayMeta) string {
 	name := sanitizeName(meta.Name)
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("static %s %s_get(int32_t index) {\n", meta.CType, name))
-	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
-	b.WriteString(fmt.Sprintf("    return %s.data[index];\n", name))
-	b.WriteString("}\n\n")
+	if meta.ReadOnly {
+		if meta.Usage.indexed {
+			renderArrayGet(&b, meta, name)
+		}
+		if meta.Usage.peek {
+			renderArrayPeek(&b, meta, name)
+		}
+		if meta.Usage.indexOf {
+			renderArrayIndexOf(&b, meta, name)
+		}
+		return b.String()
+	}
+	renderArrayGet(&b, meta, name)
 	b.WriteString(fmt.Sprintf("static void %s_set(int32_t index, %s value) {\n", name, meta.CType))
 	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
 	b.WriteString(fmt.Sprintf("    %s.data[index] = value;\n", name))
@@ -1525,10 +1569,7 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString(fmt.Sprintf("static void %s_clear(void) {\n", name))
 	b.WriteString(fmt.Sprintf("    %s.length = 0;\n", name))
 	b.WriteString("}\n\n")
-	b.WriteString(fmt.Sprintf("static %s %s_peek(void) {\n", meta.CType, name))
-	b.WriteString(fmt.Sprintf("    if (%s.length == 0) { jikascript_fail(); }\n", name))
-	b.WriteString(fmt.Sprintf("    return %s.data[%s.length - 1];\n", name, name))
-	b.WriteString("}\n\n")
+	renderArrayPeek(&b, meta, name)
 	b.WriteString(fmt.Sprintf("static void %s_fill(%s value) {\n", name, meta.CType))
 	b.WriteString(fmt.Sprintf("    for (uint32_t i = 0; i < %s.length; i++) {\n", name))
 	b.WriteString(fmt.Sprintf("        %s.data[i] = value;\n", name))
@@ -1541,6 +1582,25 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString(fmt.Sprintf("        %s.data[%s.length - 1 - i] = tmp;\n", name, name))
 	b.WriteString("    }\n")
 	b.WriteString("}\n\n")
+	renderArrayIndexOf(&b, meta, name)
+	return b.String()
+}
+
+func renderArrayGet(b *strings.Builder, meta arrayMeta, name string) {
+	b.WriteString(fmt.Sprintf("static %s %s_get(int32_t index) {\n", meta.CType, name))
+	b.WriteString(fmt.Sprintf("    if (index < 0 || (uint32_t)index >= %s.length) { jikascript_fail(); }\n", name))
+	b.WriteString(fmt.Sprintf("    return %s.data[index];\n", name))
+	b.WriteString("}\n\n")
+}
+
+func renderArrayPeek(b *strings.Builder, meta arrayMeta, name string) {
+	b.WriteString(fmt.Sprintf("static %s %s_peek(void) {\n", meta.CType, name))
+	b.WriteString(fmt.Sprintf("    if (%s.length == 0) { jikascript_fail(); }\n", name))
+	b.WriteString(fmt.Sprintf("    return %s.data[%s.length - 1];\n", name, name))
+	b.WriteString("}\n\n")
+}
+
+func renderArrayIndexOf(b *strings.Builder, meta arrayMeta, name string) {
 	b.WriteString(fmt.Sprintf("static int32_t %s_index_of(%s value) {\n", name, meta.CType))
 	b.WriteString(fmt.Sprintf("    for (uint32_t i = 0; i < %s.length; i++) {\n", name))
 	b.WriteString(fmt.Sprintf("        if (%s.data[i] == value) {\n", name))
@@ -1549,7 +1609,6 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString("    }\n")
 	b.WriteString("    return -1;\n")
 	b.WriteString("}\n\n")
-	return b.String()
 }
 
 func buildArrayDeclFromVar(node *ast.VarDecl) (arrayMeta, []string, bool) {
@@ -1590,13 +1649,18 @@ func buildArrayDecl(name, declaredType string, declaredCapacity int, value ast.E
 		CType:    typeName(elemType, false),
 		Capacity: capacity,
 	}
+	values := make([]string, 0, len(elements))
 	init := []string{
 		fmt.Sprintf("%s.capacity = %d", sanitizeName(name), capacity),
 		fmt.Sprintf("%s.length = %d", sanitizeName(name), len(elements)),
 	}
 	for i, elem := range elements {
-		init = append(init, fmt.Sprintf("%s.data[%d] = %s", sanitizeName(name), i, renderExpr(elem)))
+		rendered := renderExpr(elem)
+		values = append(values, rendered)
+		init = append(init, fmt.Sprintf("%s.data[%d] = %s", sanitizeName(name), i, rendered))
 	}
+	meta.InitLen = len(elements)
+	meta.InitVals = values
 	return meta, init, true
 }
 

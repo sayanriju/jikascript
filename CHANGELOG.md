@@ -22,6 +22,13 @@ separately. A compiler release may advance without changing the language.
 - `string.charAt(index)` for bounds-checked character access.
 - Ternary conditional expressions (`cond ? a : b`).
 
+### Changed
+
+- `const` arrays that are never mutated and have compile-time constant
+  initializers are now emitted as read-only data, so the linker places them in
+  flash instead of SRAM. Arrays that may be written keep the existing
+  RAM-backed representation.
+
 ### Fixed
 
 - String equality (`==`, `===`, `!=`, `!==`) now compares contents with

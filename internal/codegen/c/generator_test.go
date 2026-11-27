@@ -1400,3 +1400,227 @@ func TestGenerateConditionalExpression(t *testing.T) {
 		t.Fatalf("generated conditional C failed C99 syntax check: %v\n%s", err, output)
 	}
 }
+
+// compileGeneratedCStrict checks generated C with warnings as errors so that
+// unused read-only helpers or dangling fail declarations fail the test.
+func compileGeneratedCStrict(t *testing.T, out, name string) {
+	t.Helper()
+	tmp := filepath.Join(t.TempDir(), name+".c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-Wall", "-Wextra", "-Werror", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed strict C99 check: %v\n%s", err, output)
+	}
+}
+
+func TestGeneratePromotesReadOnlyConstArrayToFlash(t *testing.T) {
+	program, err := parser.ParseProgram(`const table: int32[8] = [10, 20, 30];
+task("t", 1000, () => {
+    if (table[0] > 0 && table.length > 0 && table.capacity > 0) { }
+    table.peek();
+    table.indexOf(20);
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	want := "static const struct { uint32_t length; uint32_t capacity; int32_t data[8]; } js_table = { 3, 8, { 10, 20, 30 } };"
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected read-only array with static initializer, got:\n%s", out)
+	}
+	for _, unwanted := range []string{
+		"js_table.capacity = 8;",
+		"js_table.length = 3;",
+		"js_table.data[0] = 10;",
+		"js_table_set",
+		"js_table_push",
+		"js_table_pop",
+		"js_table_clear",
+		"js_table_fill",
+		"js_table_reverse",
+	} {
+		if strings.Contains(out, unwanted) {
+			t.Fatalf("read-only array must not emit %q:\n%s", unwanted, out)
+		}
+	}
+	for _, wanted := range []string{"js_table_get", "js_table_peek", "js_table_index_of"} {
+		if !strings.Contains(out, wanted) {
+			t.Fatalf("expected read-only helper %q:\n%s", wanted, out)
+		}
+	}
+	compileGeneratedCStrict(t, out, "readonly_array")
+}
+
+func TestGenerateReadOnlyConstArrayZeroFills(t *testing.T) {
+	program, err := parser.ParseProgram(`const table: uint16[16] = [];
+task("t", 1000, () => {
+    if (table.capacity > 0) { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	want := "static const struct { uint32_t length; uint32_t capacity; uint16_t data[16]; } js_table = { 0, 16, { 0 } };"
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected zero-filled read-only array, got:\n%s", out)
+	}
+	compileGeneratedCStrict(t, out, "readonly_empty_array")
+}
+
+func TestGenerateReadOnlyArrayEmitsOnlyUsedHelpers(t *testing.T) {
+	program, err := parser.ParseProgram(`const table: int32[4] = [1, 2];
+task("t", 1000, () => {
+    if (table.length > 0) { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, unwanted := range []string{"js_table_get", "js_table_peek", "js_table_index_of", "js_table_set"} {
+		if strings.Contains(out, unwanted) {
+			t.Fatalf("expected no %q helper for a length-only read:\n%s", unwanted, out)
+		}
+	}
+	compileGeneratedCStrict(t, out, "readonly_length_only")
+}
+
+func TestGenerateKeepsWritableArraysInRAM(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+	}{
+		{"const push", `const t: int32[4] = [1, 2]; t.push(3);`},
+		{"const pop", `const t: int32[4] = [1, 2]; t.pop();`},
+		{"const clear", `const t: int32[4] = [1, 2]; t.clear();`},
+		{"const fill", `const t: int32[4] = [1, 2]; t.fill(0);`},
+		{"const reverse", `const t: int32[4] = [1, 2]; t.reverse();`},
+		{"const element write", `const t: int32[4] = [1, 2]; t[0] = 9;`},
+		{"const compound write", `const t: int32[4] = [1, 2]; t[0] += 1;`},
+		{"let read only", `let t: int32[4] = [1, 2]; const n = t[0];`},
+		{"const dynamic initializer", `const k = 5; const t: int32[4] = [k, 2];`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			program, err := parser.ParseProgram(tc.source)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := checker.Check(program); err != nil {
+				t.Fatalf("check error: %v", err)
+			}
+			out, err := Generate(program)
+			if err != nil {
+				t.Fatalf("generate error: %v", err)
+			}
+			if strings.Contains(out, "static const struct") {
+				t.Fatalf("expected RAM-backed array, got read-only promotion:\n%s", out)
+			}
+			want := "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t;"
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected mutable array declaration, got:\n%s", out)
+			}
+		})
+	}
+}
+
+func TestGenerateMixedReadOnlyAndWritableArrays(t *testing.T) {
+	program, err := parser.ParseProgram(`const table: int32[4] = [1, 2];
+let buffer: int32[4] = [3];
+table.indexOf(1);
+buffer.push(4);
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "static const struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_table = { 2, 4, { 1, 2 } };") {
+		t.Fatalf("expected read-only table declaration, got:\n%s", out)
+	}
+	if !strings.Contains(out, "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_buffer;") {
+		t.Fatalf("expected mutable buffer declaration, got:\n%s", out)
+	}
+	if count := strings.Count(out, "static void jikascript_fail(void) {"); count != 1 {
+		t.Fatalf("expected exactly one fail definition, got %d:\n%s", count, out)
+	}
+}
+
+func TestGenerateReadOnlyConstArraysOfOtherTypes(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{
+			name: "boolean",
+			source: `const flags: boolean[3] = [true, false, true];
+task("t", 1000, () => {
+    if (flags[0]) { }
+});
+scheduler.start();
+`,
+			want: "static const struct { uint32_t length; uint32_t capacity; bool data[3]; } js_flags = { 3, 3, { true, false, true } };",
+		},
+		{
+			name: "string",
+			source: `const names = ["alpha", "beta"];
+task("t", 1000, () => {
+    if (names[0] == "alpha") { }
+});
+scheduler.start();
+`,
+			want: "static const struct { uint32_t length; uint32_t capacity; const char * data[2]; } js_names = { 2, 2, { \"alpha\", \"beta\" } };",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			program, err := parser.ParseProgram(tc.source)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := checker.Check(program); err != nil {
+				t.Fatalf("check error: %v", err)
+			}
+			out, err := Generate(program)
+			if err != nil {
+				t.Fatalf("generate error: %v", err)
+			}
+			if !strings.Contains(out, tc.want) {
+				t.Fatalf("expected read-only %s array %q, got:\n%s", tc.name, tc.want, out)
+			}
+			compileGeneratedCStrict(t, out, "readonly_"+tc.name)
+		})
+	}
+}
