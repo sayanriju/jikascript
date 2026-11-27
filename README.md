@@ -257,6 +257,7 @@ Artifacts:
 - [uart.jika](examples/uart.jika) — serial output and input polling
 - [spi.jika](examples/spi.jika) — SPI transfers
 - [i2c.jika](examples/i2c.jika) — I2C register access
+- [lcd_i2c.jika](examples/lcd_i2c.jika) — 16x2 LCD on a PCF8574 I2C backpack
 - [random.jika](examples/random.jika) — pseudo-random values
 - [math.jika](examples/math.jika) — ADC scaling with `map` and `clamp`
 - [strings.jika](examples/strings.jika) — string length, equality, and character access

@@ -64,6 +64,7 @@ The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) 
 - [`uart.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/uart.jika) — serial output and input polling
 - [`spi.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/spi.jika) — SPI transfers
 - [`i2c.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/i2c.jika) — I2C register access
+- [`lcd_i2c.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/lcd_i2c.jika) — 16x2 LCD on a PCF8574 I2C backpack
 - [`random.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/random.jika) — pseudo-random values
 - [`math.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/math.jika) — ADC scaling with `map` and `clamp`
 - [`strings.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/strings.jika) — string length, equality, and character access

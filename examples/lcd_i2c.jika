@@ -1,0 +1,70 @@
+// 16x2 LCD on a PCF8574 I2C backpack.
+// Wiring: SCL=PC2, SDA=PC1, address 0x27 (use 0x3F if needed).
+// PCF8574 bits: P0=RS, P1=RW, P2=E, P3=backlight, P4-P7=D4-D7.
+
+const lcd = i2c("PC2", "PC1");
+
+const LCD_ADDR = 0x27;
+const LCD_RS = 0x01;
+const LCD_EN = 0x04;
+const LCD_BL = 0x08;
+
+function lcdPulse(nibble) {
+    let active = nibble | LCD_EN | LCD_BL;
+    lcd.writeByte(LCD_ADDR, active);
+    delay_us(2);
+    let idle = nibble & 0xFB;
+    lcd.writeByte(LCD_ADDR, idle | LCD_BL);
+    delay_us(40);
+}
+
+function lcdByte(value, rs) {
+    let flags = 0;
+    if (rs != 0) {
+        flags = LCD_RS;
+    }
+    let high = value & 0xF0;
+    lcdPulse(high | flags);
+    let shifted = value << 4;
+    let low = shifted & 0xF0;
+    lcdPulse(low | flags);
+}
+
+function lcdInit() {
+    delay(50);
+    lcdPulse(0x30);
+    delay(5);
+    lcdPulse(0x30);
+    delay_us(150);
+    lcdPulse(0x30);
+    lcdPulse(0x20);
+    lcdByte(0x28, 0);
+    lcdByte(0x0C, 0);
+    lcdByte(0x06, 0);
+    lcdByte(0x01, 0);
+    delay(2);
+}
+
+function lcdPrint(text) {
+    let i = 0;
+    let ch = text.charAt(i);
+    while (ch >= 0) {
+        lcdByte(ch, 1);
+        i += 1;
+        ch = text.charAt(i);
+    }
+}
+
+lcdInit();
+lcdPrint("Hello, Jika!");
+
+let count = 0;
+task("tick", 1000, () => {
+    count = (count + 1) % 100;
+    lcdByte(0xC0, 0); // second line, column 0
+    lcdPrint("count=");
+    lcdByte(48 + (count / 10) % 10, 1);
+    lcdByte(48 + count % 10, 1);
+});
+
+scheduler.start();
