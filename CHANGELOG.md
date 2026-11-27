@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
-## [Unreleased]
+## [0.5.1] - 2026-11-27
+
+Language specification: `0.7.1`
+
+This release adds SWIO terminal input and tightens checker validation of
+builtin identifiers.
 
 ### Added
 
@@ -17,6 +22,13 @@ separately. A compiler release may advance without changing the language.
   minimal runtime stores one pending byte; pasted or burst input may drop bytes.
 - Generated projects enable SWIO debug support automatically for either
   `printf` output or `debugRead` input.
+
+### Fixed
+
+- Bare builtin identifiers such as `let x = millis;` are now rejected by the
+  checker instead of passing `check` and failing later in the C compiler.
+  `HIGH` and `LOW` remain valid values, and `scheduler.start()` and constructor
+  calls are unchanged.
 
 ### Notes
 
@@ -379,6 +391,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.5.1]: https://github.com/sayanriju/jikascript/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/sayanriju/jikascript/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/sayanriju/jikascript/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/sayanriju/jikascript/compare/v0.4.3...v0.4.4
