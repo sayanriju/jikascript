@@ -872,8 +872,11 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[string]int) error {
 	switch node := expr.(type) {
 	case *ast.Identifier:
-		if builtin(node.Name) {
+		if isValueBuiltin(node.Name) {
 			return nil
+		}
+		if builtin(node.Name) {
+			return fmt.Errorf("%d:%d: error: builtin '%s' cannot be used as a value", node.Pos.Line, node.Pos.Column, node.Name)
 		}
 		if _, ok := lookup(scopeStack, node.Name); !ok {
 			return fmt.Errorf("%d:%d: error: undefined identifier '%s'", node.Pos.Line, node.Pos.Column, node.Name)
@@ -996,8 +999,23 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 				return fmt.Errorf("%d:%d: error: unsupported string method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
 			}
 		}
-		if err := checkExpr(node.Function, scopeStack, functionArity); err != nil {
-			return err
+		skipFunctionCheck := false
+		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.Object.(*ast.Identifier); ok && ident.Name == "scheduler" {
+				if sel.Field != "start" {
+					return fmt.Errorf("%d:%d: error: unsupported scheduler method '%s'", node.Pos.Line, node.Pos.Column, sel.Field)
+				}
+				skipFunctionCheck = true
+			}
+		}
+		if !skipFunctionCheck {
+			if fn, ok := node.Function.(*ast.Identifier); ok && builtin(fn.Name) {
+				if !isCallableBuiltin(fn.Name) {
+					return fmt.Errorf("%d:%d: error: builtin '%s' is not callable", node.Pos.Line, node.Pos.Column, fn.Name)
+				}
+			} else if err := checkExpr(node.Function, scopeStack, functionArity); err != nil {
+				return err
+			}
 		}
 		if fn, ok := node.Function.(*ast.Identifier); ok {
 			if expected, known := functionArity[fn.Name]; known && len(node.Args) != expected {
@@ -1074,6 +1092,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 					}
 				}
 			}
+		}
+		if ident, ok := node.Object.(*ast.Identifier); ok && ident.Name == "scheduler" {
+			return fmt.Errorf("%d:%d: error: scheduler.start is only valid as a call", node.Pos.Line, node.Pos.Column)
 		}
 		return checkExpr(node.Object, scopeStack, functionArity)
 	case *ast.IndexExpr:
@@ -2299,6 +2320,21 @@ func builtin(name string) bool {
 	default:
 		return false
 	}
+}
+
+// isValueBuiltin reports whether a builtin name denotes a value rather than a
+// callable or receiver. Only HIGH and LOW are values.
+func isValueBuiltin(name string) bool {
+	return name == "HIGH" || name == "LOW"
+}
+
+// isCallableBuiltin reports whether a builtin name can be used as a function.
+// scheduler is a receiver, and HIGH/LOW are values.
+func isCallableBuiltin(name string) bool {
+	if !builtin(name) || isValueBuiltin(name) {
+		return false
+	}
+	return name != "scheduler"
 }
 
 // checkBuiltinCall validates the argument shape of the debug builtins. printf is

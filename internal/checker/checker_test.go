@@ -1127,6 +1127,52 @@ func TestCheckRejectsInvalidDebugBuiltins(t *testing.T) {
 	}
 }
 
+func TestCheckRejectsBareBuiltinValues(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`let x = millis;`, "builtin 'millis' cannot be used as a value"},
+		{`let x = debugRead;`, "builtin 'debugRead' cannot be used as a value"},
+		{`let x = pin;`, "builtin 'pin' cannot be used as a value"},
+		{`let x = scheduler;`, "builtin 'scheduler' cannot be used as a value"},
+		{`let x = printf;`, "builtin 'printf' cannot be used as a value"},
+		{`let x = HIGH();`, "builtin 'HIGH' is not callable"},
+		{`let x = scheduler();`, "builtin 'scheduler' is not callable"},
+		{`let x = scheduler.start;`, "scheduler.start is only valid as a call"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAcceptsBuiltinCallsAndValues(t *testing.T) {
+	sources := []string{
+		`let x = HIGH;`,
+		`let x = LOW;`,
+		`let x = millis();`,
+		`let x = debugRead();`,
+		`let x = abs(1);`,
+		`const led = pin("PC1"); led.output();`,
+		`scheduler.start();`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
 func TestCheckAcceptsHexLiterals(t *testing.T) {
 	sources := []string{
 		`let mask: uint32 = 0xFFFFFFFF;`,
