@@ -640,8 +640,15 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if isArrayBinding(bindingKind) && len(scopeStack) > 1 {
 			return fmt.Errorf("%d:%d: error: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
 		}
-		if resolvedType, ok := scalarBindingType(bindingKind); ok {
+		if isArrayBinding(bindingKind) {
+			// For arrays, ResolvedType carries the element type so code
+			// generation can emit the correct C element type for inferred
+			// arrays (string, float, boolean, or record elements).
+			node.ResolvedType = arrayElemType(bindingKind)
+		} else if resolvedType, ok := scalarBindingType(bindingKind); ok {
 			node.ResolvedType = resolvedType
+		} else if isObjectBinding(bindingKind) {
+			node.ResolvedType = objectShape(bindingKind)
 		}
 		current[node.Name] = bindingKind
 		if node.Value != nil {
@@ -666,8 +673,15 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if isArrayBinding(bindingKind) && len(scopeStack) > 1 {
 			return fmt.Errorf("%d:%d: error: array declarations are only supported at top-level scope", node.Pos.Line, node.Pos.Column)
 		}
-		if resolvedType, ok := scalarBindingType(bindingKind); ok {
+		if isArrayBinding(bindingKind) {
+			// For arrays, ResolvedType carries the element type so code
+			// generation can emit the correct C element type for inferred
+			// arrays (string, float, boolean, or record elements).
+			node.ResolvedType = arrayElemType(bindingKind)
+		} else if resolvedType, ok := scalarBindingType(bindingKind); ok {
 			node.ResolvedType = resolvedType
+		} else if isObjectBinding(bindingKind) {
+			node.ResolvedType = objectShape(bindingKind)
 		}
 		current[node.Name] = bindingKind
 		if node.Value != nil {
@@ -930,8 +944,15 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 						if len(node.Args) != 1 {
 							return fmt.Errorf("%d:%d: error: indexOf() expects one argument", node.Pos.Line, node.Pos.Column)
 						}
-						if arrayElemType(binding) == "string" {
+						elemType := arrayElemType(binding)
+						if elemType == "string" {
 							return fmt.Errorf("%d:%d: error: indexOf() is not supported for string arrays", node.Pos.Line, node.Pos.Column)
+						}
+						if strings.Contains(elemType, ":") {
+							return fmt.Errorf("%d:%d: error: indexOf() is not supported for object arrays", node.Pos.Line, node.Pos.Column)
+						}
+						if !isNumericType(elemType) && elemType != "boolean" {
+							return fmt.Errorf("%d:%d: error: indexOf() is not supported for %s arrays", node.Pos.Line, node.Pos.Column, elemType)
 						}
 						if err := checkExpr(node.Args[0], scopeStack, functionArity); err != nil {
 							return err
@@ -1520,15 +1541,20 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 	}
 	resolvedType := declaredType
 	if resolvedType == "" {
-		inferred, ok := inferLiteralType(value, scopeStack)
-		if ok && !strings.Contains(inferred, ":") {
+		if inferred, ok := inferLiteralType(value, scopeStack); ok {
 			resolvedType = inferred
 		}
 	}
 	if resolvedType == "" {
 		resolvedType = "int32"
 	}
-	if inferred, ok := inferLiteralType(value, scopeStack); ok && !strings.Contains(inferred, ":") {
+	if strings.Contains(resolvedType, ":") {
+		return encodeObjectBinding(baseKind, resolvedType), nil
+	}
+	if inferred, ok := inferLiteralType(value, scopeStack); ok {
+		if strings.Contains(inferred, ":") {
+			return "", fmt.Errorf("type mismatch for declaration: expected %s, got object", resolvedType)
+		}
 		compatible := typeCompatible(resolvedType, inferred)
 		if !compatible && !literalFitsType(value, resolvedType) {
 			return "", fmt.Errorf("type mismatch for declaration: expected %s, got %s", resolvedType, inferred)
@@ -1974,10 +2000,16 @@ func objectPropertyType(kind, name string) (string, bool) {
 
 func objectTypeFromLiteral(lit *ast.ObjectLiteralExpr, scopeStack []map[string]string) string {
 	properties := make([]string, 0, len(lit.Properties))
-	for _, property := range lit.Properties {
+	for i := range lit.Properties {
+		property := &lit.Properties[i]
 		t, ok := inferLiteralType(property.Value, scopeStack)
 		if !ok {
 			t = "invalid"
+		} else {
+			// Record the inferred type so code generation can emit a matching
+			// C field type. A failed inference (for example with a nil scope)
+			// must not overwrite a type resolved by an earlier pass.
+			property.ResolvedType = t
 		}
 		properties = append(properties, property.Name+":"+t)
 	}

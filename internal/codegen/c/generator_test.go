@@ -1401,6 +1401,22 @@ func TestGenerateConditionalExpression(t *testing.T) {
 	}
 }
 
+// compileGeneratedC checks generated C with the host compiler without treating
+// warnings as errors. Mutable arrays intentionally emit the full helper set,
+// so unused-function warnings are expected there.
+func compileGeneratedC(t *testing.T, out, name string) {
+	t.Helper()
+	tmp := filepath.Join(t.TempDir(), name+".c")
+	if err := os.WriteFile(tmp, []byte(out), 0o600); err != nil {
+		t.Fatalf("write generated C: %v", err)
+	}
+	args := append([]string{"-std=c99", "-fsyntax-only", tmp}, hostIncludeFlags(t)...)
+	cmd := exec.Command("gcc", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated C failed C99 check: %v\n%s", err, output)
+	}
+}
+
 // compileGeneratedCStrict checks generated C with warnings as errors so that
 // unused read-only helpers or dangling fail declarations fail the test.
 func compileGeneratedCStrict(t *testing.T, out, name string) {
@@ -1621,6 +1637,179 @@ scheduler.start();
 				t.Fatalf("expected read-only %s array %q, got:\n%s", tc.name, tc.want, out)
 			}
 			compileGeneratedCStrict(t, out, "readonly_"+tc.name)
+		})
+	}
+}
+
+func TestGenerateConditionalExpressionManglesLocalSymbols(t *testing.T) {
+	program, err := parser.ParseProgram(`function pick(flag) {
+    return flag ? "a" : "b";
+}
+task("t", 1000, () => {
+    if (pick(true) == "a") { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, `(js_flag ? "a" : "b")`) {
+		t.Fatalf("expected conditional to use the mangled parameter symbol, got:\n%s", out)
+	}
+	if strings.Contains(out, `(flag ?`) {
+		t.Fatalf("conditional leaked the raw parameter name, got:\n%s", out)
+	}
+	compileGeneratedCStrict(t, out, "conditional_symbols")
+}
+
+func TestGenerateObjectFieldTypesFollowChecker(t *testing.T) {
+	program, err := parser.ParseProgram(`const label = "hi";
+const count = 5;
+function makeLabel() { return "made"; }
+const record = { name: label, n: count, made: makeLabel(), ratio: 1.5 + 1, flag: true && false };
+task("t", 1000, () => {
+    if (record.n > 0) { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	for _, field := range []string{
+		"const char * name;",
+		"int32_t n;",
+		"const char * made;",
+		"float ratio;",
+		"bool flag;",
+	} {
+		if !strings.Contains(out, field) {
+			t.Fatalf("expected field %q, got:\n%s", field, out)
+		}
+	}
+	wantInit := "js_record = (jikascript_object_1_t){ .name = js_label, .n = js_count, .made = js_makeLabel(), .ratio = 1.5 + 1, .flag = true && false };"
+	if !strings.Contains(out, wantInit) {
+		t.Fatalf("expected runtime object initializer %q, got:\n%s", wantInit, out)
+	}
+	compileGeneratedCStrict(t, out, "object_field_types")
+}
+
+func TestGenerateLocalConstObjectFromCallIsMutable(t *testing.T) {
+	program, err := parser.ParseProgram(`function make() { return { x: 1 }; }
+function bump() {
+    const o = make();
+    o.x = 2;
+}
+task("t", 1000, () => { bump(); });
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "const jikascript_object") {
+		t.Fatalf("const object binding must retain mutable C fields, got:\n%s", out)
+	}
+	if !strings.Contains(out, "jikascript_object_1_t js_o = js_make();") {
+		t.Fatalf("expected mutable local object from call, got:\n%s", out)
+	}
+	compileGeneratedCStrict(t, out, "local_const_object_call")
+}
+
+func TestGenerateLocalObjectArrayElement(t *testing.T) {
+	program, err := parser.ParseProgram(`const items = [{ x: 1 }];
+task("t", 1000, () => {
+    const o = items[0];
+    if (o.x > 0) { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if !strings.Contains(out, "jikascript_object_1_t js_o = js_items_get((int32_t)(0));") {
+		t.Fatalf("expected object-typed local from array element, got:\n%s", out)
+	}
+	compileGeneratedC(t, out, "local_object_array_element")
+}
+
+func TestGenerateObjectArrayOmitsIndexOfHelper(t *testing.T) {
+	program, err := parser.ParseProgram(`const items = [{ x: 1 }];
+task("t", 1000, () => {
+    if (items[0].x > 0) { }
+});
+scheduler.start();
+`)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := checker.Check(program); err != nil {
+		t.Fatalf("check error: %v", err)
+	}
+	out, err := Generate(program)
+	if err != nil {
+		t.Fatalf("generate error: %v", err)
+	}
+	if strings.Contains(out, "js_items_index_of") {
+		t.Fatalf("object arrays must not emit an indexOf helper, got:\n%s", out)
+	}
+	compileGeneratedC(t, out, "object_array_no_index_of")
+}
+
+func TestGenerateInferredArrayElementTypes(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{"string", `const s = "hi"; const a = [s, "world"];`, "const char * data[2]"},
+		{"float", `function f() { return 1.5; } const a = [f(), 2.5];`, "float data[2]"},
+		{"boolean", `const b = true; const a = [b, false];`, "bool data[2]"},
+		{"object", `const a = [{ x: 1 }, { x: 2 }];`, "jikascript_object_1_t data[2]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			program, err := parser.ParseProgram(tc.source)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := checker.Check(program); err != nil {
+				t.Fatalf("check error: %v", err)
+			}
+			out, err := Generate(program)
+			if err != nil {
+				t.Fatalf("generate error: %v", err)
+			}
+			if !strings.Contains(out, tc.want) {
+				t.Fatalf("expected inferred %s array element type %q, got:\n%s", tc.name, tc.want, out)
+			}
+			compileGeneratedC(t, out, "inferred_array_"+tc.name)
 		})
 	}
 }

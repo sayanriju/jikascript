@@ -308,7 +308,11 @@ func (*ArrayLiteralExpr) exprNode() {}
 type ObjectProperty struct {
 	Name  string
 	Value Expr
-	Pos   Position
+	// ResolvedType is the checker's inferred type for Value. Code generation
+	// uses it so struct fields match the checker's view of the literal instead
+	// of falling back to int32 for identifiers, calls, and expressions.
+	ResolvedType string
+	Pos          Position
 }
 
 // ObjectLiteralExpr represents a statically shaped record literal.

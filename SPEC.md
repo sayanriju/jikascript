@@ -431,8 +431,9 @@ Supported:
 - `values.indexOf(x)`
 - `values.clear()`
 
-`indexOf` is supported for numeric and boolean arrays. String arrays are
-rejected because element comparison would require `strcmp`.
+`indexOf` is supported for numeric and boolean arrays. String and object arrays
+are rejected because element comparison would require `strcmp` or a record
+equality operator.
 
 Not supported:
 

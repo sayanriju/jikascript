@@ -31,6 +31,18 @@ separately. A compiler release may advance without changing the language.
 
 ### Fixed
 
+- Conditional expressions now mangle local and parameter symbols, so
+  `flag ? a : b` inside a function no longer emits undeclared C identifiers.
+- Object field types now follow the checker's inferred types instead of
+  defaulting to `int32`, so string, float, boolean, and record fields are
+  emitted correctly. Top-level objects with non-constant initializers are now
+  initialized in `main()` instead of being left zeroed.
+- Local `const` objects returned from functions remain mutable, matching the
+  rule that `const` freezes the binding rather than the record contents.
+- Inferred arrays keep string, float, boolean, and record element types instead
+  of falling back to `int32`.
+- `indexOf()` is rejected for object arrays, which previously emitted an
+  invalid `==` comparison between records.
 - Using a bare array or object identifier as a scalar value (for example
   `const copy = table;`, `table + 1`, `if (table)`, or passing `table` to a
   function) is now rejected by the checker instead of generating invalid C.

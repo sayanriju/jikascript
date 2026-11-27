@@ -43,7 +43,7 @@ queue.clear();               // reset the logical length to zero
 
 - `peek()` fails if the array is empty, like `pop()`.
 - `fill()` and `reverse()` operate on the current logical length.
-- `indexOf()` supports numeric and boolean arrays; string arrays are rejected.
+- `indexOf()` supports numeric and boolean arrays; string and object arrays are rejected.
 - `capacity` is the fixed maximum capacity.
 - `clear()` resets the logical length without zeroing the backing storage, so it
   is a constant-time operation.

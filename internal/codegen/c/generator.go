@@ -195,6 +195,10 @@ func (a *symbolAnnotator) expr(expr ast.Expr) {
 	case *ast.BinaryExpr:
 		a.expr(node.Left)
 		a.expr(node.Right)
+	case *ast.ConditionalExpr:
+		a.expr(node.Cond)
+		a.expr(node.Then)
+		a.expr(node.Else)
 	case *ast.UnaryExpr:
 		a.expr(node.Expr)
 	case *ast.ArrayLiteralExpr:
@@ -402,7 +406,11 @@ func Generate(program *ast.Program) (string, error) {
 				break
 			}
 			if meta, ok := objectDeclMeta(node.Value); ok {
-				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
+				decl, init := renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value)
+				b.WriteString(decl)
+				if init != "" {
+					mainStmts = append(mainStmts, "    "+init+";\n")
+				}
 				break
 			}
 			if _, ok := generatedArrays[node.Name]; ok {
@@ -425,7 +433,11 @@ func Generate(program *ast.Program) (string, error) {
 			}
 			if meta, ok := objectDeclMeta(node.Value); ok {
 				// `const` freezes the JikaScript binding, not the record contents.
-				b.WriteString(renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value))
+				decl, init := renderObjectTopLevelDecl(meta, node.Name, node.Symbol, node.Value)
+				b.WriteString(decl)
+				if init != "" {
+					mainStmts = append(mainStmts, "    "+init+";\n")
+				}
 				break
 			}
 			if _, ok := generatedArrays[node.Name]; ok {
@@ -566,8 +578,17 @@ func renderVarDecl(node interface{}, isConst bool) string {
 // locals are never C-const (property writes must remain legal).
 func renderLocalDecl(name, symbol, declaredType string, value ast.Expr, isConst bool) string {
 	cName := sanitizeBinding(symbol, name)
+	// `const` freezes the JikaScript binding, not record contents, so object
+	// locals are never C-const (property writes must remain legal). A function
+	// call that returns a record is an object value too.
+	objectValue := isObjectValue(value) || strings.Contains(declaredType, ":")
+	if !objectValue {
+		if cType, ok := functionReturnCType(value); ok && isObjectCType(cType) {
+			objectValue = true
+		}
+	}
 	constPrefix := ""
-	if isConst && !isObjectValue(value) {
+	if isConst && !objectValue {
 		constPrefix = "const "
 	}
 	if meta, ok := objectDeclMeta(value); ok {
@@ -582,6 +603,10 @@ func renderLocalDecl(name, symbol, declaredType string, value ast.Expr, isConst 
 		return fmt.Sprintf("%sint %s = %s;\n", constPrefix, cName, renderExpr(value))
 	}
 	return fmt.Sprintf("%s%s %s = %s;\n", constPrefix, typeName(declaredType, isConst), cName, renderExpr(value))
+}
+
+func isObjectCType(t string) bool {
+	return strings.HasPrefix(t, "jikascript_object_")
 }
 
 func isObjectValue(expr ast.Expr) bool {
@@ -1153,6 +1178,9 @@ func typeName(t string, constDecl bool) string {
 		if strings.HasPrefix(t, "jikascript_object_") {
 			return t
 		}
+		if meta, ok := generatedObjects[t]; ok {
+			return meta.CName
+		}
 		return "int"
 	}
 }
@@ -1545,7 +1573,7 @@ func renderArrayHelpers(meta arrayMeta) string {
 		if meta.Usage.peek {
 			renderArrayPeek(&b, meta, name)
 		}
-		if meta.Usage.indexOf {
+		if meta.Usage.indexOf && arraySupportsIndexOf(meta.CType) {
 			renderArrayIndexOf(&b, meta, name)
 		}
 		return b.String()
@@ -1582,8 +1610,17 @@ func renderArrayHelpers(meta arrayMeta) string {
 	b.WriteString(fmt.Sprintf("        %s.data[%s.length - 1 - i] = tmp;\n", name, name))
 	b.WriteString("    }\n")
 	b.WriteString("}\n\n")
-	renderArrayIndexOf(&b, meta, name)
+	if arraySupportsIndexOf(meta.CType) {
+		renderArrayIndexOf(&b, meta, name)
+	}
 	return b.String()
+}
+
+// arraySupportsIndexOf reports whether the element type can be compared with
+// C's == operator. Records and C strings cannot: records have no == operator,
+// and pointer comparison is not the intended string semantics.
+func arraySupportsIndexOf(cType string) bool {
+	return !isObjectCType(cType) && cType != "const char *"
 }
 
 func renderArrayGet(b *strings.Builder, meta arrayMeta, name string) {
@@ -1612,14 +1649,14 @@ func renderArrayIndexOf(b *strings.Builder, meta arrayMeta, name string) {
 }
 
 func buildArrayDeclFromVar(node *ast.VarDecl) (arrayMeta, []string, bool) {
-	return buildArrayDecl(node.Name, node.Type, node.ArrayCapacity, node.Value)
+	return buildArrayDecl(node.Name, node.Type, node.ResolvedType, node.ArrayCapacity, node.Value)
 }
 
 func buildArrayDeclFromConst(node *ast.ConstDecl) (arrayMeta, []string, bool) {
-	return buildArrayDecl(node.Name, node.Type, node.ArrayCapacity, node.Value)
+	return buildArrayDecl(node.Name, node.Type, node.ResolvedType, node.ArrayCapacity, node.Value)
 }
 
-func buildArrayDecl(name, declaredType string, declaredCapacity int, value ast.Expr) (arrayMeta, []string, bool) {
+func buildArrayDecl(name, declaredType, resolvedElemType string, declaredCapacity int, value ast.Expr) (arrayMeta, []string, bool) {
 	lit, ok := value.(*ast.ArrayLiteralExpr)
 	if !ok && declaredCapacity <= 0 {
 		return arrayMeta{}, nil, false
@@ -1630,6 +1667,12 @@ func buildArrayDecl(name, declaredType string, declaredCapacity int, value ast.E
 		elements = lit.Elements
 	}
 	elemType := declaredType
+	if elemType == "" {
+		// The checker records the resolved element type on the declaration, so
+		// inferred arrays keep string/float/boolean/record elements instead of
+		// falling back to int32.
+		elemType = resolvedElemType
+	}
 	if elemType == "" {
 		elemType = inferArrayElementType(elements)
 	}
@@ -1831,9 +1874,32 @@ func collectObjectTypes(program *ast.Program) {
 func objectShapeForLiteral(lit *ast.ObjectLiteralExpr) string {
 	fields := make([]string, 0, len(lit.Properties))
 	for _, property := range lit.Properties {
-		fields = append(fields, property.Name+":"+objectFieldType(property.Value))
+		fields = append(fields, property.Name+":"+objectFieldShape(property))
 	}
 	return strings.Join(fields, ",")
+}
+
+// objectFieldShape returns the type recorded by the checker when available.
+// Falling back to literal-only inference keeps Generate usable without a
+// preceding Check pass, as some codegen tests do.
+func objectFieldShape(property ast.ObjectProperty) string {
+	if property.ResolvedType != "" {
+		return property.ResolvedType
+	}
+	return objectFieldType(property.Value)
+}
+
+// objectFieldCType maps a property's resolved type to a C type. Nested object
+// shapes are looked up in the registered object table.
+func objectFieldCType(property ast.ObjectProperty) string {
+	shape := objectFieldShape(property)
+	if strings.Contains(shape, ":") {
+		if meta, ok := generatedObjects[shape]; ok {
+			return meta.CName
+		}
+		return "int"
+	}
+	return typeName(shape, false)
 }
 
 func objectFieldType(expr ast.Expr) string {
@@ -1881,17 +1947,18 @@ func renderObjectType(meta objectMeta) string {
 	var b strings.Builder
 	b.WriteString("typedef struct {\n")
 	for _, field := range meta.Fields {
-		b.WriteString(fmt.Sprintf("    %s %s;\n", typeName(objectFieldType(field.Value), false), sanitizeFieldName(field.Name)))
+		b.WriteString(fmt.Sprintf("    %s %s;\n", objectFieldCType(field), sanitizeFieldName(field.Name)))
 	}
 	b.WriteString(fmt.Sprintf("} %s;\n", meta.CName))
 	return b.String()
 }
 
-func renderObjectTopLevelDecl(meta objectMeta, name, symbol string, value ast.Expr) string {
+func renderObjectTopLevelDecl(meta objectMeta, name, symbol string, value ast.Expr) (string, string) {
+	cName := sanitizeBinding(symbol, name)
 	if isStaticInitSafe(value) {
-		return fmt.Sprintf("static %s %s = %s;\n", meta.CName, sanitizeBinding(symbol, name), renderExpr(value))
+		return fmt.Sprintf("static %s %s = %s;\n", meta.CName, cName, renderExpr(value)), ""
 	}
-	return fmt.Sprintf("static %s %s;\n", meta.CName, sanitizeBinding(symbol, name))
+	return fmt.Sprintf("static %s %s;\n", meta.CName, cName), fmt.Sprintf("%s = %s", cName, renderExpr(value))
 }
 
 func collectFunctionTypes(program *ast.Program) {

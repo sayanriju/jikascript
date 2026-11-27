@@ -1409,6 +1409,7 @@ func TestCheckRejectsInvalidArrayMethods(t *testing.T) {
 		{`let a: int32[4] = [1]; a.indexOf();`, "indexOf() expects one argument"},
 		{`let a: int32[4] = [1]; a.indexOf("x");`, "indexOf() type mismatch"},
 		{`let a: string[2] = ["a", "b"]; a.indexOf("a");`, "indexOf() is not supported for string arrays"},
+		{`const a = [{ x: 1 }]; a.indexOf(a[0]);`, "indexOf() is not supported for object arrays"},
 		{`let a: int32[4] = [1]; let x = a.clear();`, "expression does not produce a value"},
 		{`let a: int32[4] = [1]; let x = a.fill(0);`, "expression does not produce a value"},
 		{`let a: int32[4] = [1]; let x = a.reverse();`, "expression does not produce a value"},
