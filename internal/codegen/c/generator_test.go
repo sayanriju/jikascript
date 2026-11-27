@@ -1558,7 +1558,7 @@ func TestGenerateKeepsWritableArraysInRAM(t *testing.T) {
 			if strings.Contains(out, "static const struct") {
 				t.Fatalf("expected RAM-backed array, got read-only promotion:\n%s", out)
 			}
-			want := "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t;"
+			want := "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t"
 			if !strings.Contains(out, want) {
 				t.Fatalf("expected mutable array declaration, got:\n%s", out)
 			}
@@ -1585,7 +1585,7 @@ buffer.push(4);
 	if !strings.Contains(out, "static const struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_table = { 2, 4, { 1, 2 } };") {
 		t.Fatalf("expected read-only table declaration, got:\n%s", out)
 	}
-	if !strings.Contains(out, "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_buffer;") {
+	if !strings.Contains(out, "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_buffer") {
 		t.Fatalf("expected mutable buffer declaration, got:\n%s", out)
 	}
 	if count := strings.Count(out, "static void jikascript_fail(void) {"); count != 1 {
@@ -1812,4 +1812,70 @@ func TestGenerateInferredArrayElementTypes(t *testing.T) {
 			compileGeneratedC(t, out, "inferred_array_"+tc.name)
 		})
 	}
+}
+
+func TestGenerateMutableArrayStaticInitializer(t *testing.T) {
+	t.Run("constant initializer", func(t *testing.T) {
+		program, err := parser.ParseProgram(`let t: int32[4] = [1, 2]; t.push(3);`)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := checker.Check(program); err != nil {
+			t.Fatalf("check error: %v", err)
+		}
+		out, err := Generate(program)
+		if err != nil {
+			t.Fatalf("generate error: %v", err)
+		}
+		want := "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t = { 2, 4, { 1, 2 } };"
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected static initializer %q, got:\n%s", want, out)
+		}
+		if strings.Contains(out, "js_t.data[0] = 1;") || strings.Contains(out, "js_t.capacity = 4;") {
+			t.Fatalf("expected no runtime array initialization, got:\n%s", out)
+		}
+		compileGeneratedC(t, out, "mutable_array_static_init")
+	})
+
+	t.Run("non-constant initializer", func(t *testing.T) {
+		program, err := parser.ParseProgram(`const k = 5; let t: int32[4] = [k, 2]; t.push(3);`)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := checker.Check(program); err != nil {
+			t.Fatalf("check error: %v", err)
+		}
+		out, err := Generate(program)
+		if err != nil {
+			t.Fatalf("generate error: %v", err)
+		}
+		if !strings.Contains(out, "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t;") {
+			t.Fatalf("expected runtime-initialized array declaration, got:\n%s", out)
+		}
+		if !strings.Contains(out, "js_t.data[0] = js_k;") {
+			t.Fatalf("expected runtime array initialization, got:\n%s", out)
+		}
+		compileGeneratedC(t, out, "mutable_array_runtime_init")
+	})
+
+	t.Run("empty initializer", func(t *testing.T) {
+		program, err := parser.ParseProgram(`let t: int32[4] = []; t.push(3);`)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := checker.Check(program); err != nil {
+			t.Fatalf("check error: %v", err)
+		}
+		out, err := Generate(program)
+		if err != nil {
+			t.Fatalf("generate error: %v", err)
+		}
+		if !strings.Contains(out, "static struct { uint32_t length; uint32_t capacity; int32_t data[4]; } js_t;") {
+			t.Fatalf("expected zero-filled array declaration, got:\n%s", out)
+		}
+		if !strings.Contains(out, "js_t.capacity = 4;") {
+			t.Fatalf("expected runtime capacity initialization, got:\n%s", out)
+		}
+		compileGeneratedC(t, out, "mutable_array_empty_init")
+	})
 }

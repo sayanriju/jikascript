@@ -19,9 +19,14 @@ type arrayMeta struct {
 	// is a compile-time constant. Such arrays are emitted as read-only data so
 	// the linker places them in flash instead of SRAM.
 	ReadOnly bool
-	InitLen  int
-	InitVals []string
-	Usage    arrayUsage
+	// StaticInit marks a mutable array whose initializer is a compile-time
+	// constant. The initializer is emitted in the declaration so the linker
+	// stores it in flash and the startup code copies it to RAM, instead of
+	// generating one assignment per element in main().
+	StaticInit bool
+	InitLen    int
+	InitVals   []string
+	Usage      arrayUsage
 }
 
 var generatedArrays map[string]arrayMeta
@@ -1545,22 +1550,25 @@ func renderOptionalExpr(expr ast.Expr) string {
 
 func renderArrayDecl(meta arrayMeta) string {
 	name := sanitizeName(meta.Name)
-	if !meta.ReadOnly {
-		return fmt.Sprintf("static struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s;\n", meta.CType, meta.Capacity, name)
+	if meta.ReadOnly || meta.StaticInit {
+		qualifier := ""
+		if meta.ReadOnly {
+			qualifier = "const "
+		}
+		var b strings.Builder
+		b.WriteString(fmt.Sprintf("static %sstruct { uint32_t length; uint32_t capacity; %s data[%d]; } %s = { %d, %d, { ",
+			qualifier, meta.CType, meta.Capacity, name, meta.InitLen, meta.Capacity))
+		if len(meta.InitVals) > 0 {
+			b.WriteString(strings.Join(meta.InitVals, ", "))
+		} else {
+			// Explicit zero keeps -Wmissing-field-initializers quiet while the
+			// remaining elements are zero-filled by C.
+			b.WriteString("0")
+		}
+		b.WriteString(" } };\n")
+		return b.String()
 	}
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("static const struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s = { %d, %d",
-		meta.CType, meta.Capacity, name, meta.InitLen, meta.Capacity))
-	b.WriteString(", { ")
-	if len(meta.InitVals) > 0 {
-		b.WriteString(strings.Join(meta.InitVals, ", "))
-	} else {
-		// Explicit zero keeps -Wmissing-field-initializers quiet while the
-		// remaining elements are zero-filled by C.
-		b.WriteString("0")
-	}
-	b.WriteString(" } };\n")
-	return b.String()
+	return fmt.Sprintf("static struct { uint32_t length; uint32_t capacity; %s data[%d]; } %s;\n", meta.CType, meta.Capacity, name)
 }
 
 func renderArrayHelpers(meta arrayMeta) string {
@@ -1704,6 +1712,14 @@ func buildArrayDecl(name, declaredType, resolvedElemType string, declaredCapacit
 	}
 	meta.InitLen = len(elements)
 	meta.InitVals = values
+	// A non-empty constant initializer can be emitted in the declaration. The
+	// linker stores it in flash and the startup code copies it to RAM, which is
+	// smaller than one assignment per element in main(). Empty arrays stay in
+	// .bss so their zero fill costs no flash.
+	if len(elements) > 0 && arrayInitializerIsStatic(value) {
+		meta.StaticInit = true
+		init = nil
+	}
 	return meta, init, true
 }
 

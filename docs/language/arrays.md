@@ -71,6 +71,11 @@ stay mutable.
 This matters on parts like the CH32V003: a 256-entry `int32` table consumes
 about 1 KB, over half of the 2 KB SRAM, unless it is stored in flash.
 
+Mutable arrays with a compile-time constant initializer store that initializer
+in flash and copy it to RAM at startup, so initialization costs no code space.
+Empty arrays and arrays with runtime initializers are zero-filled in RAM and
+initialized in `main()`.
+
 ---
 
 ## Safety & Bounds Checking

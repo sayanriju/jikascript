@@ -28,6 +28,10 @@ separately. A compiler release may advance without changing the language.
   initializers are now emitted as read-only data, so the linker places them in
   flash instead of SRAM. Arrays that may be written keep the existing
   RAM-backed representation.
+- Mutable arrays with compile-time constant initializers now emit a static
+  initializer instead of one assignment per element in `main()`. The linker
+  stores the initializer in flash and the startup code copies it to RAM,
+  reducing flash usage without changing RAM usage or array behavior.
 
 ### Fixed
 
