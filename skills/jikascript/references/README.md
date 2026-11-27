@@ -45,7 +45,8 @@ language, runtime, scheduler, and CLI.
   errors.
 - Reserved names: `let, const, function, return, if, else, while, do, for,
   switch, case, default, break, continue, true, false, include, task, pin,
-  scheduler, start`.
+  uart, pwm, adc, spi, i2c, scheduler, start, HIGH, LOW, printf, delay,
+  delay_us, millis, random, randomSeed, abs, min, max, clamp, map`.
 - Arrays: bounded, homogeneous, static storage. `T[N]`, capacity inference,
   `push`/`pop`/`peek`/`fill`/`reverse`/`indexOf`/`clear`/`length`/`capacity`,
   indexed read/write, capacity- and bounds-checked,

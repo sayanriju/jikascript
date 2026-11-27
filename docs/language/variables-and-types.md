@@ -21,7 +21,7 @@ currentAttempt = currentAttempt + 1;
 
 A small set of words are reserved in JikaScript and cannot be used as variable names, property names, or function names.
 
-These include language keywords such as `let`, `const`, `function`, `return`, `if`, `else`, and the embedded-scheduler names `task`, `scheduler`, `pin`, and `start`.
+These include language keywords such as `let`, `const`, `function`, `return`, `if`, `else`, the embedded-scheduler names `task`, `scheduler`, `pin`, and `start`, and built-in helpers such as `millis`, `printf`, and `abs`.
 
 This is intentional: `task(...)` is the task declaration syntax, and `scheduler.start()` is the scheduler invocation syntax, not a normal identifier you can repurpose.
 

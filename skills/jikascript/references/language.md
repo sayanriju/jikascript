@@ -27,7 +27,10 @@ if, else, while, do, for, switch, case, default
 break, continue
 true, false
 include
-task, pin, scheduler, start, HIGH, LOW
+task, pin, uart, pwm, adc, spi, i2c, scheduler, start, HIGH, LOW
+printf, delay, delay_us
+millis, random, randomSeed
+abs, min, max, clamp, map
 ```
 
 `HIGH` and `LOW` are predefined GPIO state constants with fixed values (`HIGH == 1`,
