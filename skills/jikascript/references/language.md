@@ -472,12 +472,14 @@ if (button.read() == LOW) { ... }
 
 const serial = uart("PD5", "PD6", 9600);
 serial.writeByte(0x55);
+let line = serial.readLine();
 
 const spiBus = spi("PC5", "PC7", "PC6");
 spiBus.transfer(0x9F);
 
 const i2cBus = i2c("PC2", "PC1");
 i2cBus.write(0x3C, 0x00, 0xAF);
+i2cBus.writeByte(0x27, 0x01);
 ```
 
 `millis()` returns the scheduler's `uint32` millisecond counter. `random()` and

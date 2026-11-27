@@ -18,8 +18,9 @@ language, runtime, scheduler, and CLI.
   rules, timer adapter, project layout.
 - `hardware.md` — GPIO, UART, PWM, ADC, SPI, and I2C hardware API: `pin`,
   `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`,
-  `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`,
-  `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`, plus SWIO
+  `read`, `readLine`, `write`, `writeByte`, `writeBytes`, `println`, `available`,
+  `setBaud`, `set`, `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`,
+  `LOW`, plus SWIO
   `printf`/`debugRead`, `millis()`, `random()`, `randomSeed()`, and abstraction
   layers.
 - `includes.md` — Multi-file `include` splicing rules and example.
@@ -27,7 +28,8 @@ language, runtime, scheduler, and CLI.
   optimization, PlatformIO artifacts, validation commands.
 - `example-programs.md` — Complete end-to-end programs (blink, multi-task,
   button task, objects, arrays, multi-file, functions, control flow, types,
-  timing, pull-up, SPI, I2C, random, math, string char access, and ternary expressions).
+  timing, pull-up, SPI, I2C, I2C LCD, random, math, string char access, and
+  ternary expressions).
 
 ## Core facts to remember
 
