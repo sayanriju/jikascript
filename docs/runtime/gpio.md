@@ -63,6 +63,45 @@ Passing arguments to any other method is a compile error.
 
 ---
 
+## Bonded Pins and Releasing a Pin
+
+On small packages (for example the 8-pin CH32V003J4M6) two GPIOs can be bonded
+to the same package pin or node. Two outputs driving opposite levels on the same
+node fight each other, so only one pin may drive at a time.
+
+`.input()` sets a pin to high-impedance floating mode, which disables its output
+driver. Use it to release a pin before another pin drives the same node:
+
+```javascript
+const a = pin("PD4");
+const b = pin("PD5");   // bonded to PD4
+
+a.output();   // a drives the node
+b.input();    // b is high-Z and cannot fight a
+a.write(HIGH);
+```
+
+When handing the node back and forth, always float the pin you are giving up
+*before* configuring the other as an output:
+
+```javascript
+// a -> b
+a.input();
+b.output();
+b.write(HIGH);
+
+// b -> a
+b.input();
+a.output();
+a.write(HIGH);
+```
+
+Use `.input()` (floating), not `.pullUp()` or `.pullDown()`, on the released
+pin: a pull resistor would still load the node and weakly fight the active
+driver.
+
+---
+
 ## Pin State Constants
 
 `HIGH` and `LOW` are compiler-provided constants with the fixed meanings
