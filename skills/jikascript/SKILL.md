@@ -1,7 +1,7 @@
 ---
 name: jikascript
 description: Develop embedded firmware with JikaScript, a lightweight ECMAScript-inspired language that compiles ahead-of-time to pure C99 for microcontrollers (CH32V003 via CH32fun). Use when writing, building, transpiling, flashing, or debugging .jika source files, or explaining JikaScript language constructs, cooperative scheduling, or its CLI.
-version: 0.8.0
+version: 0.7.0
 author: Sayan Chakrabarti (sayanriju)
 license: MIT
 platforms: [linux, macos, windows]
@@ -159,8 +159,10 @@ Detailed, exhaustive references available on demand:
   they are language syntax or fixed built-ins, not ordinary identifiers.
 - `HIGH` and `LOW` are predefined pin-state constants with fixed meanings
   `HIGH == 1` and `LOW == 0`; do not shadow or rebind them in user code.
-- Array push/pop and index access are bounds- and capacity-checked at runtime;
-  statically provable violations are rejected at compile time.
+- Array push/pop/peek, fill, reverse, indexOf, clear, length, capacity, and
+  indexed access are available; push/pop/peek and indexed access are bounds-
+  and capacity-checked at runtime. Statically provable violations are rejected
+  at compile time.
 - The scheduler runs callbacks in main context; a long callback delays others.
 - `include` is a compile-time textual splice, resolved relative to the including
   file, top-level only, and rejected on circularity.

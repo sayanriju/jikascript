@@ -111,5 +111,5 @@ typedef struct {
 } jikascript_array_int32_t;
 ```
 
-Methods (`push`, `pop`, `clear`, indexed access) become bounds/capacity-checked
-helper calls in the generated C.
+Methods (`push`, `pop`, `peek`, `fill`, `reverse`, `indexOf`, `clear`, indexed
+access) become bounds/capacity-checked helper calls in the generated C.

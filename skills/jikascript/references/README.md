@@ -47,7 +47,8 @@ language, runtime, scheduler, and CLI.
   switch, case, default, break, continue, true, false, include, task, pin,
   scheduler, start`.
 - Arrays: bounded, homogeneous, static storage. `T[N]`, capacity inference,
-  `push`/`pop`/`length`, indexed read/write, capacity- and bounds-checked,
+  `push`/`pop`/`peek`/`fill`/`reverse`/`indexOf`/`clear`/`length`/`capacity`,
+  indexed read/write, capacity- and bounds-checked,
   fail-fast trap on runtime violations. Top-level only; no literal reassignment.
 - Objects: static records -> C structs; shape and types checked at compile time.
 - Tasks: `task(name, interval_ms, callback)`; cooperative, main-context,
