@@ -64,7 +64,10 @@ read-only array placement, plus a set of code-generation correctness fixes.
 ### Notes
 
 - Host tests and CH32V003 target compilation pass for all shipped examples.
-  Physical-hardware verification is not yet claimed; see `TBD.md`.
+- Hardware-verified on a CH32V003: GPIO output (blink on PC1), the cooperative
+  scheduler, `printf` over SWIO, and `delay()`. Other peripherals and
+  `millis()`/`random()` remain target-compiled pending hardware verification;
+  see `TBD.md`.
 
 ## [0.4.5] - 2026-11-26
 

@@ -521,7 +521,10 @@ once, so pass simple values rather than calls with side effects. See
   read-only flash placement), static objects, math helpers, random numbers, and
   string operations are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
-  observing behavior. Not yet claimed for any feature.
+  observing behavior. GPIO output (blink on PC1), the cooperative scheduler,
+  `printf` over SWIO, and `delay()` are hardware-verified. Other peripherals
+  (UART, PWM, ADC, SPI, I2C) and `millis()`/`random()` remain target-compiled
+  pending hardware verification.
 
 ## Validation commands
 
