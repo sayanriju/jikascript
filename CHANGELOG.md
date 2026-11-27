@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [0.5.2] - 2026-11-27
+
+Language specification: `0.7.2`
+
+This release adds byte-oriented I2C writes and line-oriented UART input.
+
+### Added
+
+- `i2c.writeByte(addr, value)` writes one data byte without a register address,
+  for devices such as the PCF8574.
+- `i2c.writeBytes(addr, data)` writes a `uint8` array as a raw byte stream, for
+  devices such as the SSD1306 OLED.
+- `uart.readLine()` returns the next complete line as a string, or `""` when no
+  line is ready. It is non-blocking and uses a bounded line buffer.
+
+### Notes
+
+- `readLine()` uses a separate runtime file, so programs that do not use it pay
+  no RAM or flash cost.
+- Hardware validation of the new I2C/UART methods remains pending.
+
 ## [0.5.1] - 2026-11-27
 
 Language specification: `0.7.1`
@@ -22,12 +43,6 @@ builtin identifiers.
   minimal runtime stores one pending byte; pasted or burst input may drop bytes.
 - Generated projects enable SWIO debug support automatically for either
   `printf` output or `debugRead` input.
-- `i2c.writeByte(addr, value)` writes one data byte without a register address,
-  for devices such as the PCF8574.
-- `i2c.writeBytes(addr, data)` writes a `uint8` array as a raw byte stream, for
-  devices such as the SSD1306 OLED.
-- `uart.readLine()` returns the next complete line as a string, or `""` when no
-  line is ready. It is non-blocking and uses a bounded line buffer.
 
 ### Fixed
 
@@ -397,6 +412,7 @@ PlatformIO-driven build, and adds a `flash` command.
 Initial implementation: lexer, parser, semantic checker, C99 code generator,
 standalone cooperative scheduler, and CH32fun GPIO and timer adapters.
 
+[0.5.2]: https://github.com/sayanriju/jikascript/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/sayanriju/jikascript/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/sayanriju/jikascript/compare/v0.4.5...v0.5.0
 [0.4.5]: https://github.com/sayanriju/jikascript/compare/v0.4.4...v0.4.5
