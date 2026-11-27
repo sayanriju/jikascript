@@ -31,7 +31,8 @@ defined idle level.
 On small packages two GPIOs can be bonded to the same node. Only one may drive
 at a time: call `.input()` on the pin you are releasing before configuring the
 other as an output. Use `.input()` (floating), not `.pullUp()`/`.pullDown()`, so
-the released pin does not load the node.
+the released pin does not load the node. An unused pin is already floating at
+reset, so you only need to release a pin your code configured as an output.
 
 ## Writing outputs
 

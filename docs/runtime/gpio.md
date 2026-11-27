@@ -69,8 +69,15 @@ On small packages (for example the 8-pin CH32V003J4M6) two GPIOs can be bonded
 to the same package pin or node. Two outputs driving opposite levels on the same
 node fight each other, so only one pin may drive at a time.
 
+You do **not** need to touch a pin you never use. At reset every GPIO is already
+a floating input (`CFGLR = 0x44444444`), and `funGpioInitAll()` only enables the
+port clocks, so an unconfigured pin is high-Z and cannot fight. You only need to
+release a pin explicitly when your code (or a peripheral) has configured it as
+an output and you want another pin to drive the same node.
+
 `.input()` sets a pin to high-impedance floating mode, which disables its output
-driver. Use it to release a pin before another pin drives the same node:
+driver. Use it to release a pin that your code has configured as an output
+before another pin drives the same node:
 
 ```javascript
 const a = pin("PD4");
