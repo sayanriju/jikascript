@@ -1,6 +1,7 @@
-# Debug Output & Delays
+# Debug I/O & Delays
 
-Two builtins map directly to CH32fun helpers for quick debugging on the target.
+Debug helpers provide bidirectional SWIO terminal access and blocking delays on
+the target.
 
 ## printf
 
@@ -19,11 +20,39 @@ task("debug", 1000, () => {
 
 - Output uses CH32fun's debug printf, so a debugger must be attached to see it.
 - The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF` automatically
-  when a program calls `printf`.
+  when a program calls `printf` or `debugRead`.
 - CH32fun's mini-printf supports `%d`, `%u`, `%x`, `%X`, `%c`, `%s`, and `%%`
   (with an optional `l` modifier). Floating-point formatting is not supported.
 - Arguments follow C default argument promotions. Match the format specifier to
   the promoted C type, exactly as in C.
+
+## debugRead
+
+`debugRead()` receives one byte from the same SWIO terminal used by `printf`.
+It returns `0`–`255`, or `-1` when no byte is waiting. The call takes no
+arguments and is non-blocking.
+
+```javascript
+task("commands", 10, () => {
+    let ch = debugRead();
+    if (ch == 114) {       // 'r'
+        printf("reset\n");
+    }
+});
+```
+
+Run `minichlink -T` as the interactive terminal; `-T` must be the last argument.
+This requires a debugger to stay attached; SWIO terminal I/O is for debugging and
+interactive setup, not production serial communication. The minimal runtime
+stores one pending byte, so type commands normally—pastes or bursts may drop
+additional bytes. `printf` and `debugRead` can be used together without
+occupying UART pins, which is particularly useful on bonded-pin packages such as
+CH32V003J4M6.
+
+The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF` automatically when
+the program uses either `printf` or `debugRead`. An existing `funconfig.h` is not
+overwritten, so set `FUNCONF_USE_DEBUGPRINTF` to `1` manually if you add
+`debugRead` to an older project.
 
 ## delay and delay_us
 

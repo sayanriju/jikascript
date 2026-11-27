@@ -36,7 +36,7 @@ Authoritative requirements live in [SPEC.md](SPEC.md).
 - [runtime/periodic/](runtime/periodic): standalone pure-C scheduler
 - [targets/ch32fun/](targets/ch32fun): CH32V003 target config with GPIO, UART,
   PWM, and ADC backends
-- [examples/](examples): `.jika` sample programs for arrays, hardware, timing, math, strings, random, SPI, I2C, and debug output
+- [examples/](examples): `.jika` sample programs for arrays, hardware, timing, math, strings, random, SPI, I2C, and bidirectional debug I/O
 - [skills/jikascript/](skills/jikascript): An agent/skills.sh skill for the
   JikaScript language, CLI, and scheduler. Install it with the standard skills
   CLI: `npx skills add sayanriju/jikascript --skill jikascript`
@@ -262,7 +262,7 @@ Artifacts:
 - [strings.jika](examples/strings.jika) — string length, equality, and character access
 - [time.jika](examples/time.jika) — non-blocking `millis()` timing
 - [bitmask.jika](examples/bitmask.jika) — hex masks and bitwise operators
-- [debug.jika](examples/debug.jika) — SWIO `printf` and delays
+- [debug.jika](examples/debug.jika) — SWIO `printf`, `debugRead`, and delays
 - [arrays.jika](examples/arrays.jika) — bounded arrays
 - [objects.jika](examples/objects.jika) — fixed-shape record objects
 - [postfix.jika](examples/postfix.jika) — `++` and `--` in loops and expressions
@@ -444,21 +444,28 @@ compiler and breaking the firmware build. See
 [docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
 for the pin tables and the timer/clock contract.
 
-## Debug output and delays
+## Debug I/O and delays
 
-`printf`, `delay`, and `delay_us` map directly to CH32fun helpers:
+`printf` and `debugRead` use CH32fun's bidirectional SWIO terminal; `delay` and
+`delay_us` map directly to CH32fun delay helpers:
 
 ```javascript
 printf("count=%d\n", count);  // SWIO debug output
+let command = debugRead();    // 0..255, or -1 when empty
 delay(10);                    // blocking 10 ms
 delay_us(250);                // blocking 250 us
 ```
 
 `printf` requires a string-literal format and passes its remaining arguments
 through to CH32fun's mini-printf (`%d`, `%u`, `%x`, `%X`, `%c`, `%s`, `%%`; no
-floating point). The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF`
-automatically when `printf` is used. `delay`/`delay_us` busy-wait on SysTick, so
-they block cooperative task callbacks. See
+floating point). `debugRead()` takes no arguments, does not block, and returns a
+terminal byte or `-1`. Run `minichlink -T` for interactive terminal I/O. The
+minimal receive path stores one pending byte, so pasted or burst input can be
+dropped; type interactive commands normally. The generated `funconfig.h`
+enables `FUNCONF_USE_DEBUGPRINTF` automatically when either `printf` or
+`debugRead` is used; an existing `funconfig.h` is not overwritten.
+`delay`/`delay_us` busy-wait on SysTick, so they block
+cooperative task callbacks. See
 [docs/runtime/debug.md](docs/runtime/debug.md).
 
 ## Time
@@ -517,14 +524,14 @@ once, so pass simple values rather than calls with side effects. See
   against the `ch32v003fun` framework. `jikascript build` produces a linked
   `.elf` and `.bin` for CH32V003. GPIO (including pull-up/down), UART
   (including baud and byte I/O), PWM, ADC, SPI, I2C, the scheduler, `millis()`,
-  the debug helpers (`printf`, `delay`, `delay_us`), bounded arrays (including
+  the debug helpers (`printf`, `debugRead`, `delay`, `delay_us`), bounded arrays (including
   read-only flash placement), static objects, math helpers, random numbers, and
   string operations are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. GPIO output (blink on PC1), the cooperative scheduler,
   `printf` over SWIO, and `delay()` are hardware-verified. Other peripherals
-  (UART, PWM, ADC, SPI, I2C) and `millis()`/`random()` remain target-compiled
-  pending hardware verification.
+  (UART, PWM, ADC, SPI, I2C), `debugRead()`, and `millis()`/`random()` remain
+  target-compiled pending hardware verification.
 
 ## Validation commands
 

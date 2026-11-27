@@ -142,7 +142,7 @@ Detailed, exhaustive references available on demand:
 - `references/objects.md` — Static object records: declaration, struct lowering, mutable properties, compile-time safety.
 - `references/tasks.md` — Cooperative periodic tasks and the scheduler model.
 - `references/scheduler.md` — Standalone pure-C periodic scheduler API, scheduling rules, and timer adapter.
-- `references/hardware.md` — GPIO, UART, PWM, ADC, SPI, and I2C hardware API (`pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`, `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`, `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`), plus `millis()`, `random()`, `randomSeed()`, and the math helpers `abs`, `min`, `max`, `clamp`, `map`.
+- `references/hardware.md` — GPIO, UART, PWM, ADC, SPI, I2C, and SWIO debug I/O API (`pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`, `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`, `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`), plus `millis()`, `random()`, `randomSeed()`, and the math helpers `abs`, `min`, `max`, `clamp`, `map`.
 - `references/includes.md` — Multi-file `include` splicing rules and example.
 - `references/cli.md` — Install, build, CLI commands, flags, board/env selection, optimization, PlatformIO artifacts.
 - `references/example-programs.md` — Complete end-to-end example programs.
@@ -155,7 +155,7 @@ Detailed, exhaustive references available on demand:
 - `==` and `===` are both strict and non-coercing. Mixed-type comparisons are
   compile-time errors — never compare a `number` to a `string`.
 - Reserve the words `task`, `scheduler`, `start`, `pin`, `uart`, `pwm`, `adc`,
-  `spi`, `i2c`, `printf`, `delay`, `delay_us`, `millis`, `random`, `randomSeed`,
+  `spi`, `i2c`, `printf`, `debugRead`, `delay`, `delay_us`, `millis`, `random`, `randomSeed`,
   `abs`, `min`, `max`, `clamp`, `map`, `include`, `HIGH`, and `LOW`: they are
   language syntax or fixed built-ins, not ordinary identifiers.
 - `HIGH` and `LOW` are predefined pin-state constants with fixed meanings

@@ -110,8 +110,9 @@ The target backends prefer CH32fun macros and helpers wherever they exist:
 - Pin configuration goes through `funPinMode`, `funDigitalWrite`, and
   `funDigitalRead`.
 - Register bit definitions come from the CH32fun/CH32V003 headers.
-- Simple builtins map directly to CH32fun helpers: `printf`, `Delay_Ms`,
-  `Delay_Us`, `funAnalogInit`, and `funAnalogRead`.
+- Simple builtins map directly to CH32fun helpers: `printf`, `poll_input`,
+  `Delay_Ms`, `Delay_Us`, `funAnalogInit`, and `funAnalogRead`. SWIO receive is
+  buffered as one pending byte by the small `debug` runtime.
 
 When a CH32fun helper is compile-time-configured or application-specific, the
 backend implements the peripheral state machine directly instead of forcing a

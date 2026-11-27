@@ -30,4 +30,4 @@ A microsecond API would expose the SysTick counter directly, wrap in roughly
 can be added later if a concrete need appears.
 
 See also: [Tasks & Scheduling](runtime/tasks.md) ·
-[Debug Output & Delays](runtime/debug.md)
+[Debug I/O & Delays](runtime/debug.md)

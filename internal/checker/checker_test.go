@@ -1083,6 +1083,7 @@ func TestCheckAcceptsDebugBuiltins(t *testing.T) {
 		`delay(10);`,
 		`delay_us(50);`,
 		`let ms = 5; delay(ms);`,
+		`let ch = debugRead();`,
 	}
 	for _, source := range sources {
 		program, err := parser.ParseProgram(source)
@@ -1112,6 +1113,8 @@ func TestCheckRejectsInvalidDebugBuiltins(t *testing.T) {
 		{`let x = delay(1);`, "expression does not produce a value"},
 		{`function printf() {}`, "cannot redeclare predefined name 'printf'"},
 		{`function delay() {}`, "cannot redeclare predefined name 'delay'"},
+		{`debugRead(1);`, "debugRead() expects no arguments"},
+		{`function debugRead() {}`, "cannot redeclare predefined name 'debugRead'"},
 	}
 	for _, tc := range cases {
 		program, err := parser.ParseProgram(tc.source)

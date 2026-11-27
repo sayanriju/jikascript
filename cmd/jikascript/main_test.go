@@ -258,9 +258,11 @@ func TestPrepareBuildInputStagesOnlyUsedRuntimeFiles(t *testing.T) {
 		}
 	}
 	for _, name := range []string{
+		"src/runtime/debug.c",
 		"src/runtime/uart.c",
 		"src/runtime/pwm.c",
 		"src/runtime/adc.c",
+		"include/debug.h",
 		"include/uart.h",
 		"include/pwm.h",
 		"include/adc.h",
@@ -394,17 +396,21 @@ func TestEnsureFunConfigCreatesMinimalHeader(t *testing.T) {
 }
 
 func TestEnsureFunConfigEnablesDebugPrintf(t *testing.T) {
-	tempDir := t.TempDir()
-	mainC := "#include <stdio.h>\nint main(void) { printf(\"x\"); return 0; }\n"
-	if err := ensureFunConfig(tempDir, mainC); err != nil {
-		t.Fatalf("ensureFunConfig error: %v", err)
-	}
-	data, err := os.ReadFile(filepath.Join(tempDir, "funconfig.h"))
-	if err != nil {
-		t.Fatalf("read generated funconfig.h: %v", err)
-	}
-	if !strings.Contains(string(data), "#define FUNCONF_USE_DEBUGPRINTF 1") {
-		t.Fatalf("expected debug printf enabled with stdio include:\n%s", data)
+	for _, mainC := range []string{
+		"#include <stdio.h>\nint main(void) { printf(\"x\"); return 0; }\n",
+		"#include \"debug.h\"\nint main(void) { return debug_read(); }\n",
+	} {
+		tempDir := t.TempDir()
+		if err := ensureFunConfig(tempDir, mainC); err != nil {
+			t.Fatalf("ensureFunConfig error: %v", err)
+		}
+		data, err := os.ReadFile(filepath.Join(tempDir, "funconfig.h"))
+		if err != nil {
+			t.Fatalf("read generated funconfig.h: %v", err)
+		}
+		if !strings.Contains(string(data), "#define FUNCONF_USE_DEBUGPRINTF 1") {
+			t.Fatalf("expected SWIO debug enabled for %q:\n%s", mainC, data)
+		}
 	}
 }
 

@@ -58,6 +58,23 @@ Treat them as built-in logic constants, not ordinary mutable user variables.
 Compare reads with the strict equality operators (`==` / `===`), which are
 non-coercing.
 
+## SWIO debug terminal
+
+`printf(...)` sends text and `debugRead()` receives one byte through CH32fun's
+SWIO debug mailbox, with `minichlink -T` as the host terminal. `debugRead()`
+takes no arguments and returns `0`–`255`, or `-1` when nothing is waiting. It is
+non-blocking. The runtime stores one pending byte, so type commands normally;
+pasted or burst input can be dropped. This avoids UART pins, especially on the
+bonded-pin CH32V003J4M6 package, but requires an attached debugger and is not a
+production serial interface.
+
+```javascript
+let ch = debugRead();
+if (ch == 114) {          // 'r'
+    printf("reset\n");
+}
+```
+
 ## UART
 
 `uart()` binds the CH32V003 USART1 peripheral. It takes two string-literal

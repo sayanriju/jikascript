@@ -49,8 +49,9 @@ and direct.
 
 ## Debug, Time, and Random Helpers
 
-`printf`, `delay`, and `delay_us` map directly to CH32fun's SWIO debug output
-and SysTick delays. See [Debug Output & Delays](runtime/debug.md).
+`printf` and `debugRead` use CH32fun's bidirectional SWIO debug terminal;
+`delay` and `delay_us` map directly to blocking SysTick delays. See
+[Debug I/O & Delays](runtime/debug.md).
 `millis()` exposes the scheduler's millisecond counter
 ([Time & millis()](runtime/time.md)), and `random()`/`randomSeed()` provide a
 small LFSR generator ([Random numbers](runtime/random.md)).

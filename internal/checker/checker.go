@@ -2091,6 +2091,9 @@ func inferLiteralType(expr ast.Expr, scopeStack []map[string]string) (string, bo
 			}
 			return returnType, true
 		}
+		if ident, ok := node.Function.(*ast.Identifier); ok && ident.Name == "debugRead" {
+			return "int32", true
+		}
 		if ident, ok := node.Function.(*ast.Identifier); ok && (ident.Name == "millis" || ident.Name == "random") {
 			return "uint32", true
 		}
@@ -2291,7 +2294,7 @@ func isNumericType(t string) bool {
 
 func builtin(name string) bool {
 	switch name {
-	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "delay", "delay_us", "millis", "random", "randomSeed", "abs", "min", "max", "clamp", "map":
+	case "pin", "uart", "pwm", "adc", "spi", "i2c", "scheduler", "HIGH", "LOW", "printf", "debugRead", "delay", "delay_us", "millis", "random", "randomSeed", "abs", "min", "max", "clamp", "map":
 		return true
 	default:
 		return false
@@ -2315,7 +2318,7 @@ func checkBuiltinCall(call *ast.CallExpr, scopeStack []map[string]string) error 
 		if _, ok := call.Args[0].(*ast.StringLiteral); !ok {
 			return fmt.Errorf("%d:%d: error: printf() format argument must be a string literal", call.Pos.Line, call.Pos.Column)
 		}
-	case "millis", "random":
+	case "millis", "random", "debugRead":
 		if len(call.Args) != 0 {
 			return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", call.Pos.Line, call.Pos.Column, ident.Name, len(call.Args))
 		}

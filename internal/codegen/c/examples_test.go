@@ -83,6 +83,7 @@ func TestExamplesTranspileAndCompile(t *testing.T) {
 				cFile,
 				filepath.Join(periodicInc, "periodic.c"),
 				filepath.Join(gpioInc, "gpio_stub.c"),
+				filepath.Join(gpioInc, "debug_stub.c"),
 				filepath.Join(gpioInc, "periodic_ch32fun_stub.c"),
 				filepath.Join(gpioInc, "uart_stub.c"),
 				filepath.Join(gpioInc, "pwm_stub.c"),

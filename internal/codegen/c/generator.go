@@ -308,6 +308,9 @@ func Generate(program *ast.Program) (string, error) {
 	if usedPeripherals["pins"] {
 		b.WriteString("#include \"jikascript_pins.h\"\n\n")
 	}
+	if usedPeripherals["debug"] {
+		b.WriteString("#include \"debug.h\"\n\n")
+	}
 	if usedPeripherals["uart"] {
 		b.WriteString("#include \"uart.h\"\n\n")
 	}
@@ -484,7 +487,11 @@ func Generate(program *ast.Program) (string, error) {
 	for _, stmt := range mainStmts {
 		b.WriteString(stmt)
 	}
-	b.WriteString("    while (1) {\n        periodic_run();\n    }\n    return 0;\n}\n")
+	b.WriteString("    while (1) {\n")
+	if usedPeripherals["debug"] {
+		b.WriteString("        debug_poll();\n")
+	}
+	b.WriteString("        periodic_run();\n    }\n    return 0;\n}\n")
 	if generationErr != nil {
 		return "", generationErr
 	}
@@ -959,6 +966,14 @@ func renderExpr(expr ast.Expr) string {
 				if _, shadowed := mangledIdentifiers["millis"]; !shadowed {
 					return "periodic_millis()"
 				}
+			case "debugRead":
+				if _, shadowed := mangledIdentifiers["debugRead"]; !shadowed {
+					if len(node.Args) != 0 {
+						setGenerationErrorf("debugRead() requires no arguments")
+						return ""
+					}
+					return "debug_read()"
+				}
 			case "random":
 				if _, shadowed := mangledIdentifiers["random"]; !shadowed {
 					return "jikascript_random()"
@@ -1263,6 +1278,7 @@ func isImplementationReservedIdentifier(name string) bool {
 
 var reservedCIdentifiers = map[string]struct{}{
 	"main": {}, "pin": {}, "gpio_output": {}, "gpio_input": {}, "gpio_toggle": {}, "gpio_read": {}, "gpio_write": {},
+	"debug_poll": {}, "debug_read": {},
 	"periodic_init": {}, "periodic_task_add": {}, "periodic_run": {}, "periodic_millis": {}, "periodic_tick_ms": {},
 	"periodic_set_critical_section": {}, "true": {}, "false": {},
 }

@@ -7,9 +7,9 @@ import "jikascript/internal/ast"
 // main() initializes the GPIO backend and the scheduler. "pins" is present
 // whenever the program uses a pin, UART, PWM, or ADC constructor, because those
 // constructors emit JIKA_PIN_* constants. The remaining keys are "uart", "pwm",
-// and "adc". "ch32fun" is present when the program calls printf, delay, or
-// delay_us, which lower directly to CH32fun functions and macros; "stdio" is
-// present when printf is used.
+// and "adc". "ch32fun" is present when the program uses SWIO debug input/output
+// or the delay helpers. "stdio" is present when printf is used, and "debug" is
+// present when debugRead is used.
 //
 // The CLI uses this set to stage only the runtime sources a project needs.
 // Generate uses it to emit only the matching headers.
@@ -38,6 +38,9 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 				case "printf":
 					used["ch32fun"] = true
 					used["stdio"] = true
+				case "debugRead":
+					used["ch32fun"] = true
+					used["debug"] = true
 				case "delay", "delay_us":
 					used["ch32fun"] = true
 				case "random", "randomSeed":

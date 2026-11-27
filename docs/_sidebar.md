@@ -25,7 +25,7 @@
     - [SPI](runtime/spi.md)
     - [I2C](runtime/i2c.md)
   - **Debugging**
-    - [Debug Output & Delays](runtime/debug.md)
+    - [Debug I/O & Delays](runtime/debug.md)
 
 - **Under the Hood**
   - [How Compilation Works](under-the-hood.md)

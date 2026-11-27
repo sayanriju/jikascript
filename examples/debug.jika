@@ -1,9 +1,13 @@
-// Debug output over SWIO plus a blocking delay.
+// Bidirectional debug I/O over SWIO plus a blocking delay.
 const led = pin("PC1");
 
 led.output();
 
 task("debug", 1000, () => {
+    let command = debugRead();
+    if (command == 114) { // 'r'
+        printf("received r\n");
+    }
     printf("tick\n");
     led.toggle();
     delay(10);

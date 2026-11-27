@@ -19,8 +19,9 @@ language, runtime, scheduler, and CLI.
 - `hardware.md` — GPIO, UART, PWM, ADC, SPI, and I2C hardware API: `pin`,
   `uart`, `pwm`, `adc`, `spi`, `i2c`, `output`, `input`, `pullUp`, `pullDown`,
   `read`, `write`, `println`, `writeByte`, `available`, `setBaud`, `set`,
-  `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`, plus
-  `millis()`, `random()`, `randomSeed()`, and abstraction layers.
+  `setFrequency`, `configure`, `transfer`, `toggle`, `HIGH`, `LOW`, plus SWIO
+  `printf`/`debugRead`, `millis()`, `random()`, `randomSeed()`, and abstraction
+  layers.
 - `includes.md` — Multi-file `include` splicing rules and example.
 - `cli.md` — Install, build, `check`/`transpile`/`build`/`flash`, board/env,
   optimization, PlatformIO artifacts, validation commands.
@@ -45,8 +46,8 @@ language, runtime, scheduler, and CLI.
   errors.
 - Reserved names: `let, const, function, return, if, else, while, do, for,
   switch, case, default, break, continue, true, false, include, task, pin,
-  uart, pwm, adc, spi, i2c, scheduler, start, HIGH, LOW, printf, delay,
-  delay_us, millis, random, randomSeed, abs, min, max, clamp, map`.
+  uart, pwm, adc, spi, i2c, scheduler, start, HIGH, LOW, printf, debugRead,
+  delay, delay_us, millis, random, randomSeed, abs, min, max, clamp, map`.
 - Arrays: bounded, homogeneous, static storage. `T[N]`, capacity inference,
   `push`/`pop`/`peek`/`fill`/`reverse`/`indexOf`/`clear`/`length`/`capacity`,
   indexed read/write, capacity- and bounds-checked,

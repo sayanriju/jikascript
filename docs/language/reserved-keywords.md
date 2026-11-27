@@ -32,7 +32,7 @@ The initial language subset reserves the following names:
 - `true`, `false`
 - `include`
 - `task`, `pin`, `uart`, `pwm`, `adc`, `spi`, `i2c`, `scheduler`, `start`
-- `printf`, `delay`, `delay_us` (debug output and blocking delays)
+- `printf`, `debugRead`, `delay`, `delay_us` (debug I/O and blocking delays)
 - `millis`, `random`, `randomSeed` (time and pseudo-random helpers)
 - `abs`, `min`, `max`, `clamp`, `map` (math helpers)
 - `HIGH`, `LOW` (predefined GPIO state constants)
@@ -40,8 +40,8 @@ The initial language subset reserves the following names:
 
 `uart`, `pwm`, `adc`, `spi`, and `i2c` are the peripheral constructors, and
 `pin` is the GPIO constructor. See [Peripherals](runtime/hardware.md) for the
-methods each one provides. `printf`, `delay`, and `delay_us` are debug helpers;
-see [Debug Output & Delays](runtime/debug.md). `millis()` is documented in
+methods each one provides. `printf`, `debugRead`, `delay`, and `delay_us` are
+debug helpers; see [Debug I/O & Delays](runtime/debug.md). `millis()` is documented in
 [Time & millis()](runtime/time.md), `random()`/`randomSeed()` in
 [Random numbers](runtime/random.md), and `abs`/`min`/`max`/`clamp`/`map` in
 [Math helpers](runtime/math.md).

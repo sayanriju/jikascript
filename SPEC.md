@@ -900,12 +900,13 @@ value argument to another peripheral method. Method calls require a peripheral
 receiver, either a `pin()`, `uart()`, `pwm()`, or `adc()` binding or a
 constructor used directly; a scalar has no properties or methods.
 
-## 7.5 Debug output and delays
+## 7.5 Debug I/O and delays
 
-Three builtins map directly to CH32fun helpers for quick target debugging:
+Four builtins provide CH32fun-backed SWIO debug I/O and blocking delays:
 
 ```javascript
 printf("count=%d\n", count);
+let command = debugRead();
 delay(10);
 delay_us(250);
 ```
@@ -917,12 +918,17 @@ delay_us(250);
   optional `l` modifier. Floating-point formatting is not supported. Arguments
   follow C default argument promotions, so the format specifier must match the
   promoted C type.
+- `debugRead()` takes no arguments and non-blockingly returns the next byte sent
+  by `minichlink -T` over the SWIO debug mailbox: `0` through `255`, or `-1` when
+  no byte is waiting. The minimal receive runtime stores one pending byte;
+  additional bytes received before it is consumed may be dropped. It is intended
+  for ordinary typed input, not pasted data streams.
 - `delay(ms)` and `delay_us(us)` block for the requested number of milliseconds
   or microseconds using CH32fun's SysTick-based delay. Each takes exactly one
   numeric argument.
 - The generated `funconfig.h` enables `FUNCONF_USE_DEBUGPRINTF` when the program
-  calls `printf`, so debug output is routed over SWIO. A debugger must be
-  attached to observe it.
+  calls either `printf` or `debugRead`, so debug I/O is routed over SWIO. A
+  debugger must remain attached for `minichlink -T` output and input.
 - These helpers busy-wait or block, so they delay cooperative task callbacks.
   They are intended for short settling delays and debugging, not for periodic
   scheduling.

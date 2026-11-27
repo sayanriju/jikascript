@@ -28,7 +28,7 @@ break, continue
 true, false
 include
 task, pin, uart, pwm, adc, spi, i2c, scheduler, start, HIGH, LOW
-printf, delay, delay_us
+printf, debugRead, delay, delay_us
 millis, random, randomSeed
 abs, min, max, clamp, map
 ```

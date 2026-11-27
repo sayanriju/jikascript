@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The compiler version and the language specification version are tracked
 separately. A compiler release may advance without changing the language.
 
+## [Unreleased]
+
+### Added
+
+- `debugRead()` receives one non-blocking byte from `minichlink -T` through the
+  CH32fun SWIO debug mailbox. It returns `0`–`255`, or `-1` when empty. The
+  minimal runtime stores one pending byte; pasted or burst input may drop bytes.
+- Generated projects enable SWIO debug support automatically for either
+  `printf` output or `debugRead` input.
+
+### Notes
+
+- SWIO terminal input requires an attached debugger and is intended for
+  debugging/interactive setup, not production serial communication.
+- Hardware validation of `debugRead` on CH32V003 remains pending.
+
 ## [0.5.0] - 2026-11-27
 
 Language specification: `0.7.0`

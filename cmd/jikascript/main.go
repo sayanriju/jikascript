@@ -166,6 +166,8 @@ var runtimeFiles = []runtimeFile{
 	{source: "runtime/periodic/periodic.h", destination: "include/periodic.h"},
 	{source: "targets/ch32fun/runtime/gpio.c", destination: "src/runtime/gpio.c"},
 	{source: "targets/ch32fun/runtime/gpio.h", destination: "include/gpio.h"},
+	{source: "targets/ch32fun/runtime/debug.c", destination: "src/runtime/debug.c", peripheral: "debug"},
+	{source: "targets/ch32fun/runtime/debug.h", destination: "include/debug.h", peripheral: "debug"},
 	{source: "targets/ch32fun/runtime/jikascript_pins.h", destination: "include/jikascript_pins.h", peripheral: "pins"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.c", destination: "src/runtime/periodic_ch32fun.c"},
 	{source: "targets/ch32fun/runtime/periodic_ch32fun.h", destination: "include/periodic_ch32fun.h"},
@@ -217,6 +219,7 @@ func usedPeripheralsFromC(mainC []byte) map[string]bool {
 		header string
 	}{
 		{family: "pins", header: "jikascript_pins.h"},
+		{family: "debug", header: "debug.h"},
 		{family: "uart", header: "uart.h"},
 		{family: "pwm", header: "pwm.h"},
 		{family: "adc", header: "adc.h"},
@@ -557,11 +560,11 @@ func ensureFunConfig(dir string, mainC string) error {
 	if _, err := os.Stat(configPath); err == nil {
 		return nil
 	}
-	// Generated C includes <stdio.h> only when the program calls printf. CH32fun
-	// needs FUNCONF_USE_DEBUGPRINTF enabled for printf to route over SWIO; with
-	// it disabled the weak printf has no _write implementation and fails to link.
+	// CH32fun needs FUNCONF_USE_DEBUGPRINTF enabled for both SWIO output and
+	// terminal input. The generated C includes stdio.h for printf and debug.h
+	// for debugRead().
 	debugPrintf := 0
-	if strings.Contains(mainC, "#include <stdio.h>") {
+	if strings.Contains(mainC, "#include <stdio.h>") || strings.Contains(mainC, "#include \"debug.h\"") {
 		debugPrintf = 1
 	}
 	content := fmt.Sprintf(`#ifndef _FUNCONFIG_H

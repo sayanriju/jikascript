@@ -22,4 +22,4 @@ task("random", 500, () => {
   RNG.
 
 See also: [Time & millis()](runtime/time.md) ·
-[Debug Output & Delays](runtime/debug.md)
+[Debug I/O & Delays](runtime/debug.md)

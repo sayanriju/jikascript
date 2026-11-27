@@ -70,7 +70,7 @@ The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) 
 - [`time.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/time.jika) — non-blocking `millis()` timing
 - [`button_pullup.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/button_pullup.jika) — internal pull-up button
 - [`bitmask.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/bitmask.jika) — hex masks and bitwise operators
-- [`debug.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/debug.jika) — SWIO `printf` and delays
+- [`debug.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/debug.jika) — SWIO `printf`, `debugRead`, and delays
 - [`arrays.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/arrays.jika) — bounded arrays with push, pop, peek, fill, reverse, indexOf, capacity, and clear
 - [`objects.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/objects.jika) — fixed-shape record objects
 - [`postfix.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/postfix.jika) — `++` and `--` in loops and expressions
