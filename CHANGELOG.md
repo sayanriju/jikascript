@@ -31,6 +31,9 @@ separately. A compiler release may advance without changing the language.
 
 ### Fixed
 
+- Using a bare array or object identifier as a scalar value (for example
+  `const copy = table;`, `table + 1`, `if (table)`, or passing `table` to a
+  function) is now rejected by the checker instead of generating invalid C.
 - String equality (`==`, `===`, `!=`, `!==`) now compares contents with
   `strcmp` instead of pointers.
 - `string.length` is now supported (compile-time for literals, `strlen()` for

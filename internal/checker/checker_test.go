@@ -594,6 +594,80 @@ values = [3, 4];`)
 	}
 }
 
+func TestCheckRejectsArrayUsedAsScalarValue(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const t: int32[4] = [1, 2]; const u = t;`, "cannot assign array 't' to a scalar binding"},
+		{`const t: int32[4] = [1, 2]; let u = t;`, "cannot assign array 't' to a scalar binding"},
+		{`const t: int32[4] = [1, 2]; const x = t + 1;`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; const x = t == 1;`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; if (t) { }`, "array 't' cannot be used as a value"},
+		{`function f(a) { return a; } const t: int32[4] = [1, 2]; const x = f(t);`, "array 't' cannot be used as a value"},
+		{`let t: int32[4] = [1, 2]; t = 5;`, "cannot assign to array 't'"},
+		{`const t: int32[4] = [1, 2]; switch (t) { case 1: break; }`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; switch (1) { case t: break; }`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; task("x", t, () => { });`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; const a: int32[2] = [t, 1];`, "array 't' cannot be used as a value"},
+		{`const t: int32[4] = [1, 2]; const o = { a: t };`, "array 't' cannot be used as a value"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckRejectsObjectUsedAsScalarValue(t *testing.T) {
+	cases := []struct {
+		source string
+		want   string
+	}{
+		{`const o = { a: 1 }; const u = o;`, "cannot assign object 'o' to a scalar binding"},
+		{`const o = { a: 1 }; const x = o + 1;`, "object 'o' cannot be used as a value"},
+		{`const o = { a: 1 }; if (o) { }`, "object 'o' cannot be used as a value"},
+		{`let o = { a: 1 }; o = 5;`, "cannot assign to object 'o'"},
+		{`const o = { a: 1 }; switch (o) { case 1: break; }`, "object 'o' cannot be used as a value"},
+		{`const o = { a: 1 }; const p = { b: o };`, "object 'o' cannot be used as a value"},
+	}
+	for _, tc := range cases {
+		program, err := parser.ParseProgram(tc.source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", tc.source, err)
+		}
+		if err := Check(program); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("expected %q for %q, got %v", tc.want, tc.source, err)
+		}
+	}
+}
+
+func TestCheckAllowsArrayAndObjectAccess(t *testing.T) {
+	sources := []string{
+		`const t: int32[4] = [1, 2]; const x = t[0];`,
+		`const t: int32[4] = [1, 2]; const n = t.length;`,
+		`const t: int32[4] = [1, 2]; const c = t.capacity;`,
+		`const t: int32[4] = [1, 2]; const p = t.peek();`,
+		`const t: int32[4] = [1, 2]; const i = t.indexOf(2);`,
+		`const o = { a: 1 }; const y = o.a;`,
+		`const o = { a: 1 }; o.a = 2;`,
+		`function f(a) { return a + 1; } const t: int32[4] = [1, 2]; const x = f(t[0]);`,
+	}
+	for _, source := range sources {
+		program, err := parser.ParseProgram(source)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", source, err)
+		}
+		if err := Check(program); err != nil {
+			t.Fatalf("expected %q to pass check, got %v", source, err)
+		}
+	}
+}
+
 func TestCheckRejectsMixedBareAndValueReturns(t *testing.T) {
 	program, err := parser.ParseProgram(`function test(flag) {
   if (flag) { return 1; }

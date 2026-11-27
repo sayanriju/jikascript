@@ -769,6 +769,9 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Interval, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := rejectNonScalarValue(node.Interval, scopeStack); err != nil {
+			return err
+		}
 		if err := checkTaskInterval(node.Interval, node.Pos); err != nil {
 			return err
 		}
@@ -793,9 +796,15 @@ func checkStmt(stmt ast.Stmt, scopeStack []map[string]string, taskNames map[stri
 		if err := checkExpr(node.Expr, scopeStack, functionArity); err != nil {
 			return err
 		}
+		if err := rejectNonScalarValue(node.Expr, scopeStack); err != nil {
+			return err
+		}
 		for _, c := range node.Cases {
 			if c.Value != nil {
 				if err := checkExpr(c.Value, scopeStack, functionArity); err != nil {
+					return err
+				}
+				if err := rejectNonScalarValue(c.Value, scopeStack); err != nil {
 					return err
 				}
 			}
@@ -978,6 +987,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			if err := checkExpr(arg, scopeStack, functionArity); err != nil {
 				return err
 			}
+			if err := rejectNonScalarValue(arg, scopeStack); err != nil {
+				return err
+			}
 		}
 		if fn, ok := node.Function.(*ast.Identifier); ok {
 			if binding, exists := lookup(scopeStack, fn.Name); exists {
@@ -1062,8 +1074,10 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		}
 		return nil
 	case *ast.BinaryExpr:
-		if err := checkValueExpression(node.Left, scopeStack, node.Pos); err != nil {
-			return err
+		if !isAssignmentOp(node.Op) {
+			if err := checkValueExpression(node.Left, scopeStack, node.Pos); err != nil {
+				return err
+			}
 		}
 		if err := checkValueExpression(node.Right, scopeStack, node.Pos); err != nil {
 			return err
@@ -1087,6 +1101,12 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			}
 		}
 		if isAssignmentOp(node.Op) {
+			if ident, ok := node.Left.(*ast.Identifier); ok && isConstBinding(scopeStack, ident.Name) {
+				return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+			}
+			if _, isArrayLiteral := node.Right.(*ast.ArrayLiteralExpr); isArrayLiteral {
+				return fmt.Errorf("%d:%d: error: array literals are only supported in top-level declarations", node.Pos.Line, node.Pos.Column)
+			}
 			if sel, ok := node.Left.(*ast.SelectorExpr); ok {
 				ident, ok := sel.Object.(*ast.Identifier)
 				if !ok {
@@ -1125,19 +1145,19 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 				}
 			}
 			if ident, ok := node.Left.(*ast.Identifier); ok {
-				if isConstBinding(scopeStack, ident.Name) {
-					return fmt.Errorf("%d:%d: error: cannot assign to constant variable '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
-				}
 				if binding, exists := lookup(scopeStack, ident.Name); exists {
+					if isArrayBinding(binding) {
+						return fmt.Errorf("%d:%d: error: cannot assign to array '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+					}
+					if isObjectBinding(binding) {
+						return fmt.Errorf("%d:%d: error: cannot assign to object '%s'", node.Pos.Line, node.Pos.Column, ident.Name)
+					}
 					expectedType, typed := scalarBindingType(binding)
 					actualType, known := inferLiteralType(node.Right, scopeStack)
 					if typed && known && !typeCompatible(expectedType, actualType) && !literalFitsType(node.Right, expectedType) {
 						return fmt.Errorf("%d:%d: error: type mismatch assigning '%s': expected %s, got %s", node.Pos.Line, node.Pos.Column, ident.Name, expectedType, actualType)
 					}
 				}
-			}
-			if _, isArrayLiteral := node.Right.(*ast.ArrayLiteralExpr); isArrayLiteral {
-				return fmt.Errorf("%d:%d: error: array literals are only supported in top-level declarations", node.Pos.Line, node.Pos.Column)
 			}
 		}
 		if err := checkExpr(node.Right, scopeStack, functionArity); err != nil {
@@ -1186,6 +1206,11 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 		if len(node.Elements) == 0 {
 			return nil
 		}
+		for _, elem := range node.Elements {
+			if err := rejectNonScalarValue(elem, scopeStack); err != nil {
+				return err
+			}
+		}
 		firstType, ok := inferLiteralType(node.Elements[0], scopeStack)
 		if !ok {
 			return fmt.Errorf("%d:%d: error: unsupported array element type", node.Pos.Line, node.Pos.Column)
@@ -1208,6 +1233,9 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 			}
 			seen[property.Name] = struct{}{}
 			if err := checkExpr(property.Value, scopeStack, functionArity); err != nil {
+				return err
+			}
+			if err := rejectNonScalarValue(property.Value, scopeStack); err != nil {
 				return err
 			}
 			if _, ok := inferLiteralType(property.Value, scopeStack); !ok {
@@ -1301,10 +1329,20 @@ func classifyBinding(baseKind string, declaredType string, declaredCapacity int,
 	// fall through to the default int32 binding would silently copy the handle
 	// into a plain integer and turn later method calls into GPIO calls on the
 	// wrong object, so reject the assignment outright.
+	//
+	// Arrays and objects are aggregates, not scalars. Without this check the
+	// type inference below would treat an array as its element type and emit
+	// invalid C such as assigning a struct to an int32_t.
 	if ident, ok := value.(*ast.Identifier); ok && scopeStack != nil {
 		if binding, exists := lookup(scopeStack, ident.Name); exists {
 			if family := peripheralKindOf(binding); family != "" {
 				return "", fmt.Errorf("cannot assign %s peripheral '%s' to a scalar binding", family, ident.Name)
+			}
+			if isArrayBinding(binding) {
+				return "", fmt.Errorf("cannot assign array '%s' to a scalar binding", ident.Name)
+			}
+			if isObjectBinding(binding) {
+				return "", fmt.Errorf("cannot assign object '%s' to a scalar binding", ident.Name)
 			}
 		}
 	}
@@ -1650,9 +1688,13 @@ func peripheralCallReturnType(expr ast.Expr, scopeStack []map[string]string) (st
 	return peripheralMethodReturnType(family, selector.Field)
 }
 
-// checkValueExpression rejects an expression that produces no value, such as a
-// void peripheral method call used where a value is required.
+// checkValueExpression rejects an expression that produces no scalar value,
+// such as a void peripheral method call or a bare array/object identifier used
+// where a value is required.
 func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if err := rejectNonScalarValue(expr, scopeStack); err != nil {
+		return err
+	}
 	if cond, ok := expr.(*ast.ConditionalExpr); ok {
 		if err := checkValueExpression(cond.Then, scopeStack, pos); err != nil {
 			return err
@@ -1669,6 +1711,29 @@ func checkValueExpression(expr ast.Expr, scopeStack []map[string]string, pos ast
 	}
 	if returnType, ok := peripheralCallReturnType(expr, scopeStack); ok && returnType == "" {
 		return fmt.Errorf("%d:%d: error: expression does not produce a value", pos.Line, pos.Column)
+	}
+	return nil
+}
+
+// rejectNonScalarValue rejects a bare identifier that refers to an array or
+// object binding. Arrays and objects have no scalar value: they must be used
+// through indexing, properties, or methods. Without this check the type
+// inference would treat an array as its element type and emit invalid C such
+// as assigning a struct to an int32_t.
+func rejectNonScalarValue(expr ast.Expr, scopeStack []map[string]string) error {
+	ident, ok := expr.(*ast.Identifier)
+	if !ok || scopeStack == nil {
+		return nil
+	}
+	binding, exists := lookup(scopeStack, ident.Name)
+	if !exists {
+		return nil
+	}
+	switch {
+	case isArrayBinding(binding):
+		return fmt.Errorf("%d:%d: error: array '%s' cannot be used as a value; index it or use a property or method", ident.Pos.Line, ident.Pos.Column, ident.Name)
+	case isObjectBinding(binding):
+		return fmt.Errorf("%d:%d: error: object '%s' cannot be used as a value; access a property instead", ident.Pos.Line, ident.Pos.Column, ident.Name)
 	}
 	return nil
 }
