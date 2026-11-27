@@ -155,14 +155,18 @@ Detailed, exhaustive references available on demand:
 - `==` and `===` are both strict and non-coercing. Mixed-type comparisons are
   compile-time errors — never compare a `number` to a `string`.
 - Reserve the words `task`, `scheduler`, `start`, `pin`, `uart`, `pwm`, `adc`,
-  `spi`, `i2c`, `millis`, `random`, `randomSeed`, `include`, `HIGH`, and `LOW`:
-  they are language syntax or fixed built-ins, not ordinary identifiers.
+  `spi`, `i2c`, `printf`, `delay`, `delay_us`, `millis`, `random`, `randomSeed`,
+  `abs`, `min`, `max`, `clamp`, `map`, `include`, `HIGH`, and `LOW`: they are
+  language syntax or fixed built-ins, not ordinary identifiers.
 - `HIGH` and `LOW` are predefined pin-state constants with fixed meanings
   `HIGH == 1` and `LOW == 0`; do not shadow or rebind them in user code.
 - Array push/pop/peek, fill, reverse, indexOf, clear, length, capacity, and
   indexed access are available; push/pop/peek and indexed access are bounds-
-  and capacity-checked at runtime. Statically provable violations are rejected
-  at compile time.
+  and capacity-checked at runtime. `indexOf` supports numeric and boolean
+  arrays only. Statically provable violations are rejected at compile time.
+- A `const` array that is never mutated and has a constant initializer is
+  placed in flash; mutable arrays with constant initializers store the
+  initializer in flash and copy it to RAM at startup.
 - The scheduler runs callbacks in main context; a long callback delays others.
 - `include` is a compile-time textual splice, resolved relative to the including
   file, top-level only, and rejected on circularity.

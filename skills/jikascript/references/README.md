@@ -50,7 +50,10 @@ language, runtime, scheduler, and CLI.
 - Arrays: bounded, homogeneous, static storage. `T[N]`, capacity inference,
   `push`/`pop`/`peek`/`fill`/`reverse`/`indexOf`/`clear`/`length`/`capacity`,
   indexed read/write, capacity- and bounds-checked,
-  fail-fast trap on runtime violations. Top-level only; no literal reassignment.
+  fail-fast trap on runtime violations. `indexOf` is numeric/boolean only.
+  Top-level only; no literal reassignment. Never-mutated `const` arrays with
+  constant initializers are placed in flash; mutable arrays with constant
+  initializers store the initializer in flash and copy it to RAM at startup.
 - Objects: static records -> C structs; shape and types checked at compile time.
 - Tasks: `task(name, interval_ms, callback)`; cooperative, main-context,
   non-preemptive; `scheduler.start()` to launch.

@@ -402,6 +402,10 @@ const count = readings.length;
 readings[0] = latest;
 ```
 
+A never-mutated `const` array with a constant initializer is placed in flash;
+mutable arrays with constant initializers store the initializer in flash and
+copy it to RAM at startup.
+
 ---
 
 ## 10. Objects (Static records)

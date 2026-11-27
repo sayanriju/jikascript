@@ -24,6 +24,11 @@ Under the hood, the compiler creates a compact C `struct`:
 - No heap allocations or garbage collection.
 - Field accesses are direct, zero-overhead C struct member lookups (`device.temperature`).
 
+Field types are inferred from the values: string literals become
+`const char *`, booleans become `bool`, integer literals become `int32_t`, and
+float literals become `float`. Identifiers, function calls, and expressions use
+the checker's inferred type.
+
 ---
 
 ## Modifying Properties

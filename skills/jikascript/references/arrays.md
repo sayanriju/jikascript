@@ -106,15 +106,16 @@ length, and the fixed capacity:
 
 ```c
 typedef struct {
-    int32_t data[8];
     uint32_t length;
+    uint32_t capacity;
+    int32_t data[8];
 } jikascript_array_int32_t;
 ```
 
 Methods (`push`, `pop`, `peek`, `fill`, `reverse`, `indexOf`, `clear`, indexed
 access) become bounds/capacity-checked helper calls in the generated C.
 
-### Read-only storage
+### Memory placement
 
 A top-level `const` array whose initializer is a compile-time constant and that
 is never written (`[i] =`, `push`, `pop`, `clear`, `fill`, `reverse`) is emitted
@@ -122,5 +123,10 @@ as `static const`, so the linker places it in flash instead of SRAM. Only the
 read-only helpers the program uses (`get`, `peek`, `indexOf`) are emitted.
 
 A 256-entry `int32` table therefore costs zero bytes of the CH32V003's 2 KB
-SRAM. Any mutation, a bare whole-array reference, or a non-constant initializer
-keeps the array in RAM with the full mutable helper set.
+SRAM. Any mutation or a non-constant initializer keeps the array in RAM with
+the full mutable helper set.
+
+Mutable arrays with a compile-time constant initializer emit that initializer
+in the declaration. The linker stores it in flash and the startup code copies
+it to RAM, so initialization costs no code space. Empty arrays and arrays with
+runtime initializers are zero-filled in RAM and initialized in `main()`.

@@ -52,6 +52,28 @@ project layout.
 
 ---
 
+## Memory Placement
+
+Generated C keeps constant data out of SRAM wherever it can:
+
+- `const` scalars with compile-time constant initializers are emitted as
+  `static const`, so the linker places them in flash.
+- A `const` array that is never mutated and has a compile-time constant
+  initializer is emitted as `static const` and placed in flash. Only the
+  read-only helpers the program uses are emitted.
+- A mutable array with a compile-time constant initializer emits that
+  initializer in the declaration. The linker stores it in flash and the startup
+  code copies it to RAM, so initialization costs no code space.
+- Empty arrays and arrays with runtime initializers are zero-filled in RAM and
+  initialized in `main()`.
+- String literals are stored in flash.
+
+On the CH32V003 this matters: a 256-entry `int32` table is about 1 KB, over half
+of the 2 KB SRAM. A never-mutated `const` table of that size costs no SRAM at
+all.
+
+---
+
 ## The Fatal Path: `jikascript_fail()`
 
 Some errors cannot be caught by the checker because they depend on values only

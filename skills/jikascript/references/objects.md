@@ -30,6 +30,10 @@ Inferred property types (maps to C fields):
 | integer literal           | `int32_t`              |
 | float literal             | `float`                |
 
+Property values that are identifiers, function calls, or expressions use the
+checker's inferred type, so a string-valued identifier produces a
+`const char *` field and a float expression produces a `float` field.
+
 Object shape is inferred from the literal. Property access compiles to
 `device.temperature` in generated C.
 

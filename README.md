@@ -248,14 +248,25 @@ Artifacts:
 
 ## Examples
 
-- [blink.jika](examples/blink.jika)
-- [multiple_tasks.jika](examples/multiple_tasks.jika)
-- [conditional_task.jika](examples/conditional_task.jika)
-- [multi-file/app.jika](examples/multi-file/app.jika)
-- [objects.jika](examples/objects.jika)
-- [uart.jika](examples/uart.jika)
-- [pwm.jika](examples/pwm.jika)
-- [adc.jika](examples/adc.jika)
+- [blink.jika](examples/blink.jika) — first LED blink
+- [multiple_tasks.jika](examples/multiple_tasks.jika) — several cooperative tasks
+- [conditional_task.jika](examples/conditional_task.jika) — reacting to a GPIO input
+- [button_pullup.jika](examples/button_pullup.jika) — internal pull-up button
+- [pwm.jika](examples/pwm.jika) — PWM output and fading
+- [adc.jika](examples/adc.jika) — ADC threshold detection
+- [uart.jika](examples/uart.jika) — serial output and input polling
+- [spi.jika](examples/spi.jika) — SPI transfers
+- [i2c.jika](examples/i2c.jika) — I2C register access
+- [random.jika](examples/random.jika) — pseudo-random values
+- [math.jika](examples/math.jika) — ADC scaling with `map` and `clamp`
+- [strings.jika](examples/strings.jika) — string length, equality, and character access
+- [time.jika](examples/time.jika) — non-blocking `millis()` timing
+- [bitmask.jika](examples/bitmask.jika) — hex masks and bitwise operators
+- [debug.jika](examples/debug.jika) — SWIO `printf` and delays
+- [arrays.jika](examples/arrays.jika) — bounded arrays
+- [objects.jika](examples/objects.jika) — fixed-shape record objects
+- [postfix.jika](examples/postfix.jika) — `++` and `--` in loops and expressions
+- [multi-file/app.jika](examples/multi-file/app.jika) — compile-time includes
 
 ## Multi-file programs
 
@@ -292,9 +303,16 @@ readings.clear();  // logical length becomes 0
 
 `push()` is capacity-checked and `pop()`/`peek()`/index operations are
 bounds-checked in generated C. `fill()` and `reverse()` operate on the current
-logical length, `indexOf()` supports numeric and boolean arrays, and `clear()`
-resets the logical length without zeroing the backing storage. Array
-declarations are top-level only and array-literal reassignment is rejected.
+logical length, `indexOf()` supports numeric and boolean arrays (string and
+object arrays are rejected), and `clear()` resets the logical length without
+zeroing the backing storage. Array declarations are top-level only and
+array-literal reassignment is rejected.
+
+A `const` array that is never mutated and has a compile-time constant
+initializer is emitted as read-only data, so the linker places it in flash
+instead of SRAM. Mutable arrays with a constant initializer store that
+initializer in flash and copy it to RAM at startup. See
+[docs/language/arrays.md](docs/language/arrays.md).
 
 ## Static objects
 
@@ -486,7 +504,9 @@ duty = clamp(duty, 0, 100);
 ```
 
 `abs`/`min`/`max`/`clamp` lower to inline C expressions; `map` uses 64-bit
-intermediate arithmetic. See [docs/runtime/math.md](docs/runtime/math.md).
+intermediate arithmetic. The inline helpers evaluate their arguments more than
+once, so pass simple values rather than calls with side effects. See
+[docs/runtime/math.md](docs/runtime/math.md).
 
 ## Validation status labels
 
@@ -497,7 +517,9 @@ intermediate arithmetic. See [docs/runtime/math.md](docs/runtime/math.md).
   against the `ch32v003fun` framework. `jikascript build` produces a linked
   `.elf` and `.bin` for CH32V003. GPIO (including pull-up/down), UART
   (including baud and byte I/O), PWM, ADC, SPI, I2C, the scheduler, `millis()`,
-  and the debug helpers (`printf`, `delay`, `delay_us`) are target-compiled.
+  the debug helpers (`printf`, `delay`, `delay_us`), bounded arrays (including
+  read-only flash placement), static objects, math helpers, random numbers, and
+  string operations are target-compiled.
 - **Hardware-verified**: verified by flashing a physical CH32V003 board and
   observing behavior. Not yet claimed for any feature.
 
