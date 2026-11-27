@@ -112,7 +112,7 @@ Print the compiler and language specification versions:
 jikascript version
 ```
 
-The current release is `0.4.5`, targeting language specification `0.7.0`.
+The current release is `0.5.0`, targeting language specification `0.7.0`.
 
 ### transpile
 
@@ -559,3 +559,7 @@ JikaScript stands on the shoulders of these projects:
 - [Community PIO CH32V platform](https://github.com/Community-PIO-CH32V/platform-ch32v)
   — supplies the `ch32v003fun` framework and RISC-V toolchain that PlatformIO
   fetches on first build.
+
+## License
+
+JikaScript is released under the MIT License. See [LICENSE](LICENSE).
