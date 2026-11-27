@@ -522,7 +522,8 @@ func TestGenerateEmitsUARTCalls(t *testing.T) {
 	program, err := parser.ParseProgram(`const serial = uart(" pd5 ", "PD6");
 serial.write("hi");
 serial.println("ok");
-let ch = serial.read();`)
+let ch = serial.read();
+let line = serial.readLine();`)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -538,6 +539,7 @@ let ch = serial.read();`)
 		`uart_write(js_serial, "hi");`,
 		`uart_println(js_serial, "ok");`,
 		`js_ch = uart_read(js_serial);`,
+		`js_line = uart_read_line(js_serial);`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("expected %q in generated C, got:\n%s", want, out)
@@ -1267,6 +1269,9 @@ let rx = spiBus.transfer(0x9F);
 const i2cBus = i2c("PC2", "PC1");
 i2cBus.configure(100000);
 i2cBus.write(0x3C, 0x00, 0xAF);
+i2cBus.writeByte(0x27, 0x01);
+let buf: uint8[4] = [0x40, 1, 2, 3];
+i2cBus.writeBytes(0x3C, buf);
 let v = i2cBus.read(0x3C, 0x00);
 let ok = i2cBus.ping(0x3C);`)
 	if err != nil {
@@ -1289,6 +1294,8 @@ let ok = i2cBus.ping(0x3C);`)
 		`js_i2cBus = i2c_open(JIKA_PIN_PC2, JIKA_PIN_PC1);`,
 		`i2c_configure(js_i2cBus, 100000);`,
 		`i2c_write(js_i2cBus, 0x3C, 0x00, 0xAF);`,
+		`i2c_write_byte(js_i2cBus, 0x27, 0x01);`,
+		`i2c_write_bytes(js_i2cBus, 0x3C, js_buf.data, js_buf.length);`,
 		`js_v = i2c_read(js_i2cBus, 0x3C, 0x00);`,
 		`js_ok = i2c_ping(js_i2cBus, 0x3C);`,
 	} {

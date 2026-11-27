@@ -839,6 +839,10 @@ A uart object supports exactly these methods:
 - `available()` returns `true` when a received byte is waiting.
 - `read()` returns the next received byte as an `int`, or `-1` when no byte is
   available. Reads are non-blocking.
+- `readLine()` returns the next complete line as a `string`, or `""` when no
+  complete line is waiting. Lines end at `\n` or `\r`; the terminator is not
+  included. Reads are non-blocking and use a bounded line buffer that holds 31
+  characters by default; longer lines are truncated.
 - `setBaud(baud)` changes the baud rate at runtime.
 
 The backend must validate the pin pair and supported methods. `write` and
@@ -995,10 +999,13 @@ let v = bus.read(0x3C, 0x00); // addr, reg
 backend supports the default I2C1 mapping `i2c("PC2", "PC1")`; the compiler
 rejects any other mapping.
 
-An i2c object supports exactly four methods:
+An i2c object supports exactly six methods:
 
 - `configure(hz)` sets the bus clock. The default is 100 kHz.
 - `write(addr, reg, value)` writes one byte to a register.
+- `writeByte(addr, value)` writes one data byte without a register address.
+- `writeBytes(addr, data)` writes a `uint8` array as a raw byte stream after the
+  address. The caller includes any device control byte as the first element.
 - `read(addr, reg)` reads one byte from a register, returning `-1` on a timeout
   or NACK.
 - `ping(addr)` returns `true` when the device acknowledges its address.

@@ -22,6 +22,12 @@ builtin identifiers.
   minimal runtime stores one pending byte; pasted or burst input may drop bytes.
 - Generated projects enable SWIO debug support automatically for either
   `printf` output or `debugRead` input.
+- `i2c.writeByte(addr, value)` writes one data byte without a register address,
+  for devices such as the PCF8574.
+- `i2c.writeBytes(addr, data)` writes a `uint8` array as a raw byte stream, for
+  devices such as the SSD1306 OLED.
+- `uart.readLine()` returns the next complete line as a string, or `""` when no
+  line is ready. It is non-blocking and uses a bounded line buffer.
 
 ### Fixed
 

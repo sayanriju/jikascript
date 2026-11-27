@@ -118,6 +118,7 @@ func TestCheckAcceptsUART(t *testing.T) {
 		`const serial = uart("PD5", "PD6"); serial.write("hi");`,
 		`const serial = uart("PD5", "PD6"); serial.println("ok");`,
 		`const serial = uart("PD5", "PD6"); let ch = serial.read();`,
+		`const serial = uart("PD5", "PD6"); let line = serial.readLine();`,
 	} {
 		program, err := parser.ParseProgram(source)
 		if err != nil {
@@ -170,6 +171,7 @@ func TestCheckRejectsUARTMethodArity(t *testing.T) {
 		{`const serial = uart("PD5", "PD6"); serial.write("a", "b");`, "write() expects exactly one argument"},
 		{`const serial = uart("PD5", "PD6"); serial.println();`, "println() expects exactly one argument"},
 		{`const serial = uart("PD5", "PD6"); serial.read(1);`, "read() expects no arguments"},
+		{`const serial = uart("PD5", "PD6"); serial.readLine(1);`, "readLine() expects no arguments"},
 	}
 	for _, tc := range cases {
 		program, err := parser.ParseProgram(tc.source)
@@ -1356,6 +1358,8 @@ func TestCheckAcceptsSPIAndI2C(t *testing.T) {
 		`const bus = i2c("PC2", "PC1"); bus.write(0x3C, 0x00, 0xAF);`,
 		`const bus = i2c("PC2", "PC1"); let v = bus.read(0x3C, 0x00);`,
 		`const bus = i2c("PC2", "PC1"); let ok = bus.ping(0x3C);`,
+		`const bus = i2c("PC2", "PC1"); bus.writeByte(0x27, 0x01);`,
+		`let buf: uint8[4] = [0x40, 1, 2, 3]; const bus = i2c("PC2", "PC1"); bus.writeBytes(0x3C, buf);`,
 	}
 	for _, source := range sources {
 		program, err := parser.ParseProgram(source)
@@ -1610,6 +1614,10 @@ func TestCheckRejectsInvalidSPIAndI2C(t *testing.T) {
 		{`const bus = i2c("PC2", "PC1"); bus.configure();`, "configure() expects exactly one argument"},
 		{`const bus = i2c("PC2", "PC1"); bus.ping();`, "ping() expects exactly one argument"},
 		{`const bus = i2c("PC2", "PC1"); bus.ping("x");`, "ping() argument 1 expects number"},
+		{`const bus = i2c("PC2", "PC1"); bus.writeByte(0x27);`, "writeByte() expects exactly two arguments"},
+		{`const bus = i2c("PC2", "PC1"); bus.writeBytes(0x3C);`, "writeBytes() expects exactly two arguments"},
+		{`const bus = i2c("PC2", "PC1"); bus.writeBytes(0x3C, 1);`, "writeBytes() expects a uint8 array as its second argument"},
+		{`let buf: int32[4] = [1, 2, 3, 4]; const bus = i2c("PC2", "PC1"); bus.writeBytes(0x3C, buf);`, "writeBytes() expects a uint8 array, got int32"},
 	}
 	for _, tc := range cases {
 		program, err := parser.ParseProgram(tc.source)

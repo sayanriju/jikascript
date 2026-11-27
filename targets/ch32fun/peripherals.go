@@ -25,7 +25,7 @@ func IsValidUARTTuple(tx, rx string) bool {
 // object.
 func IsValidUARTMethod(method string) bool {
 	switch method {
-	case "write", "println", "writeByte", "available", "setBaud", "read":
+	case "write", "println", "writeByte", "available", "setBaud", "read", "readLine":
 		return true
 	default:
 		return false
@@ -127,7 +127,7 @@ func IsValidI2CTuple(scl, sda string) bool {
 // object.
 func IsValidI2CMethod(method string) bool {
 	switch method {
-	case "configure", "write", "read", "ping":
+	case "configure", "write", "writeByte", "writeBytes", "read", "ping":
 		return true
 	default:
 		return false

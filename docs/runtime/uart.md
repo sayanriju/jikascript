@@ -18,11 +18,14 @@ The frame format is fixed at 8N1. A uart object supports exactly these methods:
 | `.writeByte(value)` | number | — | Transmit one byte (masked to 8 bits). |
 | `.available()` | none | `boolean` | True when a received byte is waiting. |
 | `.read()` | none | `int` | Return the next received byte, or `-1` if none is available. |
+| `.readLine()` | none | `string` | Return the next complete line, or `""` if none is ready. |
 | `.setBaud(baud)` | number | — | Change the baud rate at runtime. |
 
-`read()` and `available()` are non-blocking, so they are safe to poll from a
-task. Any other method name, or the wrong number of arguments, is a compile
-error.
+`read()`, `readLine()`, and `available()` are non-blocking, so they are safe to
+poll from a task. `readLine()` returns `""` until a complete line arrives; lines
+end at `\n` or `\r`, and the terminator is not included. The line buffer holds
+31 characters by default, so longer lines are truncated. Any other method name,
+or the wrong number of arguments, is a compile error.
 
 ```javascript
 const serial = uart("PD5", "PD6", 9600);

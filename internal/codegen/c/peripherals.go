@@ -49,6 +49,10 @@ func UsedPeripherals(program *ast.Program) map[string]bool {
 					used["math"] = true
 				}
 			}
+			if sel, ok := node.Function.(*ast.SelectorExpr); ok && sel.Field == "readLine" {
+				used["uart"] = true
+				used["uart_line"] = true
+			}
 			visitExpr(node.Function)
 			for _, arg := range node.Args {
 				visitExpr(arg)

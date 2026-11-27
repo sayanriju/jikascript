@@ -92,8 +92,10 @@ let ch = serial.read();
 The frame format is fixed at 8N1; the baud defaults to 115200 and can be set at
 construction (`uart("PD5", "PD6", 9600)`) or changed with `setBaud(baud)`. A uart
 object supports `write(text)`, `println(text)` (adds a CRLF line ending),
-`writeByte(value)`, `available()`, `read()`, and `setBaud(baud)`. `read()` and
-`available()` are non-blocking; `read()` returns `-1` when no byte is available.
+`writeByte(value)`, `available()`, `read()`, `readLine()`, and `setBaud(baud)`.
+`read()`, `readLine()`, and `available()` are non-blocking; `read()` returns `-1`
+when no byte is available, and `readLine()` returns `""` until a complete line
+arrives.
 
 ## PWM
 
@@ -155,9 +157,10 @@ let v = bus.read(0x3C, 0x00);
 ```
 
 An i2c object supports `configure(hz)` (default 100 kHz), `write(addr, reg,
-value)`, `read(addr, reg)` (returns `-1` on timeout/NACK), and `ping(addr)`
-(returns `true` when the device acknowledges its address). Transfers are
-blocking with a bounded timeout.
+value)`, `writeByte(addr, value)`, `writeBytes(addr, data)` (raw `uint8` array
+stream; include the device control byte as the first element), `read(addr, reg)`
+(returns `-1` on timeout/NACK), and `ping(addr)` (returns `true` when the device
+acknowledges its address). Transfers are blocking with a bounded timeout.
 
 ## Time and random
 

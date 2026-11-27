@@ -108,6 +108,77 @@ void i2c_write(int handle, int addr, int reg, int value) {
     i2c_stop();
 }
 
+void i2c_write_byte(int handle, int addr, int value) {
+    (void)handle;
+    uint32_t timeout = JIKA_I2C_TIMEOUT;
+    while ((I2C1->STAR2 & I2C_STAR2_BUSY) != 0) {
+        if (timeout-- == 0U) {
+            return;
+        }
+    }
+
+    I2C1->CTLR1 |= I2C_CTLR1_START;
+    if (i2c_wait(I2C_STAR1_SB) != 0) {
+        i2c_stop();
+        return;
+    }
+    I2C1->DATAR = (uint16_t)((addr << 1) & 0xFE);
+    if (i2c_wait(I2C_STAR1_ADDR) != 0) {
+        i2c_stop();
+        return;
+    }
+    i2c_clear_addr();
+
+    if (i2c_wait(I2C_STAR1_TXE) != 0) {
+        i2c_stop();
+        return;
+    }
+    I2C1->DATAR = (uint16_t)(value & 0xFF);
+    if (i2c_wait(I2C_STAR1_BTF) != 0) {
+        i2c_stop();
+        return;
+    }
+    i2c_stop();
+}
+
+void i2c_write_bytes(int handle, int addr, const uint8_t *data, uint32_t len) {
+    (void)handle;
+    if (data == 0 || len == 0U) {
+        return;
+    }
+    uint32_t timeout = JIKA_I2C_TIMEOUT;
+    while ((I2C1->STAR2 & I2C_STAR2_BUSY) != 0) {
+        if (timeout-- == 0U) {
+            return;
+        }
+    }
+
+    I2C1->CTLR1 |= I2C_CTLR1_START;
+    if (i2c_wait(I2C_STAR1_SB) != 0) {
+        i2c_stop();
+        return;
+    }
+    I2C1->DATAR = (uint16_t)((addr << 1) & 0xFE);
+    if (i2c_wait(I2C_STAR1_ADDR) != 0) {
+        i2c_stop();
+        return;
+    }
+    i2c_clear_addr();
+
+    for (uint32_t i = 0; i < len; i++) {
+        if (i2c_wait(I2C_STAR1_TXE) != 0) {
+            i2c_stop();
+            return;
+        }
+        I2C1->DATAR = (uint16_t)data[i];
+    }
+    if (i2c_wait(I2C_STAR1_BTF) != 0) {
+        i2c_stop();
+        return;
+    }
+    i2c_stop();
+}
+
 int i2c_ping(int handle, int addr) {
     (void)handle;
     uint32_t timeout = JIKA_I2C_TIMEOUT;

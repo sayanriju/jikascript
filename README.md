@@ -422,6 +422,7 @@ serial.writeByte(0x55);
 if (serial.available()) {
     let ch = serial.read();
 }
+let line = serial.readLine();  // "" until a full line arrives
 
 dimmer.set(50);              // duty cycle 0-100
 dimmer.setFrequency(1000);  // Hz
@@ -433,14 +434,16 @@ spiBus.transfer(0x9F);
 
 i2cBus.configure(100000);
 i2cBus.write(0x3C, 0x00, 0xAF);
+i2cBus.writeByte(0x27, 0x01);
 let reg = i2cBus.read(0x3C, 0x00);
 ```
 
 Argument counts and types are validated at compile time: `uart.write`/`println`
 take a string; `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`,
-`pin.write`, and the SPI/I2C methods take numbers; `read()`/`available()` take
-none. A wrong argument fails `jikascript check` instead of reaching the C
-compiler and breaking the firmware build. See
+`pin.write`, and the SPI/I2C methods take numbers; `i2c.writeBytes` takes a
+`uint8` array; `read()`/`available()`/`readLine()` take none. A wrong argument
+fails `jikascript check` instead of reaching the C compiler and breaking the
+firmware build. See
 [docs/runtime/hardware.md](docs/runtime/hardware.md) and [SPEC.md](SPEC.md) §7
 for the pin tables and the timer/clock contract.
 

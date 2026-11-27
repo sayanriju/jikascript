@@ -314,6 +314,9 @@ func Generate(program *ast.Program) (string, error) {
 	if usedPeripherals["uart"] {
 		b.WriteString("#include \"uart.h\"\n\n")
 	}
+	if usedPeripherals["uart_line"] {
+		b.WriteString("#include \"uart_line.h\"\n\n")
+	}
 	if usedPeripherals["pwm"] {
 		b.WriteString("#include \"pwm.h\"\n\n")
 	}
@@ -1493,6 +1496,8 @@ func renderSelectorCall(call *ast.CallExpr) string {
 			return "uart_available(" + object + ")"
 		case "read":
 			return "uart_read(" + object + ")"
+		case "readLine":
+			return "uart_read_line(" + object + ")"
 		}
 		setGenerationErrorf("unsupported uart method '%s'", selector.Field)
 		return ""
@@ -1529,6 +1534,14 @@ func renderSelectorCall(call *ast.CallExpr) string {
 			return "i2c_configure(" + object + ", " + strings.Join(args, ", ") + ")"
 		case "write":
 			return "i2c_write(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "writeByte":
+			return "i2c_write_byte(" + object + ", " + strings.Join(args, ", ") + ")"
+		case "writeBytes":
+			if len(args) != 2 {
+				setGenerationErrorf("writeBytes() requires two arguments")
+				return ""
+			}
+			return "i2c_write_bytes(" + object + ", " + args[0] + ", " + renderArrayArg(call.Args[1]) + ")"
 		case "read":
 			return "i2c_read(" + object + ", " + strings.Join(args, ", ") + ")"
 		case "ping":
@@ -1539,6 +1552,20 @@ func renderSelectorCall(call *ast.CallExpr) string {
 	}
 	setGenerationErrorf("cannot call method '%s' on this expression", selector.Field)
 	return ""
+}
+
+// renderArrayArg renders an array binding as a data pointer and length pair for
+// a runtime function that consumes a byte buffer.
+func renderArrayArg(expr ast.Expr) string {
+	ident, ok := expr.(*ast.Identifier)
+	if !ok {
+		return renderExpr(expr)
+	}
+	if _, exists := generatedArrays[ident.Name]; !exists {
+		return renderExpr(expr)
+	}
+	name := sanitizeName(ident.Name)
+	return name + ".data, " + name + ".length"
 }
 
 func renderForInit(stmt ast.Stmt) string {

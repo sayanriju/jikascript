@@ -1022,12 +1022,22 @@ func checkExpr(expr ast.Expr, scopeStack []map[string]string, functionArity map[
 				return fmt.Errorf("%d:%d: error: function '%s' expects %d argument(s), got %d", node.Pos.Line, node.Pos.Column, fn.Name, expected, len(node.Args))
 			}
 		}
-		for _, arg := range node.Args {
+		arrayArg := -1
+		if sel, ok := node.Function.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.Object.(*ast.Identifier); ok {
+				if binding, exists := lookup(scopeStack, ident.Name); exists {
+					arrayArg = peripheralArrayArgIndex(peripheralKindOf(binding), sel.Field)
+				}
+			}
+		}
+		for i, arg := range node.Args {
 			if err := checkExpr(arg, scopeStack, functionArity); err != nil {
 				return err
 			}
-			if err := rejectNonScalarValue(arg, scopeStack); err != nil {
-				return err
+			if i != arrayArg {
+				if err := rejectNonScalarValue(arg, scopeStack); err != nil {
+					return err
+				}
 			}
 		}
 		if fn, ok := node.Function.(*ast.Identifier); ok {
@@ -1674,6 +1684,8 @@ func peripheralMethodReturnType(family, method string) (string, bool) {
 			return "int32", true
 		case "available":
 			return "boolean", true
+		case "readLine":
+			return "string", true
 		case "write", "println", "writeByte", "setBaud":
 			return "", true
 		}
@@ -1699,7 +1711,7 @@ func peripheralMethodReturnType(family, method string) (string, bool) {
 			return "int32", true
 		case "ping":
 			return "boolean", true
-		case "configure", "write":
+		case "configure", "write", "writeByte", "writeBytes":
 			return "", true
 		}
 	}
@@ -1804,6 +1816,15 @@ func isValidPeripheralMethod(family, method string) bool {
 	return false
 }
 
+// peripheralArrayArgIndex reports which argument of a peripheral method is a
+// byte array rather than a scalar. It returns -1 when no argument is an array.
+func peripheralArrayArgIndex(family, method string) int {
+	if family == "i2c" && method == "writeBytes" {
+		return 1
+	}
+	return -1
+}
+
 // checkPeripheralMethodArity validates the argument count for a peripheral
 // method call. The code generator emits a fixed C call per method, so an
 // unexpected number of arguments would either be silently dropped or produce
@@ -1827,7 +1848,7 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 			if argc != 1 {
 				return fmt.Errorf("%d:%d: error: %s() expects exactly one argument, got %d", pos.Line, pos.Column, method, argc)
 			}
-		case "read", "available":
+		case "read", "available", "readLine":
 			if argc != 0 {
 				return fmt.Errorf("%d:%d: error: %s() expects no arguments, got %d", pos.Line, pos.Column, method, argc)
 			}
@@ -1864,6 +1885,14 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 			if argc != 3 {
 				return fmt.Errorf("%d:%d: error: write() expects exactly three arguments, got %d", pos.Line, pos.Column, argc)
 			}
+		case "writeByte":
+			if argc != 2 {
+				return fmt.Errorf("%d:%d: error: writeByte() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
+			}
+		case "writeBytes":
+			if argc != 2 {
+				return fmt.Errorf("%d:%d: error: writeBytes() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
+			}
 		case "read":
 			if argc != 2 {
 				return fmt.Errorf("%d:%d: error: read() expects exactly two arguments, got %d", pos.Line, pos.Column, argc)
@@ -1884,6 +1913,16 @@ func checkPeripheralMethodArity(family, method string, argc int, pos ast.Positio
 // Peripheral handles are rejected explicitly: inferLiteralType does not
 // describe them, but no backend method accepts one as a value argument.
 func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	if family == "i2c" && method == "writeBytes" {
+		if len(args) != 2 {
+			return nil
+		}
+		if err := checkScalarArgumentType("writeBytes", args[0], "number", scopeStack, pos, 1); err != nil {
+			return err
+		}
+		return checkByteArrayArgument("writeBytes", args[1], scopeStack, pos)
+	}
+
 	var expected string
 	switch family {
 	case "pin":
@@ -1906,7 +1945,7 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 			expected = "number"
 		}
 	case "i2c":
-		if method == "configure" || method == "write" || method == "read" || method == "ping" {
+		if method == "configure" || method == "write" || method == "writeByte" || method == "read" || method == "ping" {
 			expected = "number"
 		}
 	}
@@ -1914,23 +1953,45 @@ func checkPeripheralMethodType(family, method string, args []ast.Expr, scopeStac
 		return nil
 	}
 	for i, arg := range args {
-		if returnType, ok := peripheralCallReturnType(arg, scopeStack); ok && returnType == "" {
-			return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got void expression", pos.Line, pos.Column, method, i+1, expected)
+		if err := checkScalarArgumentType(method, arg, expected, scopeStack, pos, i+1); err != nil {
+			return err
 		}
-		if ident, ok := arg.(*ast.Identifier); ok && scopeStack != nil {
-			if binding, exists := lookup(scopeStack, ident.Name); exists {
-				if handle := peripheralKindOf(binding); handle != "" {
-					return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s handle", pos.Line, pos.Column, method, i+1, expected, handle)
-				}
+	}
+	return nil
+}
+
+func checkScalarArgumentType(method string, arg ast.Expr, expected string, scopeStack []map[string]string, pos ast.Position, index int) error {
+	if returnType, ok := peripheralCallReturnType(arg, scopeStack); ok && returnType == "" {
+		return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got void expression", pos.Line, pos.Column, method, index, expected)
+	}
+	if ident, ok := arg.(*ast.Identifier); ok && scopeStack != nil {
+		if binding, exists := lookup(scopeStack, ident.Name); exists {
+			if handle := peripheralKindOf(binding); handle != "" {
+				return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s handle", pos.Line, pos.Column, method, index, expected, handle)
 			}
 		}
-		actual, known := inferLiteralType(arg, scopeStack)
-		if !known {
-			continue
-		}
-		if !typeCompatible(expected, actual) {
-			return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s", pos.Line, pos.Column, method, i+1, expected, actual)
-		}
+	}
+	actual, known := inferLiteralType(arg, scopeStack)
+	if !known {
+		return nil
+	}
+	if !typeCompatible(expected, actual) {
+		return fmt.Errorf("%d:%d: error: %s() argument %d expects %s, got %s", pos.Line, pos.Column, method, index, expected, actual)
+	}
+	return nil
+}
+
+func checkByteArrayArgument(method string, arg ast.Expr, scopeStack []map[string]string, pos ast.Position) error {
+	ident, ok := arg.(*ast.Identifier)
+	if !ok || scopeStack == nil {
+		return fmt.Errorf("%d:%d: error: %s() expects a uint8 array as its second argument", pos.Line, pos.Column, method)
+	}
+	binding, exists := lookup(scopeStack, ident.Name)
+	if !exists || !isArrayBinding(binding) {
+		return fmt.Errorf("%d:%d: error: %s() expects a uint8 array as its second argument", pos.Line, pos.Column, method)
+	}
+	if arrayElemType(binding) != "uint8" {
+		return fmt.Errorf("%d:%d: error: %s() expects a uint8 array, got %s", pos.Line, pos.Column, method, arrayElemType(binding))
 	}
 	return nil
 }

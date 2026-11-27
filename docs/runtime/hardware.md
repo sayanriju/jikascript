@@ -24,10 +24,12 @@ const i2cBus = i2c("PC2", "PC1");
 
 led.output();
 serial.println("boot");
+let line = serial.readLine();
 dimmer.set(50);
 let level = sensor.read();
 spiBus.transfer(0x9F);
 i2cBus.write(0x3C, 0x00, 0xAF);
+i2cBus.writeByte(0x27, 0x01);
 ```
 
 ---
@@ -38,7 +40,8 @@ Argument counts and types are checked when the program is transpiled, so
 erroneous API use fails with a clean error instead of reaching the C compiler
 and breaking the firmware build. `uart.write`/`println` take a string;
 `uart.writeByte`/`setBaud`, `pwm.set`/`setFrequency`, `pin.write`, and the
-SPI/I2C methods take numbers; `read()`/`available()` take none. A peripheral
+SPI/I2C methods take numbers; `i2c.writeBytes` takes a `uint8` array;
+`read()`/`available()`/`readLine()` take none. A peripheral
 handle is opaque: it cannot be assigned to a scalar binding or passed as a value
 argument to another peripheral method. Method calls require a peripheral
 receiver — a `pin()`, `uart()`, `pwm()`, `adc()`, `spi()`, or `i2c()` binding,
