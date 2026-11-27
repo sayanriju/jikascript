@@ -143,7 +143,10 @@ two `uint32` values for wrap-safe timing. `random()` returns a pseudo-random
 `uint32`, and `randomSeed(seed)` reseeds the LFSR generator. `micros()` is not
 provided.
 
-## Math helpers
+## Math and string helpers
+
+`charAt(index)` returns a string byte or `-1` when out of range. Ternary expressions
+(`cond ? a : b`) provide concise compatible-type selection.
 
 `abs(x)`, `min(a, b)`, `max(a, b)`, and `clamp(x, lo, hi)` lower to inline C
 expressions and work for integer and floating-point operands. `map(x, inLo,

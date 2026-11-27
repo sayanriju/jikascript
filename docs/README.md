@@ -71,7 +71,7 @@ The [`examples/`](https://github.com/sayanriju/jikascript/tree/master/examples) 
 - [`button_pullup.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/button_pullup.jika) — internal pull-up button
 - [`bitmask.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/bitmask.jika) — hex masks and bitwise operators
 - [`debug.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/debug.jika) — SWIO `printf` and delays
-- [`arrays.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/arrays.jika) — bounded arrays with push, pop, and clear
+- [`arrays.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/arrays.jika) — bounded arrays with push, pop, peek, fill, reverse, indexOf, capacity, and clear
 - [`objects.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/objects.jika) — fixed-shape record objects
 - [`postfix.jika`](https://github.com/sayanriju/jikascript/blob/master/examples/postfix.jika) — `++` and `--` in loops and expressions
 - [`multi-file/`](https://github.com/sayanriju/jikascript/tree/master/examples/multi-file) — compile-time includes

@@ -12,7 +12,7 @@ bus.write(0x3C, 0x00, 0xAF); // addr, reg, value
 let v = bus.read(0x3C, 0x00); // addr, reg
 ```
 
-An i2c object supports exactly three methods:
+An i2c object supports exactly four methods:
 
 | Method | Arguments | Returns | Description |
 | --- | --- | --- | --- |

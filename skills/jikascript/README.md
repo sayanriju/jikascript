@@ -68,7 +68,7 @@ skills/jikascript/
     ├── objects.md           # static object records -> C structs
     ├── tasks.md             # cooperative periodic task model
     ├── scheduler.md         # standalone pure-C scheduler API
-    ├── hardware.md          # GPIO, UART, PWM, ADC, SPI, I2C hardware API
+    ├── hardware.md          # GPIO, UART, PWM, ADC, SPI, I2C, plus time/math/string APIs
     ├── includes.md          # multi-file include splicing
     ├── cli.md               # install, build, transpile, check, flash
     └── example-programs.md  # complete end-to-end programs

@@ -26,7 +26,7 @@ language, runtime, scheduler, and CLI.
   optimization, PlatformIO artifacts, validation commands.
 - `example-programs.md` — Complete end-to-end programs (blink, multi-task,
   button task, objects, arrays, multi-file, functions, control flow, types,
-  timing, pull-up, SPI, I2C, random).
+  timing, pull-up, SPI, I2C, random, math, string char access, and ternary expressions).
 
 ## Core facts to remember
 

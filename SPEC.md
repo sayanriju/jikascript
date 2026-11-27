@@ -379,7 +379,7 @@ Requirements:
 
 - Static allocation only (no heap allocation).
 - Compile-time known capacity.
-- Runtime logical length (`length`) that changes via `push()` and `pop()`.
+- Runtime logical length (`length`) that changes via `push()`, `pop()`, and `clear()`.
 - Homogeneous element type.
 - Indexed reads/writes.
 - Bounds and capacity checks.
@@ -985,7 +985,7 @@ let v = bus.read(0x3C, 0x00); // addr, reg
 backend supports the default I2C1 mapping `i2c("PC2", "PC1")`; the compiler
 rejects any other mapping.
 
-An i2c object supports exactly three methods:
+An i2c object supports exactly four methods:
 
 - `configure(hz)` sets the bus clock. The default is 100 kHz.
 - `write(addr, reg, value)` writes one byte to a register.
